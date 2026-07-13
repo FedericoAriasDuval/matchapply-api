@@ -1,0 +1,41 @@
+{
+  "name": "matchapply-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MatchApply — API: autenticación con MFA por email, procesamiento de CVs con LLM blindado y paywall free/pro.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node scripts/migrate.js",
+    "test": "node --test test/*.test.js test/ui/*.test.js",
+    "test:e2e": "playwright test",
+    "docs": "node scripts/docs.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.1",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "docx": "^8.5.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.8.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.14",
+    "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.12.0",
+    "stripe": "^16.8.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}

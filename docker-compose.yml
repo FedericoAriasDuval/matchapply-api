@@ -1,0 +1,46 @@
+# Levanta TODO (Postgres + API + web) con un solo comando:
+#   docker compose up --build
+#
+#   API   → http://localhost:8080/health
+#   Web   → http://localhost:5173
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: matchapply
+      POSTGRES_PASSWORD: matchapply
+      POSTGRES_DB: matchapply
+    ports: ['5432:5432']
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U matchapply']
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: .
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      APP_URL: http://localhost:5173
+      DATABASE_URL: postgres://matchapply:matchapply@db:5432/matchapply
+      PGSSL: 'false'
+      JWT_SECRET: dev-secret-cambiar-en-produccion-0123456789abcdef0123456789abcdef
+      # Sin SMTP: el código de verificación se imprime en los logs de este contenedor.
+      # Con ANTHROPIC_API_KEY, /cv/parse usa el LLM real; sin ella responde 503 y el front sigue en modo demo.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: claude-sonnet-5
+    ports: ['8080:8080']
+
+  web:
+    image: nginx:alpine
+    depends_on: [api]
+    ports: ['5173:80']
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+
+volumes:
+  pgdata:
