@@ -1,44 +1,100 @@
 /**
  * src/lib/llm.js
- * Cliente del modelo. Temperatura 0: queremos extracción determinística, no creatividad.
+ * Cliente del modelo. Temperatura 0: extraccion deterministica, no creatividad.
+ *
+ * BLINDAJE PARA EL LANZAMIENTO
+ *   - timeout duro con AbortController: una llamada colgada es un slot muerto.
+ *   - reintento con backoff exponencial + jitter, solo en errores transitorios.
+ *   - circuit breaker: si el proveedor se cayo, fallamos RAPIDO en vez de hacer
+ *     esperar 30 segundos a cada uno de los que estan en la fila.
+ *   - fallback opcional al motor local: la app degrada, no se rompe.
+ *
+ * La regla que gobierna este archivo: un error del proveedor de IA nunca puede
+ * convertirse en un error del usuario.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import { HttpError } from '../middleware/errors.js';
 import { JsonExtractError, extractJson } from './json.js';
+import { llmBreaker } from './breaker.js';
 
 export { extractJson } from './json.js';
 
-const client = config.llm.enabled ? new Anthropic({ apiKey: config.llm.apiKey }) : null;
+const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 30000);
+const MAX_RETRIES = 2;
 
-export const completeJson = async ({ system, user, maxTokens = config.llm.maxTokens }) => {
-  if (!client) throw new HttpError(503, 'llm_disabled', 'El servicio de IA no está configurado.');
+const client = config.llm.enabled
+  ? new Anthropic({ apiKey: config.llm.apiKey, maxRetries: 0 })
+  : null;
 
-  const attempt = async () => {
-    const res = await client.messages.create({
-      model: config.llm.model,
-      max_tokens: maxTokens,
-      temperature: 0,
-      system,
-      messages: [
-        { role: 'user', content: user },
-        { role: 'assistant', content: '{' }, // prefill: fuerza el arranque del JSON
-      ],
-    });
+/* 429 y 5xx son transitorios: reintentar sirve. Un 400 es culpa nuestra: no. */
+const isTransient = (e) => {
+  const s = e?.status ?? e?.response?.status;
+  return s === 429 || (s >= 500 && s < 600) || e?.name === 'AbortError' || e?.code === 'ECONNRESET';
+};
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* Backoff exponencial CON jitter. Sin el jitter, todos los reintentos caen en el
+   mismo milisegundo y le pegan al proveedor con un pico sincronizado (thundering
+   herd): una caida corta se convierte en una caida larga. */
+const backoff = (attempt) => 400 * 2 ** attempt + Math.floor(Math.random() * 250);
+
+const callOnce = async ({ system, user, maxTokens }) => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await client.messages.create(
+      {
+        model: config.llm.model,
+        max_tokens: maxTokens,
+        temperature: 0,
+        system,
+        messages: [
+          { role: 'user', content: user },
+          { role: 'assistant', content: '{' },
+        ],
+      },
+      { signal: ctrl.signal },
+    );
     const text = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
     return extractJson(`{${text}`);
-  };
-
-  try {
-    return await attempt();
-  } catch (e) {
-    if (e instanceof JsonExtractError) throw new HttpError(502, 'llm_bad_output', e.message);
-    await new Promise((r) => setTimeout(r, 700));
-    try {
-      return await attempt();
-    } catch (e2) {
-      if (e2 instanceof JsonExtractError) throw new HttpError(502, 'llm_bad_output', e2.message);
-      throw new HttpError(502, 'llm_unavailable', 'La IA no está disponible en este momento.');
-    }
+  } finally {
+    clearTimeout(timer);
   }
 };
+
+export const completeJson = async ({ system, user, maxTokens = config.llm.maxTokens, fallback }) => {
+  if (!client) {
+    if (fallback) return fallback();
+    throw new HttpError(503, 'llm_disabled', 'El servicio de IA no esta configurado.');
+  }
+
+  const attemptAll = async () => {
+    let lastErr;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        return await callOnce({ system, user, maxTokens });
+      } catch (e) {
+        lastErr = e;
+        if (e instanceof JsonExtractError) throw new HttpError(502, 'llm_bad_output', e.message);
+        if (!isTransient(e) || attempt === MAX_RETRIES) break;
+        await sleep(backoff(attempt));
+      }
+    }
+    const timedOut = lastErr?.name === 'AbortError';
+    throw new HttpError(
+      timedOut ? 504 : 502,
+      timedOut ? 'llm_timeout' : 'llm_unavailable',
+      'La IA no esta disponible en este momento.',
+    );
+  };
+
+  return llmBreaker.run(attemptAll, fallback);
+};
+
+export const llmHealth = () => ({
+  enabled: config.llm.enabled,
+  timeoutMs: TIMEOUT_MS,
+  breaker: llmBreaker.snapshot(),
+});
