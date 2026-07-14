@@ -22,3 +22,7 @@ export const codeLimiter = rateLimit(opts(10 * 60_000, 12, 'code_rate_limited'))
 
 /** Endpoints de IA: 30 llamadas por IP cada 5 minutos (la cuota real es por usuario). */
 export const aiLimiter = rateLimit(opts(5 * 60_000, 30, 'ai_rate_limited'));
+
+/* Resenas: 5 cada 10 minutos por IP. Suficiente para que alguien deje la suya y
+   corrija; insuficiente para inundarnos el feedback y ensuciar el resumen. */
+export const reviewLimiter = rateLimit(opts(10 * 60_000, 5, 'review_rate_limited'));
