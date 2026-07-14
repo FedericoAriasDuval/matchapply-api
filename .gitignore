@@ -1,0 +1,48 @@
+# =====================================================================
+#  Lo que NUNCA sube a GitHub.
+#
+#  Regla de oro: si un archivo tiene una credencial, no entra aca — entra en
+#  las Environment Variables de Render. Un secreto que llego a un commit no se
+#  borra: queda en el historial para siempre. Si pasa, hay que ROTARLO (generar
+#  uno nuevo), no borrar el commit.
+# =====================================================================
+
+# ---- secretos ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+
+# ---- dependencias ----
+node_modules/
+
+# ---- artefactos y basura ----
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+dist/
+build/
+tmp/
+*.tgz
+
+# ---- Playwright ----
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# ---- sistema operativo / editores ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ---- subidas: son CVs de gente real. Nunca al repo. ----
+uploads/

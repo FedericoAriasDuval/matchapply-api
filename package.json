@@ -13,7 +13,9 @@
     "migrate": "node scripts/migrate.js",
     "test": "node --test test/*.test.js test/ui/*.test.js",
     "test:e2e": "playwright test",
-    "docs": "node scripts/docs.js"
+    "docs": "node scripts/docs.js",
+    "feedback": "node scripts/feedback.js",
+    "check:secrets": "node scripts/check-secrets.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.1",
