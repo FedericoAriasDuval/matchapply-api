@@ -13,6 +13,8 @@ import { CvValidationError, sanitizeCv } from '../lib/cvSchema.js';
 import { extractText } from '../lib/extract.js';
 import { cvCache } from '../lib/cache.js';
 import { safeFilename, validateUpload } from '../lib/upload.js';
+import { cvQueue } from '../lib/queue.js';
+import { decryptJson, decryptText, encryptJson, encryptText } from '../lib/crypto.js';
 import { renderCvPdf } from '../lib/pdf.js';
 import { renderCvDocx } from '../lib/docx.js';
 
@@ -23,6 +25,8 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024, files: 1 },
 });
 
+/* El hash se calcula sobre el texto PLANO, antes de cifrar. Es lo que permite
+   deduplicar y usar la caché sin tener que descifrar nada. */
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -65,8 +69,18 @@ const getQuota = async (user) => {
  * El modelo NO recibe identidad de la cuenta (ver buildUserMessage): el nombre
  * solo puede salir del texto del CV.
  */
+/*
+ * Dos capas antes de tocar al LLM, y el orden importa:
+ *
+ *   1. CACHÉ: si ese CV exacto ya se procesó, se devuelve al instante. Además
+ *      deduplica llamadas concurrentes idénticas (dos pestañas, doble clic).
+ *   2. COLA: recién si hay que llamar de verdad al modelo, se pide un turno.
+ *
+ * Al revés estaría mal: haríamos hacer fila a alguien para entregarle algo que
+ * ya teníamos guardado.
+ */
 const structureCv = async (sourceText) =>
-  cvCache.wrap(`cv:${sha256(sourceText)}`, () => structureCvUncached(sourceText));
+  cvCache.wrap(`cv:${sha256(sourceText)}`, () => cvQueue.run(() => structureCvUncached(sourceText)));
 
 /** Llamada real al modelo. La caché de arriba deduplica pedidos idénticos y concurrentes. */
 const structureCvUncached = async (sourceText) => {
@@ -85,17 +99,24 @@ const structureCvUncached = async (sourceText) => {
 };
 
 const saveCv = async (userId, sourceText, data, lang, title = 'CV') => {
-  const hash = sha256(sourceText);
+  const hash = sha256(sourceText); // sobre el texto plano: deduplica sin descifrar
   const { rows } = await query(
     `insert into cv_documents (user_id, title, source_text, source_hash, lang, data)
      values ($1, $2, $3, $4, $5, $6)
      on conflict (user_id, source_hash)
        do update set data = excluded.data, lang = excluded.lang, edited = false, updated_at = now()
      returning id, title, lang, data, edited, updated_at`,
-    [userId, title, sourceText, hash, lang, data],
+    /* El CV entra a la base CIFRADO (AES-256-GCM). Un dump de Postgres, un backup
+       filtrado o alguien con acceso a la consola ven bytes, no la vida laboral de
+       una persona. Es lo que sostiene la promesa que hicimos en la web. */
+    [userId, title, encryptText(sourceText), hash, lang, encryptJson(data)],
   );
-  return rows[0];
+  const row = rows[0];
+  return { ...row, data: decryptJson(row.data) };
 };
+
+/** Toda lectura de la base pasa por acá: nadie lee `data` crudo. */
+const readCvRow = (row) => (row ? { ...row, data: decryptJson(row.data), source_text: undefined } : row);
 
 // ---------------------------------------------------------------------------
 // POST /cv/parse — sube un archivo o manda texto; devuelve el CV estructurado

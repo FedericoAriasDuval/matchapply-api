@@ -12,6 +12,7 @@ import {
 import { authenticate } from '../middleware/auth.js';
 import { codeLimiter, loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
 import { badRequest, forbidden, tooMany, unauthorized } from '../middleware/errors.js';
+import { attachReferral, creditReferral } from './referrals.js';
 
 export const authRouter = Router();
 
@@ -36,6 +37,9 @@ const signupSchema = z.object({
   password: z.string().min(1).max(128),
   passwordConfirm: z.string().min(1).max(128),
   isDiscoverable: z.boolean().optional().default(false),
+  // El codigo de invitacion. Opcional y tolerante: si viene roto, la persona se
+  // registra igual. Nadie se queda afuera por un link mal pegado.
+  ref: z.string().trim().max(16).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -88,6 +92,19 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
         [email, body.name, passwordHash, body.isDiscoverable],
       );
       user = rows[0];
+    }
+
+    /* La invitacion se ANOTA aca (no se paga): el pago llega cuando verifica el
+       email, en POST /auth/verify. Si algo falla, el registro sigue: el
+       programa de referidos no puede ser el motivo por el que alguien no puede
+       crear una cuenta. */
+    if (body.ref) {
+      try {
+        const r = await attachReferral(user.id, body.ref);
+        if (r.attached) await audit(req, 'referral_attached', { userId: user.id, code: body.ref });
+      } catch (e) {
+        console.error('[referrals] attach fallo en signup', { userId: user.id, err: e.message });
+      }
     }
 
     const { code } = await issueCode(user.id, 'signup');
@@ -143,11 +160,27 @@ authRouter.post('/verify', codeLimiter, async (req, res, next) => {
       return u[0];
     });
 
+    /* ACA se paga el referido, y no antes.
+       Si pagaramos al hacer clic en el link, el programa no conseguiria
+       usuarios: conseguiria cuentas falsas. Un email verificado es la barrera
+       mas barata que separa a una persona de un script.
+
+       Va FUERA de la transaccion de arriba a proposito: si el credito falla,
+       la cuenta igual queda verificada. Nadie se puede quedar sin poder entrar
+       porque nuestro programa de referidos tuvo un mal dia. */
+    let referral = null;
+    try {
+      const r = await creditReferral(verified.id);
+      if (r.credited) referral = { sims: r.sims };
+    } catch (e) {
+      console.error('[referrals] no se pudo acreditar', { userId: verified.id, err: e.message });
+    }
+
     const refresh = await createSession(verified.id, req);
     setAuthCookies(res, { access: signAccessToken(verified), refresh });
     await audit(req, 'verify_ok', { userId: verified.id, email: verified.email });
 
-    res.json({ user: publicUser(verified) });
+    res.json({ user: publicUser(verified), referral });
   } catch (e) {
     next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Código inválido.') : e);
   }
