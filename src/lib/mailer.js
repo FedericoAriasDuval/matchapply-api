@@ -21,7 +21,7 @@ const template = ({ name, code, minutes }) => `
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:480px;background:#fff;border:1px solid #dbe2ec;border-radius:4px;padding:34px 34px 28px">
         <tr><td>
-          <div style="font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#0b5fff;font-weight:700;margin-bottom:14px">MatchApply</div>
+          <div style="font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#0b5fff;font-weight:700;margin-bottom:14px">Mavante</div>
           <h1 style="margin:0 0 10px;font-size:23px;letter-spacing:-.02em">Verificá tu email</h1>
           <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:#4b5565">
             Hola ${escape(name)}, usá este código para activar tu cuenta. Vence en ${minutes} minutos.
@@ -33,13 +33,13 @@ const template = ({ name, code, minutes }) => `
             </div>
           </div>
           <p style="margin:0;font-size:12px;line-height:1.6;color:#8a93a5">
-            Si no creaste una cuenta en MatchApply, ignorá este mensaje: sin el código, nadie puede activarla.
+            Si no creaste una cuenta en Mavante, ignorá este mensaje: sin el código, nadie puede activarla.
             Nunca te vamos a pedir este código por teléfono, chat ni redes.
           </p>
         </td></tr>
       </table>
       <p style="max-width:480px;margin:16px auto 0;font-size:11px;color:#9aa3b2;text-align:center">
-        MatchApply · ${escape(config.appUrl)}
+        Mavante · ${escape(config.appUrl)}
       </p>
     </td></tr>
   </table>
@@ -59,7 +59,7 @@ export const sendVerificationEmail = async ({ to, name, code }) => {
   await transporter.sendMail({
     from: config.mail.from,
     to,
-    subject: `${code} es tu código de verificación de MatchApply`,
+    subject: `${code} es tu código de verificación de Mavante`,
     text: `Hola ${name}. Tu código de verificación es ${code}. Vence en ${minutes} minutos.`,
     html: template({ name, code, minutes }),
   });

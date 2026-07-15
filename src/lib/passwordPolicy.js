@@ -14,7 +14,7 @@ export const PASSWORD_RULES = [
 /** Contraseñas comunes: se rechazan aunque cumplan el patrón. */
 const BLOCKLIST = new Set([
   'password1!', 'password123!', 'admin1234!', 'qwerty123!', 'welcome1!',
-  'matchapply1!', 'contraseña1!', 'passw0rd!', 'abcd1234!', 'iloveyou1!',
+  'mavante1!', 'contraseña1!', 'passw0rd!', 'abcd1234!', 'iloveyou1!',
 ]);
 
 /** @returns {{ok: boolean, failed: string[], score: number}} */

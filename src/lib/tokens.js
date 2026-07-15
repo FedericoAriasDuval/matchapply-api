@@ -10,11 +10,11 @@ export const signAccessToken = (user) =>
   jwt.sign(
     { sub: user.id, email: user.email, tier: user.tier, verified: user.is_verified },
     config.auth.jwtSecret,
-    { expiresIn: config.auth.accessTtl, issuer: 'matchapply', audience: 'matchapply-web' },
+    { expiresIn: config.auth.accessTtl, issuer: 'mavante', audience: 'mavante-web' },
   );
 
 export const verifyAccessToken = (token) =>
-  jwt.verify(token, config.auth.jwtSecret, { issuer: 'matchapply', audience: 'matchapply-web' });
+  jwt.verify(token, config.auth.jwtSecret, { issuer: 'mavante', audience: 'mavante-web' });
 
 const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex');
 

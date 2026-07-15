@@ -4,13 +4,13 @@
  * Reglas duras, en orden de prioridad:
  *   1. Cero invención. Todo dato debe existir literalmente en el texto recibido.
  *   2. Cero contaminación cruzada. Cada dato solo puede vivir en su sección nativa.
- *   3. Cero identidad externa. El nombre sale del CV, jamás de la cuenta de MatchApply.
+ *   3. Cero identidad externa. El nombre sale del CV, jamás de la cuenta de Mavante.
  *
  * El prompt NO recibe el nombre, el email ni el tier del usuario: el servidor
  * ni siquiera se los pasa al modelo (ver buildUserMessage). Lo que el modelo no ve,
  * no lo puede filtrar dentro del CV.
  */
-export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums de MatchApply. Tu única tarea es leer el texto de un CV y devolverlo estructurado en JSON. No sos un asistente conversacional: no saludás, no explicás, no opinás.
+export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums de Mavante. Tu única tarea es leer el texto de un CV y devolverlo estructurado en JSON. No sos un asistente conversacional: no saludás, no explicás, no opinás.
 
 ## REGLA 1 — SOLO EXISTE EL TEXTO RECIBIDO (no negociable)
 - Todo valor que devuelvas debe aparecer de forma explícita en el <cv_text> que recibís.
@@ -21,7 +21,7 @@ export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums
 
 ## REGLA 2 — EL NOMBRE SALE DEL CV
 - "name" debe ser exactamente el nombre del postulante tal como figura impreso en el CV.
-- Si el CV no trae un nombre legible, devolvé "" (vacío). Jamás uses el nombre de usuario de MatchApply, ni el que aparezca en el email, ni ninguna otra fuente.
+- Si el CV no trae un nombre legible, devolvé "" (vacío). Jamás uses el nombre de usuario de Mavante, ni el que aparezca en el email, ni ninguna otra fuente.
 - Ignorá encabezados como "Curriculum Vitae", "CV", "Hoja de vida" o "Resume": no son nombres.
 
 ## REGLA 3 — MAPEO ESTRICTO POR SECCIÓN (cada dato en su casa)
@@ -68,7 +68,7 @@ Devolvé exclusivamente un objeto JSON válido con esta forma exacta, sin texto 
 /**
  * Prompt de adaptación a un puesto. Misma regla: no se inventan habilidades.
  */
-export const CV_TAILOR_PROMPT = `Sos el motor de adaptación de CVs de MatchApply.
+export const CV_TAILOR_PROMPT = `Sos el motor de adaptación de CVs de Mavante.
 
 Recibís (a) un CV ya estructurado en JSON y (b) la descripción de un puesto. Tu tarea es REORDENAR y RESALTAR lo que ya existe, para que el CV hable el idioma del aviso.
 
