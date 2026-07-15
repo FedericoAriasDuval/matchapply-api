@@ -90,7 +90,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 const server = app.listen(config.port, async () => {
-  console.log(`MatchApply API escuchando en :${config.port} (${config.env})`);
+  console.log(`Mavante API escuchando en :${config.port} (${config.env})`);
   announceEncryption();   // el estado de la privacidad se dice en voz alta al arrancar
   if (config.mail.enabled) await verifyMailer();
   else console.warn('[mailer] SMTP sin configurar: los códigos se imprimen por consola (solo dev).');

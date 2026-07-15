@@ -14,7 +14,7 @@ export const config = {
   // La URL publica de ESTA API. OAuth la usa para armar el redirect_uri, y tiene
   // que ser identica a la que cargues en Google/LinkedIn: si difiere en un
   // caracter, el proveedor rechaza el login.
-  apiUrl: process.env.API_URL ?? 'https://matchapply-api.onrender.com',
+  apiUrl: process.env.API_URL ?? 'https://api.mavante.com',
 
   db: {
     url: required('DATABASE_URL'),
@@ -41,7 +41,7 @@ export const config = {
     port: Number(process.env.SMTP_PORT ?? 465),
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
-    from: process.env.MAIL_FROM ?? 'MatchApply <no-reply@matchapply.com>',
+    from: process.env.MAIL_FROM ?? 'Mavante <no-reply@mavante.com>',
     enabled: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
   },
 
