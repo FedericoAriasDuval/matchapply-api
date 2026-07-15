@@ -11,6 +11,10 @@ export const config = {
   isProd: (process.env.NODE_ENV ?? 'development') === 'production',
   port: Number(process.env.PORT ?? 8080),
   appUrl: process.env.APP_URL ?? 'http://localhost:5173',
+  // La URL publica de ESTA API. OAuth la usa para armar el redirect_uri, y tiene
+  // que ser identica a la que cargues en Google/LinkedIn: si difiere en un
+  // caracter, el proveedor rechaza el login.
+  apiUrl: process.env.API_URL ?? 'https://matchapply-api.onrender.com',
 
   db: {
     url: required('DATABASE_URL'),

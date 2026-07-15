@@ -17,6 +17,7 @@ import { reviewsRouter } from './routes/reviews.js';
 import { statsRouter } from './routes/stats.js';
 import { featuredRouter } from './routes/featured.js';
 import { referralsRouter } from './routes/referrals.js';
+import { oauthRouter } from './routes/oauth.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -75,6 +76,9 @@ app.get('/ready', (_req, res) => {
 });
 
 app.use('/auth', authRouter);
+/* DESPUES de authRouter, y es importante: /auth/:provider es un comodin y se
+   comeria /auth/login, /auth/verify y /auth/resend si fuera primero. */
+app.use('/auth', oauthRouter);
 app.use('/cv', cvRouter);
 app.use('/reviews', reviewsRouter);   // POST publico · GET /summary solo con ADMIN_TOKEN
 app.use('/reviews', featuredRouter);  // GET /reviews/featured: solo testimonios REALES
