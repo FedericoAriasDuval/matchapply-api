@@ -54,6 +54,18 @@ const consumeQuota = async (user) => {
   return { used, limit, left: limit - used };
 };
 
+/* Si la IA fallo, el uso se devuelve. La cuota se cobra ANTES de llamar al
+   modelo (para que nadie sobre el limite gaste LLM), pero un error NUESTRO
+   no puede costarle un uso al usuario: el 16/07 cinco intentos fallidos
+   dejaron una cuenta sin cuota sin haber recibido nada a cambio. */
+const refundQuota = async (user) => {
+  await query(
+    `update usage_daily set cv_adaptations = greatest(cv_adaptations - 1, 0)
+      where user_id = $1 and day = $2`,
+    [user.id, today()],
+  );
+};
+
 const getQuota = async (user) => {
   const limit = user.tier === 'pro' ? config.quota.pro : config.quota.free;
   const { rows } = await query(
@@ -159,7 +171,13 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     }
 
     const quota = await consumeQuota(req.user);
-    const data = await structureCv(sourceText);
+    let data;
+    try {
+      data = await structureCv(sourceText);
+    } catch (e) {
+      await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      throw e;
+    }
     const doc = await saveCv(req.user.id, sourceText, data, lang);
 
     /* PAYWALL: lo Pro es EDITAR el CV a mano (PUT /cv/:id) y el DOCX.
@@ -294,10 +312,16 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
     const quota = await consumeQuota(req.user);
-    const out = await completeJson({
-      system: CV_TAILOR_PROMPT,
-      user: buildTailorMessage(doc.data, jobDescription),
-    });
+    let out;
+    try {
+      out = await completeJson({
+        system: CV_TAILOR_PROMPT,
+        user: buildTailorMessage(doc.data, jobDescription),
+      });
+    } catch (e) {
+      await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      throw e;
+    }
 
     const tailored = sanitizeCv(out.cv ?? {});
     const editable = req.user.tier === 'pro';
