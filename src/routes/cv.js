@@ -94,7 +94,7 @@ const getQuota = async (user) => {
 const structureCv = async (sourceText, lang) =>
   /* El idioma forma parte de la clave: el mismo CV pedido en es y en en son
      DOS resultados distintos (el modelo traduce el contenido al idioma pedido). */
-  cvCache.wrap(`cv:${lang}:${sha256(sourceText)}`, () => cvQueue.run(() => structureCvUncached(sourceText, lang)));
+  cvCache.wrap(`cv:v2:${lang}:${sha256(sourceText)}`, () => cvQueue.run(() => structureCvUncached(sourceText, lang)));
 
 /** Llamada real al modelo. La caché de arriba deduplica pedidos idénticos y concurrentes. */
 const structureCvUncached = async (sourceText, lang) => {
@@ -115,8 +115,10 @@ const structureCvUncached = async (sourceText, lang) => {
 const saveCv = async (userId, sourceText, data, lang, title = 'CV') => {
   /* El idioma entra a la huella: el mismo CV pedido en es y en en son dos
      documentos distintos (el contenido se traduce). Sigue siendo sobre texto
-     plano: deduplica sin descifrar. */
-  const hash = sha256(`${lang}\n${sourceText}`);
+     plano: deduplica sin descifrar. El prefijo v2 invalida los resultados de
+     la era pre-traduccion/pre-primera-persona (16/07): cambia el prefijo si
+     el prompt cambia de forma que los resultados guardados queden obsoletos. */
+  const hash = sha256(`v2:${lang}\n${sourceText}`);
   const { rows } = await query(
     `insert into cv_documents (user_id, title, source_text, source_hash, lang, data)
      values ($1, $2, $3, $4, $5, $6)
@@ -156,7 +158,7 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     /* si el usuario ya subió este mismo CV, no se vuelve a llamar al modelo ni se consume cuota */
     const { rows: cached } = await query(
       `select id, lang, data, edited from cv_documents where user_id = $1 and source_hash = $2`,
-      [req.user.id, sha256(`${lang}\n${sourceText}`)],   // misma huella lang+texto que saveCv
+      [req.user.id, sha256(`v2:${lang}\n${sourceText}`)],   // misma huella version+lang+texto que saveCv
     );
     /* La cache de la base solo vale si es el MISMO idioma: el contenido se
        traduce al idioma pedido, asi que cambiar de idioma re-procesa. */
