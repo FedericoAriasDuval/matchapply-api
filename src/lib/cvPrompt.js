@@ -111,7 +111,9 @@ export const buildUserMessage = (cvText, lang = 'es') => {
     `NO traduzcas: nombres propios de personas, empresas e instituciones, nombres de ` +
     `tecnologías y herramientas (Python, Power BI, Excel), certificaciones con nombre ` +
     `oficial, emails ni URLs. Traducir no es reescribir: no agregues, quites ni exageres ` +
-    `información. Respondé solo con el JSON.`
+    `información. Los logros de experiencia van en primera persona del singular y sin ` +
+    `pronombre, como se estila en un CV: en español "Apoyé", "Desarrollé", "Guié" — nunca ` +
+    `tercera persona como "Apoyó". Respondé solo con el JSON.`
   );
 };
 
