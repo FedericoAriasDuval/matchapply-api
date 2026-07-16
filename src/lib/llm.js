@@ -83,6 +83,16 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
       }
     }
     const timedOut = lastErr?.name === 'AbortError';
+    /* El error REAL del proveedor va al log. Sin esta linea, el 502 esconde si
+       fue clave invalida (401), modelo inexistente (404), credito agotado (400)
+       o proveedor caido (5xx) — y el diagnostico se vuelve adivinanza. La clave
+       no se loguea jamas: solo status, tipo y mensaje. */
+    console.error(
+      '[llm] fallo real:',
+      lastErr?.status ?? lastErr?.response?.status ?? '?',
+      lastErr?.error?.error?.type ?? lastErr?.name ?? '?',
+      String(lastErr?.message ?? '').slice(0, 300),
+    );
     throw new HttpError(
       timedOut ? 504 : 502,
       timedOut ? 'llm_timeout' : 'llm_unavailable',
@@ -95,6 +105,7 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
 
 export const llmHealth = () => ({
   enabled: config.llm.enabled,
+  model: config.llm.model,   // el modelo en uso, visible: un LLM_MODEL viejo en el env se detecta mirando /health
   timeoutMs: TIMEOUT_MS,
   breaker: llmBreaker.snapshot(),
 });
