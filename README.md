@@ -1,10 +1,10 @@
-# MatchApply — Monorepo (API + Web)
+# Mavante — Monorepo (API + Web)
 
 Producto para quien busca empleo: puntúa ofertas, adapta el CV a cada búsqueda y prepara la entrevista.
 Este repo contiene el **backend de producción** (Node + Postgres) y el **frontend** (single-page estático).
 
 ```
-matchapply/
+mavante/
 ├── db/
 │   └── 001_init.sql              # esquema: users, verification_codes, sessions, cv_documents, usage_daily…
 ├── scripts/

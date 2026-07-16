@@ -7,13 +7,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: matchapply
-      POSTGRES_PASSWORD: matchapply
-      POSTGRES_DB: matchapply
+      POSTGRES_USER: mavante
+      POSTGRES_PASSWORD: mavante
+      POSTGRES_DB: mavante
     ports: ['5432:5432']
     volumes: ['pgdata:/var/lib/postgresql/data']
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U matchapply']
+      test: ['CMD-SHELL', 'pg_isready -U mavante']
       interval: 3s
       timeout: 3s
       retries: 15
@@ -26,7 +26,7 @@ services:
       NODE_ENV: development
       PORT: 8080
       APP_URL: http://localhost:5173
-      DATABASE_URL: postgres://matchapply:matchapply@db:5432/matchapply
+      DATABASE_URL: postgres://mavante:mavante@db:5432/mavante
       PGSSL: 'false'
       JWT_SECRET: dev-secret-cambiar-en-produccion-0123456789abcdef0123456789abcdef
       # Sin SMTP: el código de verificación se imprime en los logs de este contenedor.

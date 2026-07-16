@@ -1,12 +1,12 @@
 # Integración del frontend con la API
 
-El `index.html` de MatchApply es autosuficiente: sin backend funciona en modo demo
+El `index.html` de Mavante es autosuficiente: sin backend funciona en modo demo
 (simulación local). Al cargar `api-client.js` y definir `MA_API_BASE`, los mismos
 puntos de entrada pasan a hablar con la API real, sin tocar la UI.
 
 ```html
 <!-- al final del <body>, antes de </body> -->
-<script>window.MA_API_BASE = 'https://api.matchapply.com';</script>
+<script>window.MA_API_BASE = 'https://api.mavante.com';</script>
 <script src="/api-client.js"></script>
 ```
 

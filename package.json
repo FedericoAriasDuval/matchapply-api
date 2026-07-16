@@ -1,9 +1,9 @@
 {
-  "name": "matchapply-api",
+  "name": "mavante-api",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "MatchApply — API: autenticación con MFA por email, procesamiento de CVs con LLM blindado y paywall free/pro.",
+  "description": "Mavante — API: autenticación con MFA por email, procesamiento de CVs con LLM blindado y paywall free/pro.",
   "engines": {
     "node": ">=20"
   },

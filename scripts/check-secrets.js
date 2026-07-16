@@ -28,8 +28,8 @@ const PATRONES = [
   ['Credencial de AWS',    /\bAKIA[0-9A-Z]{16}\b/],
   ['Clave privada',        /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
   // Una URL de Postgres con password real. La local de docker-compose
-  // (matchapply:matchapply@db) queda fuera: es de juguete y no da acceso a nada.
-  ['Cadena de Postgres',   /postgres(?:ql)?:\/\/(?!matchapply:matchapply@db)[^\s'"]+:[^\s'"@]+@[^\s'"]+\.[a-z]{2,}/i],
+  // (mavante:mavante@db) queda fuera: es de juguete y no da acceso a nada.
+  ['Cadena de Postgres',   /postgres(?:ql)?:\/\/(?!mavante:mavante@db)[^\s'"]+:[^\s'"@]+@[^\s'"]+\.[a-z]{2,}/i],
 ];
 
 let fallas = 0, revisados = 0;

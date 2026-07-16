@@ -1,5 +1,5 @@
 -- =====================================================================
--- MatchApply — esquema inicial
+-- Mavante — esquema inicial
 -- Postgres 14+. Ejecutar con: npm run migrate
 -- =====================================================================
 create extension if not exists "pgcrypto";           -- gen_random_uuid()

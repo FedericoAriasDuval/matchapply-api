@@ -3,4 +3,35 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://api.matchapply.com; frame-ancestors 'none'
+
+# ---------------------------------------------------------------------------
+# La CSP estaba aca y la saque el 16/07, cuatro dias antes del lanzamiento.
+# No es prudencia: la medi contra el sitio en vivo y rompe cosas.
+#
+# La CSP decia:
+#   script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com
+#
+# Y mavante.com carga HOY, verificado con performance.getEntriesByType:
+#   - https://static.cloudflareinsights.com/beacon.min.js  <- NO esta en la lista
+#   - https://fonts.googleapis.com                          <- ok, style-src
+#   - https://api.mavante.com                               <- ok, connect-src
+#
+# O sea: la CSP bloquea el analytics que Cloudflare Pages inyecta solo.
+# Ademas 'connect-src' solo permite api.mavante.com: el dia que WL_ENDPOINT
+# apunte a Formspree, la waitlist deja de funcionar en silencio. Y jsPDF se
+# carga tarde desde cdnjs (solo al exportar PDF), asi que esa parte de la CSP
+# no se probo nunca en produccion.
+#
+# Las 4 cabeceras de arriba son cero riesgo y tapan el agujero real: sin
+# X-Frame-Options cualquiera puede meter Mavante en un iframe invisible.
+#
+# PARA VOLVER A PONER LA CSP (despues del lunes, con tiempo de probar):
+#   default-src 'self';
+#   script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com;
+#   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+#   font-src 'self' https://fonts.gstatic.com;
+#   img-src 'self' data:;
+#   connect-src 'self' https://api.mavante.com;   <- sumar el destino de la waitlist
+#   frame-ancestors 'none'
+# Y probarla ANTES en el dominio .pages.dev, no en mavante.com.
+# ---------------------------------------------------------------------------

@@ -110,7 +110,7 @@ export const boot = ({ profile = '', storage = {}, absent = ['authBody'] } = {})
       setItem: (k, v) => { storage[k] = String(v); },
       removeItem: (k) => { delete storage[k]; },
     },
-    location: { hash: '', origin: 'https://matchapply.test', pathname: '/' },
+    location: { hash: '', search: '', origin: 'https://mavante.test', pathname: '/', href: 'https://mavante.test/' },
     history: { replaceState() {} },
     setTimeout,
     clearTimeout,
@@ -121,7 +121,8 @@ export const boot = ({ profile = '', storage = {}, absent = ['authBody'] } = {})
     console: { log() {}, warn() {}, error() {}, debug() {} },
     Blob: function Blob() {},
     URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
-    Promise, JSON, Math, Date, RegExp, encodeURIComponent, indexedDB: undefined,
+    Promise, JSON, Math, Date, RegExp, encodeURIComponent, decodeURIComponent, indexedDB: undefined,
+    URLSearchParams, TextEncoder, TextDecoder, fetch: () => Promise.reject(new Error('sin red en los tests')),
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);

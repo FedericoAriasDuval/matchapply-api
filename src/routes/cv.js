@@ -150,10 +150,10 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
         cached: true,
         quota: await getQuota(req.user),
         warnings: cached[0].data.warnings ?? [],
-        cv: editable ? cached[0].data : undefined,
-        preview: editable
-          ? undefined
-          : { name: cached[0].data.name, downloadPdf: `/cv/${cached[0].id}/export?format=pdf` },
+        /* Toda cuenta recibe el CV estructurado: es lo que hace que el
+           diagnóstico salga bien. Lo Pro es EDITARLO (PUT) y el DOCX. */
+        cv: cached[0].data,
+        preview: { name: cached[0].data.name, downloadPdf: `/cv/${cached[0].id}/export?format=pdf` },
       });
     }
 
@@ -161,7 +161,9 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     const data = await structureCv(sourceText);
     const doc = await saveCv(req.user.id, sourceText, data, lang);
 
-    // PAYWALL: el JSON editable es exclusivo de Pro.
+    /* PAYWALL: lo Pro es EDITAR el CV a mano (PUT /cv/:id) y el DOCX.
+       El JSON estructurado va a toda cuenta: sin él, el cliente cae al
+       motor local de regex y el diagnóstico sale mal ubicado. */
     const editable = req.user.tier === 'pro';
     res.json({
       id: doc.id,
@@ -169,19 +171,17 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       editable,
       quota,
       warnings: data.warnings,
-      cv: editable ? data : undefined,
-      preview: editable
-        ? undefined
-        : {
-            name: data.name,
-            sections: {
-              experience: data.experience.length,
-              education: data.education.length,
-              skills: data.skills.length,
-            },
-            downloadPdf: `/cv/${doc.id}/export?format=pdf`,
-            upgradeHint: 'Editar el CV a mano es una función Pro.',
-          },
+      cv: data,
+      preview: {
+        name: data.name,
+        sections: {
+          experience: data.experience.length,
+          education: data.education.length,
+          skills: data.skills.length,
+        },
+        downloadPdf: `/cv/${doc.id}/export?format=pdf`,
+        ...(editable ? {} : { upgradeHint: 'Editar el CV a mano es una función Pro.' }),
+      },
     });
   } catch (e) {
     next(e);
@@ -206,8 +206,8 @@ cvRouter.get('/:id', authenticate, async (req, res, next) => {
       lang: doc.lang,
       edited: doc.edited,
       editable,
-      cv: editable ? doc.data : undefined,
-      preview: editable ? undefined : { name: doc.data.name, downloadPdf: `/cv/${doc.id}/export?format=pdf` },
+      cv: doc.data,   // toda cuenta ve su CV estructurado; editar sigue siendo Pro
+      preview: { name: doc.data.name, downloadPdf: `/cv/${doc.id}/export?format=pdf` },
     });
   } catch (e) {
     next(e);
@@ -268,7 +268,7 @@ cvRouter.get('/:id/export', authenticate, async (req, res, next) => {
         ? 'application/pdf'
         : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
-    res.setHeader('Content-Disposition', `attachment; filename="${safeName}_MatchApply.${format}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}_Mavante.${format}"`);
     res.send(file);
   } catch (e) {
     next(e);

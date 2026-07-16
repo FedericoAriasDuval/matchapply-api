@@ -34,7 +34,7 @@ export const authenticate = async (req, _res, next) => {
 export const requirePro = (req, _res, next) => {
   if (req.user?.tier !== 'pro') {
     return next(
-      forbidden('pro_required', 'Esta función es exclusiva de MatchApply Pro.', { upgrade: true }),
+      forbidden('pro_required', 'Esta función es exclusiva de Mavante Pro.', { upgrade: true }),
     );
   }
   next();

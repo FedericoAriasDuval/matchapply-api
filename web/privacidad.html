@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacidad · Mavante</title>
+<meta name="description" content="Qué datos guarda Mavante, por qué, quién los toca y cómo borrarlos. Escrito en castellano, no en jurídico." />
+<link rel="canonical" href="https://mavante.com/privacidad.html" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#fbfbfd; --surface:#fff; --ink:#1d1d1f; --ink-2:#6e6e73;
+    --blue:#0071e3; --border:#d2d2d7; --border-2:#e8e8ed; --navy:#15294d;
+    --amber-soft:#f6efdd; --amber:#9a6a00;
+    --font:'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
+       font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .top{border-bottom:1px solid var(--border-2);background:var(--surface)}
+  .top-in{max-width:760px;margin:0 auto;padding:16px 22px;display:flex;align-items:center;gap:10px}
+  .top a{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink)}
+  .top .mark{width:26px;height:26px}
+  .top strong{font-size:16px;font-weight:700;letter-spacing:-0.02em}
+  .top .back{margin-left:auto;font-size:14px;color:var(--blue);font-weight:600}
+  main{max-width:760px;margin:0 auto;padding:56px 22px 90px}
+  h1{font-size:clamp(30px,5vw,42px);font-weight:800;letter-spacing:-0.035em;
+     line-height:1.1;margin:0 0 10px;max-width:min(20ch,100%);text-wrap:balance}
+  .sub{color:var(--ink-2);margin:0 0 8px;font-size:18px}
+  .date{color:var(--ink-2);font-size:14px;margin:0 0 44px}
+  h2{font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:44px 0 12px;text-wrap:balance}
+  p{margin:0 0 14px}
+  a{color:var(--blue)}
+  table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:15px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border-2);vertical-align:top}
+  th{font-weight:700;background:var(--surface)}
+  .note{background:var(--amber-soft);border-radius:14px;padding:16px 18px;margin:20px 0;font-size:15.5px}
+  .note b{color:var(--amber)}
+  .langs{display:flex;gap:6px;margin:0 0 34px;flex-wrap:wrap}
+  .langs button{border:1px solid var(--border);background:var(--surface);color:var(--ink-2);
+    border-radius:999px;padding:6px 13px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .langs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .foot{margin-top:52px;padding-top:22px;border-top:1px solid var(--border-2);
+        color:var(--ink-2);font-size:14.5px}
+  [data-lang]{display:none}
+  [data-lang].on{display:block}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <a href="/">
+      <span class="mark" id="mark"></span>
+      <strong>Mavante</strong>
+    </a>
+    <a class="back" href="/">← Volver</a>
+  </div>
+</header>
+
+<main>
+  <div class="langs" id="langs"></div>
+
+<!-- ══════════════════════════════ ES ══════════════════════════════ -->
+<section data-lang="es" class="on">
+  <h1>Qué hacemos con tu CV</h1>
+  <p class="sub">Esto no es un contrato. Es la descripción de lo que el sistema hace de verdad.</p>
+  <p class="date">Última actualización: 15 de julio de 2026</p>
+
+  <h2>El diagnóstico gratis no sale de tu navegador</h2>
+  <p>Si pegás tu CV y no tenés cuenta, ese texto <b>no viaja a ningún servidor</b>. El análisis se calcula en tu propia computadora. No lo guardamos porque nunca lo recibimos.</p>
+
+  <h2>Qué guardamos si te hacés una cuenta</h2>
+  <table>
+    <tr><th>Qué</th><th>Para qué</th></tr>
+    <tr><td>Tu email</td><td>Entrar, y mandarte el código de verificación.</td></tr>
+    <tr><td>Tu nombre</td><td>Saludarte y firmar los mails.</td></tr>
+    <tr><td>Tu contraseña</td><td>Guardada como hash. No la tenemos ni podemos leerla.</td></tr>
+    <tr><td>El texto de tu CV</td><td>Generar tu diagnóstico y tu versión mejorada. <b>Cifrado.</b></td></tr>
+    <tr><td>Tus CVs adaptados</td><td>Que los vuelvas a abrir. <b>Cifrados.</b></td></tr>
+    <tr><td>Cuántos análisis hiciste hoy</td><td>El límite del plan gratis. Es un número, no un historial.</td></tr>
+    <tr><td>Tu navegador y fecha de ingreso</td><td>Que puedas cerrar sesiones y detectar entradas raras.</td></tr>
+  </table>
+  <p>El CV se guarda cifrado con AES-256-GCM. La llave vive en el servidor, fuera de la base de datos. Quien consiga una copia de la base sin la llave, lee ruido.</p>
+
+  <h2>Quién toca tu CV además de nosotros</h2>
+  <p>Nadie de Mavante abre tu CV a mano. Pero hay empresas que ponen la infraestructura, y merecen estar nombradas:</p>
+  <table>
+    <tr><th>Quién</th><th>Qué hace</th></tr>
+    <tr><td><b>Anthropic</b></td><td>Analiza el texto de tu CV cuando pedís un análisis con IA. Recibe el texto, no tu email ni tu nombre.</td></tr>
+    <tr><td><b>Neon</b></td><td>La base de datos donde queda tu cuenta y tu CV cifrado.</td></tr>
+    <tr><td><b>Render</b></td><td>El servidor donde corre Mavante.</td></tr>
+    <tr><td><b>Resend</b></td><td>Manda los mails de verificación. Ve tu email, nada más.</td></tr>
+    <tr><td><b>Cloudflare</b></td><td>Sirve la página y el dominio.</td></tr>
+  </table>
+  <p>Ninguna de estas empresas usa tu CV para lo suyo, y ninguna lo tiene para vender. Son cañerías, no clientes.</p>
+
+  <h2>No entrenamos modelos con tu CV</h2>
+  <p>Tu CV se usa para una sola cosa: producir tu resultado. No alimenta ningún modelo, ni el nuestro ni el de nadie.</p>
+
+  <h2>Cuánto tiempo lo guardamos</h2>
+  <p><b>Hasta que lo borres vos.</b> Y eso es literal: hoy no hay borrado automático a los X meses. Si dejás tu cuenta abierta cinco años, tu CV va a estar ahí cinco años. Preferimos decirlo así antes que prometerte una limpieza que no existe.</p>
+  <p>Cuando borrás tu cuenta, se borra todo lo que cuelga de ella: tus CVs, tus sesiones y tus códigos. No queda una copia en otro lado.</p>
+
+  <h2>Tus reseñas</h2>
+  <p>Si nos dejás una reseña, guardamos lo que escribiste y un <b>hash</b> de tu IP — no la IP. Alcanza para detectar a alguien mandando mil reseñas y no alcanza para saber quién sos. Pedirte sinceridad y anotarte la IP al mismo tiempo sería una contradicción.</p>
+
+  <h2>Qué podés pedirnos</h2>
+  <p>Ver lo que tenemos tuyo, corregirlo, llevártelo o borrarlo. Escribinos a <a href="mailto:support@mavante.com">support@mavante.com</a> y lo resolvemos. No hay formulario ni número de ticket: contesta una persona.</p>
+
+  <div class="foot">
+    <p>Mavante · <a href="mailto:support@mavante.com">support@mavante.com</a></p>
+    <p style="margin:0">Responsable de tus datos: Federico Arias Duval, Argentina. Si algo de esta página no se cumple, escribinos: preferimos enterarnos por vos.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ EN ══════════════════════════════ -->
+<section data-lang="en">
+  <h1>What we do with your CV</h1>
+  <p class="sub">This isn't a contract. It's a description of what the system actually does.</p>
+  <p class="date">Last updated: 15 July 2026</p>
+
+  <h2>The free diagnosis never leaves your browser</h2>
+  <p>If you paste your CV without an account, that text <b>never travels to any server</b>. The analysis runs on your own computer. We don't store it because we never receive it.</p>
+
+  <h2>What we store if you create an account</h2>
+  <table>
+    <tr><th>What</th><th>Why</th></tr>
+    <tr><td>Your email</td><td>To let you in, and to send your verification code.</td></tr>
+    <tr><td>Your name</td><td>To greet you and sign our emails.</td></tr>
+    <tr><td>Your password</td><td>Stored as a hash. We don't have it and can't read it.</td></tr>
+    <tr><td>Your CV text</td><td>To produce your diagnosis and improved version. <b>Encrypted.</b></td></tr>
+    <tr><td>Your tailored CVs</td><td>So you can open them again. <b>Encrypted.</b></td></tr>
+    <tr><td>How many analyses you ran today</td><td>The free plan limit. It's a number, not a history.</td></tr>
+    <tr><td>Your browser and sign-in date</td><td>So you can close sessions and spot odd logins.</td></tr>
+  </table>
+  <p>Your CV is stored encrypted with AES-256-GCM. The key lives on the server, outside the database. Anyone who gets a copy of the database without the key reads noise.</p>
+
+  <h2>Who touches your CV besides us</h2>
+  <p>Nobody at Mavante opens your CV by hand. But some companies provide the infrastructure, and they deserve to be named:</p>
+  <table>
+    <tr><th>Who</th><th>What they do</th></tr>
+    <tr><td><b>Anthropic</b></td><td>Analyses your CV text when you request an AI analysis. Receives the text, not your email or name.</td></tr>
+    <tr><td><b>Neon</b></td><td>The database where your account and your encrypted CV live.</td></tr>
+    <tr><td><b>Render</b></td><td>The server Mavante runs on.</td></tr>
+    <tr><td><b>Resend</b></td><td>Sends verification emails. Sees your email address, nothing else.</td></tr>
+    <tr><td><b>Cloudflare</b></td><td>Serves the site and the domain.</td></tr>
+  </table>
+  <p>None of these companies use your CV for their own purposes, and none of them hold it to sell. They're plumbing, not customers.</p>
+
+  <h2>We don't train models on your CV</h2>
+  <p>Your CV is used for one thing: producing your result. It doesn't feed any model, ours or anyone else's.</p>
+
+  <h2>How long we keep it</h2>
+  <p><b>Until you delete it.</b> And that's literal: today there is no automatic deletion after X months. If you leave your account open for five years, your CV will be there for five years. We'd rather say it plainly than promise a cleanup that doesn't exist.</p>
+  <p>When you delete your account, everything attached to it goes: your CVs, your sessions and your codes. No copy sits somewhere else.</p>
+
+  <h2>Your reviews</h2>
+  <p>If you leave a review, we store what you wrote and a <b>hash</b> of your IP — not the IP. That's enough to spot someone sending a thousand reviews and not enough to know who you are. Asking you to be honest while logging your IP would be a contradiction.</p>
+
+  <h2>What you can ask us for</h2>
+  <p>To see what we hold about you, correct it, take it with you, or delete it. Write to <a href="mailto:support@mavante.com">support@mavante.com</a> and we'll sort it out. No form, no ticket number: a person replies.</p>
+
+  <div class="foot">
+    <p>Mavante · <a href="mailto:support@mavante.com">support@mavante.com</a></p>
+    <p style="margin:0">Data controller: Federico Arias Duval, Argentina. If anything on this page isn't true, write to us: we'd rather hear it from you.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ FR ══════════════════════════════ -->
+<section data-lang="fr">
+  <h1>Ce que nous faisons de votre CV</h1>
+  <p class="sub">Ceci n'est pas un contrat. C'est la description de ce que le système fait réellement.</p>
+  <p class="date">Dernière mise à jour : 15 juillet 2026</p>
+
+  <h2>Le diagnostic gratuit ne quitte pas votre navigateur</h2>
+  <p>Si vous collez votre CV sans compte, ce texte <b>ne part vers aucun serveur</b>. L'analyse se calcule sur votre propre ordinateur. Nous ne le stockons pas parce que nous ne le recevons jamais.</p>
+
+  <h2>Ce que nous stockons si vous créez un compte</h2>
+  <table>
+    <tr><th>Quoi</th><th>Pourquoi</th></tr>
+    <tr><td>Votre e-mail</td><td>Pour vous connecter et vous envoyer votre code de vérification.</td></tr>
+    <tr><td>Votre nom</td><td>Pour vous saluer et signer nos e-mails.</td></tr>
+    <tr><td>Votre mot de passe</td><td>Stocké sous forme de hash. Nous ne l'avons pas et ne pouvons pas le lire.</td></tr>
+    <tr><td>Le texte de votre CV</td><td>Produire votre diagnostic et votre version améliorée. <b>Chiffré.</b></td></tr>
+    <tr><td>Vos CV adaptés</td><td>Pour que vous puissiez les rouvrir. <b>Chiffrés.</b></td></tr>
+    <tr><td>Combien d'analyses aujourd'hui</td><td>La limite du plan gratuit. C'est un nombre, pas un historique.</td></tr>
+    <tr><td>Votre navigateur et date de connexion</td><td>Pour fermer des sessions et repérer des connexions étranges.</td></tr>
+  </table>
+  <p>Votre CV est stocké chiffré en AES-256-GCM. La clé vit sur le serveur, hors de la base de données. Quiconque obtient une copie de la base sans la clé ne lit que du bruit.</p>
+
+  <h2>Qui touche à votre CV à part nous</h2>
+  <p>Personne chez Mavante n'ouvre votre CV à la main. Mais des entreprises fournissent l'infrastructure, et elles méritent d'être nommées :</p>
+  <table>
+    <tr><th>Qui</th><th>Ce qu'ils font</th></tr>
+    <tr><td><b>Anthropic</b></td><td>Analyse le texte de votre CV quand vous demandez une analyse par IA. Reçoit le texte, pas votre e-mail ni votre nom.</td></tr>
+    <tr><td><b>Neon</b></td><td>La base de données où vivent votre compte et votre CV chiffré.</td></tr>
+    <tr><td><b>Render</b></td><td>Le serveur sur lequel tourne Mavante.</td></tr>
+    <tr><td><b>Resend</b></td><td>Envoie les e-mails de vérification. Voit votre e-mail, rien d'autre.</td></tr>
+    <tr><td><b>Cloudflare</b></td><td>Sert le site et le domaine.</td></tr>
+  </table>
+  <p>Aucune de ces entreprises n'utilise votre CV pour son compte, et aucune ne le détient pour le vendre. Ce sont des tuyaux, pas des clients.</p>
+
+  <h2>Nous n'entraînons pas de modèles avec votre CV</h2>
+  <p>Votre CV sert à une seule chose : produire votre résultat. Il n'alimente aucun modèle, ni le nôtre ni celui de personne.</p>
+
+  <h2>Combien de temps nous le gardons</h2>
+  <p><b>Jusqu'à ce que vous le supprimiez.</b> Et c'est littéral : aujourd'hui il n'y a pas de suppression automatique au bout de X mois. Si vous laissez votre compte ouvert cinq ans, votre CV sera là cinq ans. Nous préférons le dire ainsi plutôt que de promettre un ménage qui n'existe pas.</p>
+  <p>Quand vous supprimez votre compte, tout ce qui y est rattaché part : vos CV, vos sessions et vos codes. Aucune copie ne reste ailleurs.</p>
+
+  <h2>Vos avis</h2>
+  <p>Si vous laissez un avis, nous stockons ce que vous avez écrit et un <b>hash</b> de votre IP — pas l'IP. Assez pour repérer quelqu'un qui envoie mille avis, pas assez pour savoir qui vous êtes. Vous demander d'être sincère tout en notant votre IP serait une contradiction.</p>
+
+  <h2>Ce que vous pouvez nous demander</h2>
+  <p>Voir ce que nous avons sur vous, le corriger, l'emporter ou le supprimer. Écrivez à <a href="mailto:support@mavante.com">support@mavante.com</a> et on règle ça. Pas de formulaire, pas de numéro de ticket : une personne répond.</p>
+
+  <div class="foot">
+    <p>Mavante · <a href="mailto:support@mavante.com">support@mavante.com</a></p>
+    <p style="margin:0">Responsable du traitement : Federico Arias Duval, Argentine. Si quelque chose sur cette page n'est pas vrai, écrivez-nous : nous préférons l'apprendre de vous.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════ PT ══════════════════════════════ -->
+<section data-lang="pt">
+  <h1>O que fazemos com o seu CV</h1>
+  <p class="sub">Isto não é um contrato. É a descrição do que o sistema realmente faz.</p>
+  <p class="date">Última atualização: 15 de julho de 2026</p>
+
+  <h2>O diagnóstico grátis não sai do seu navegador</h2>
+  <p>Se você cola o seu CV sem ter conta, esse texto <b>não viaja para nenhum servidor</b>. A análise é calculada no seu próprio computador. Não guardamos porque nunca recebemos.</p>
+
+  <h2>O que guardamos se você criar uma conta</h2>
+  <table>
+    <tr><th>O quê</th><th>Para quê</th></tr>
+    <tr><td>Seu e-mail</td><td>Para entrar e enviar seu código de verificação.</td></tr>
+    <tr><td>Seu nome</td><td>Para te cumprimentar e assinar os e-mails.</td></tr>
+    <tr><td>Sua senha</td><td>Guardada como hash. Não a temos nem podemos lê-la.</td></tr>
+    <tr><td>O texto do seu CV</td><td>Gerar seu diagnóstico e sua versão melhorada. <b>Criptografado.</b></td></tr>
+    <tr><td>Seus CVs adaptados</td><td>Para que você possa reabri-los. <b>Criptografados.</b></td></tr>
+    <tr><td>Quantas análises fez hoje</td><td>O limite do plano grátis. É um número, não um histórico.</td></tr>
+    <tr><td>Seu navegador e data de acesso</td><td>Para fechar sessões e detectar entradas estranhas.</td></tr>
+  </table>
+  <p>Seu CV é guardado criptografado com AES-256-GCM. A chave vive no servidor, fora do banco de dados. Quem conseguir uma cópia do banco sem a chave lê ruído.</p>
+
+  <h2>Quem toca no seu CV além de nós</h2>
+  <p>Ninguém da Mavante abre o seu CV na mão. Mas há empresas que fornecem a infraestrutura, e elas merecem ser nomeadas:</p>
+  <table>
+    <tr><th>Quem</th><th>O que faz</th></tr>
+    <tr><td><b>Anthropic</b></td><td>Analisa o texto do seu CV quando você pede uma análise com IA. Recebe o texto, não seu e-mail nem seu nome.</td></tr>
+    <tr><td><b>Neon</b></td><td>O banco de dados onde ficam sua conta e seu CV criptografado.</td></tr>
+    <tr><td><b>Render</b></td><td>O servidor onde a Mavante roda.</td></tr>
+    <tr><td><b>Resend</b></td><td>Envia os e-mails de verificação. Vê seu e-mail, nada mais.</td></tr>
+    <tr><td><b>Cloudflare</b></td><td>Serve a página e o domínio.</td></tr>
+  </table>
+  <p>Nenhuma dessas empresas usa o seu CV para si, e nenhuma o tem para vender. São encanamento, não clientes.</p>
+
+  <h2>Não treinamos modelos com o seu CV</h2>
+  <p>Seu CV serve para uma coisa só: produzir o seu resultado. Não alimenta modelo nenhum, nem o nosso nem o de ninguém.</p>
+
+  <h2>Por quanto tempo guardamos</h2>
+  <p><b>Até você apagar.</b> E isso é literal: hoje não existe apagamento automático depois de X meses. Se você deixar a conta aberta cinco anos, seu CV vai estar lá cinco anos. Preferimos dizer assim a prometer uma limpeza que não existe.</p>
+  <p>Quando você apaga a conta, apaga tudo que está preso a ela: seus CVs, suas sessões e seus códigos. Não fica cópia em outro lugar.</p>
+
+  <h2>Suas avaliações</h2>
+  <p>Se você nos deixa uma avaliação, guardamos o que escreveu e um <b>hash</b> do seu IP — não o IP. Dá para detectar alguém mandando mil avaliações e não dá para saber quem você é. Pedir sinceridade e anotar o IP ao mesmo tempo seria uma contradição.</p>
+
+  <h2>O que você pode pedir</h2>
+  <p>Ver o que temos sobre você, corrigir, levar embora ou apagar. Escreva para <a href="mailto:support@mavante.com">support@mavante.com</a> e a gente resolve. Sem formulário e sem número de ticket: responde uma pessoa.</p>
+
+  <div class="foot">
+    <p>Mavante · <a href="mailto:support@mavante.com">support@mavante.com</a></p>
+    <p style="margin:0">Responsável pelos seus dados: Federico Arias Duval, Argentina. Se algo desta página não for cumprido, escreva: preferimos saber por você.</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+var LOGO = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="96" height="96" rx="22" fill="#15294d"/><path d="M24 70 V33 L38 55 L52 33 V70" fill="none" stroke="#ffffff" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><path d="M55 70 L67 33 L79 70 M60 57 H74" fill="none" stroke="#2f6bff" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><path d="M24 80 Q50 92 76 74" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/><path d="M76 74 l2 8 l-8 -1 z" fill="#ffffff"/><circle cx="50" cy="49" r="6.5" fill="#4d8bff" stroke="#15294d" stroke-width="2"/><path d="M39 66 q11 -13 22 0 z" fill="#4d8bff" stroke="#15294d" stroke-width="2"/></svg>';
+document.getElementById('mark').innerHTML = LOGO;
+(function(){ var l=document.createElement('link'); l.rel='icon';
+  l.href='data:image/svg+xml,'+encodeURIComponent(LOGO); document.head.appendChild(l); })();
+
+/* El selector solo muestra los idiomas que EXISTEN en esta pagina. Un boton
+   "FR" que te lleva a una seccion vacia es peor que no tener boton — es la
+   misma regla que usamos con los botones de Google y LinkedIn. */
+var hay = [].map.call(document.querySelectorAll('[data-lang]'), function(s){ return s.dataset.lang; });
+var NOMBRE = { es:'Español', en:'English', fr:'Français', pt:'Português' };
+var cont = document.getElementById('langs');
+if (hay.length > 1) {
+  hay.forEach(function(l){
+    var b = document.createElement('button');
+    b.textContent = NOMBRE[l] || l;
+    b.className = (l === 'es') ? 'on' : '';
+    b.onclick = function(){
+      document.querySelectorAll('[data-lang]').forEach(function(s){ s.classList.toggle('on', s.dataset.lang === l); });
+      [].forEach.call(cont.children, function(x){ x.classList.toggle('on', x === b); });
+      document.documentElement.lang = l;
+      history.replaceState(null, '', '?lang=' + l);
+    };
+    cont.appendChild(b);
+  });
+  var q = (location.search.match(/lang=([a-z]{2})/) || [])[1];
+  var pref = q || (navigator.language || 'es').slice(0,2);
+  if (hay.indexOf(pref) > -1 && pref !== 'es') {
+    cont.children[hay.indexOf(pref)].click();
+  }
+}
+</script>
+</body>
+</html>

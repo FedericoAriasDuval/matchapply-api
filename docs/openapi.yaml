@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: MatchApply API
+  title: Mavante API
   version: 1.0.0
   description: |
-    API de MatchApply: autenticación con verificación por email (MFA), procesamiento
+    API de Mavante: autenticación con verificación por email (MFA), procesamiento
     de CVs con un modelo blindado (solo usa datos del archivo recibido) y paywall
     free/pro decidido **siempre** en el servidor.
 
@@ -14,7 +14,7 @@ info:
     ## Errores
     Formato uniforme: `{ "error": { "code": "...", "message": "..." } }`
 servers:
-  - url: https://api.matchapply.com
+  - url: https://api.mavante.com
   - url: http://localhost:8080
 
 tags:
@@ -23,7 +23,7 @@ tags:
   - name: cv
     description: Procesamiento, edición (Pro) y exportación de CVs.
   - name: billing
-    description: Suscripción a MatchApply Pro.
+    description: Suscripción a Mavante Pro.
 
 paths:
   /health:

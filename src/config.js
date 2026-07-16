@@ -41,7 +41,11 @@ export const config = {
     port: Number(process.env.SMTP_PORT ?? 465),
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
-    from: process.env.MAIL_FROM ?? 'Mavante <no-reply@mavante.com>',
+    /* support@, no no-reply@. Con cero usuarios cada respuesta es oro: si
+       alguien contesta "no me llego el codigo", tiene que llegarnos. Y nuestra
+       propia pagina dice "del otro lado hay una persona, no un ticket" — un
+       no-reply@ es, literalmente, un ticket. */
+    from: process.env.MAIL_FROM ?? 'Mavante <support@mavante.com>',
     enabled: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
   },
 

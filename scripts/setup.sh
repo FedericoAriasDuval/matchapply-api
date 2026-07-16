@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # =====================================================================
-# MatchApply — instalación en macOS / Linux
-#   Uso:  cd matchapply && bash scripts/setup.sh
+# Mavante — instalación en macOS / Linux
+#   Uso:  cd mavante && bash scripts/setup.sh
 # =====================================================================
 set -euo pipefail
-echo -e "\n=== MatchApply — setup ===\n"
+echo -e "\n=== Mavante — setup ===\n"
 
 command -v node >/dev/null || { echo "Falta Node.js 20+. Instalalo desde https://nodejs.org"; exit 1; }
 major=$(node -v | sed 's/v\([0-9]*\).*/\1/')

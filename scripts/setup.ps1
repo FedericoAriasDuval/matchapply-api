@@ -1,9 +1,9 @@
 # =====================================================================
-# MatchApply — instalación en Windows (PowerShell)
-#   Uso:  cd matchapply ;  ./scripts/setup.ps1
+# Mavante — instalación en Windows (PowerShell)
+#   Uso:  cd mavante ;  ./scripts/setup.ps1
 # =====================================================================
 $ErrorActionPreference = 'Stop'
-Write-Host "`n=== MatchApply — setup ===`n" -ForegroundColor Cyan
+Write-Host "`n=== Mavante — setup ===`n" -ForegroundColor Cyan
 
 # 1) Node
 try {

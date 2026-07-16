@@ -1,4 +1,4 @@
-# API de MatchApply — guía rápida
+# API de Mavante — guía rápida
 
 > Especificación completa: [`docs/openapi.yaml`](./openapi.yaml).
 > Podés abrirla en <https://editor.swagger.io> o servirla con `npx @redocly/cli preview-docs docs/openapi.yaml`.
@@ -55,7 +55,7 @@ La única fuente de verdad del tier es el webhook de Stripe.
 ## Formato de errores
 
 ```json
-{ "error": { "code": "pro_required", "message": "Esta función es exclusiva de MatchApply Pro.", "upgrade": true } }
+{ "error": { "code": "pro_required", "message": "Esta función es exclusiva de Mavante Pro.", "upgrade": true } }
 ```
 
 | Código | Cuándo |
