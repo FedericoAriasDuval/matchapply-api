@@ -91,14 +91,16 @@ const getQuota = async (user) => {
  * Al revés estaría mal: haríamos hacer fila a alguien para entregarle algo que
  * ya teníamos guardado.
  */
-const structureCv = async (sourceText) =>
-  cvCache.wrap(`cv:${sha256(sourceText)}`, () => cvQueue.run(() => structureCvUncached(sourceText)));
+const structureCv = async (sourceText, lang) =>
+  /* El idioma forma parte de la clave: el mismo CV pedido en es y en en son
+     DOS resultados distintos (el modelo traduce el contenido al idioma pedido). */
+  cvCache.wrap(`cv:${lang}:${sha256(sourceText)}`, () => cvQueue.run(() => structureCvUncached(sourceText, lang)));
 
 /** Llamada real al modelo. La caché de arriba deduplica pedidos idénticos y concurrentes. */
-const structureCvUncached = async (sourceText) => {
+const structureCvUncached = async (sourceText, lang) => {
   const raw = await completeJson({
     system: CV_SYSTEM_PROMPT,
-    user: buildUserMessage(sourceText),
+    user: buildUserMessage(sourceText, lang),
   });
   try {
     return sanitizeCv(raw);
@@ -111,7 +113,10 @@ const structureCvUncached = async (sourceText) => {
 };
 
 const saveCv = async (userId, sourceText, data, lang, title = 'CV') => {
-  const hash = sha256(sourceText); // sobre el texto plano: deduplica sin descifrar
+  /* El idioma entra a la huella: el mismo CV pedido en es y en en son dos
+     documentos distintos (el contenido se traduce). Sigue siendo sobre texto
+     plano: deduplica sin descifrar. */
+  const hash = sha256(`${lang}\n${sourceText}`);
   const { rows } = await query(
     `insert into cv_documents (user_id, title, source_text, source_hash, lang, data)
      values ($1, $2, $3, $4, $5, $6)
@@ -151,9 +156,11 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     /* si el usuario ya subió este mismo CV, no se vuelve a llamar al modelo ni se consume cuota */
     const { rows: cached } = await query(
       `select id, lang, data, edited from cv_documents where user_id = $1 and source_hash = $2`,
-      [req.user.id, sha256(sourceText)],
+      [req.user.id, sha256(`${lang}\n${sourceText}`)],   // misma huella lang+texto que saveCv
     );
-    if (cached[0] && !cached[0].edited) {
+    /* La cache de la base solo vale si es el MISMO idioma: el contenido se
+       traduce al idioma pedido, asi que cambiar de idioma re-procesa. */
+    if (cached[0] && !cached[0].edited && cached[0].lang === lang) {
       const doc = readCvRow(cached[0]);   // data viene cifrado de la base: SIEMPRE descifrar antes de usar
       const editable = req.user.tier === 'pro';
       return res.json({
@@ -173,7 +180,7 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     const quota = await consumeQuota(req.user);
     let data;
     try {
-      data = await structureCv(sourceText);
+      data = await structureCv(sourceText, lang);
     } catch (e) {
       await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
       throw e;
