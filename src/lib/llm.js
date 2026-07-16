@@ -1,6 +1,10 @@
 /**
  * src/lib/llm.js
- * Cliente del modelo. Temperatura 0: extraccion deterministica, no creatividad.
+ * Cliente del modelo.
+ *
+ * OJO (16/07/2026): claude-sonnet-5 rechaza con 400 tanto `temperature` como el
+ * prefill de asistente. Por eso aca no se manda ninguno de los dos. El JSON se
+ * garantiza por prompt (cvPrompt exige JSON puro) + extractJson + sanitizeCv.
  *
  * BLINDAJE PARA EL LANZAMIENTO
  *   - timeout duro con AbortController: una llamada colgada es un slot muerto.
@@ -48,17 +52,13 @@ const callOnce = async ({ system, user, maxTokens }) => {
       {
         model: config.llm.model,
         max_tokens: maxTokens,
-        temperature: 0,
         system,
-        messages: [
-          { role: 'user', content: user },
-          { role: 'assistant', content: '{' },
-        ],
+        messages: [{ role: 'user', content: user }],
       },
       { signal: ctrl.signal },
     );
     const text = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
-    return extractJson(`{${text}`);
+    return extractJson(text);
   } finally {
     clearTimeout(timer);
   }
