@@ -142,18 +142,19 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       [req.user.id, sha256(sourceText)],
     );
     if (cached[0] && !cached[0].edited) {
+      const doc = readCvRow(cached[0]);   // data viene cifrado de la base: SIEMPRE descifrar antes de usar
       const editable = req.user.tier === 'pro';
       return res.json({
-        id: cached[0].id,
-        lang: cached[0].lang,
+        id: doc.id,
+        lang: doc.lang,
         editable,
         cached: true,
         quota: await getQuota(req.user),
-        warnings: cached[0].data.warnings ?? [],
+        warnings: doc.data.warnings ?? [],
         /* Toda cuenta recibe el CV estructurado: es lo que hace que el
            diagnóstico salga bien. Lo Pro es EDITARLO (PUT) y el DOCX. */
-        cv: cached[0].data,
-        preview: { name: cached[0].data.name, downloadPdf: `/cv/${cached[0].id}/export?format=pdf` },
+        cv: doc.data,
+        preview: { name: doc.data.name, downloadPdf: `/cv/${doc.id}/export?format=pdf` },
       });
     }
 
@@ -197,7 +198,7 @@ cvRouter.get('/:id', authenticate, async (req, res, next) => {
       `select id, title, lang, data, edited, updated_at from cv_documents where id = $1 and user_id = $2`,
       [req.params.id, req.user.id],
     );
-    const doc = rows[0];
+    const doc = readCvRow(rows[0]);   // descifrar: en la base vive cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
     const editable = req.user.tier === 'pro';
@@ -229,11 +230,12 @@ cvRouter.put('/:id', authenticate, requirePro, async (req, res, next) => {
     const { rows } = await query(
       `update cv_documents set data = $3, edited = true, lang = coalesce($4, lang)
         where id = $1 and user_id = $2
-        returning id, lang, data, edited, updated_at`,
-      [req.params.id, req.user.id, data, req.body?.lang ?? null],
+        returning id, lang, edited, updated_at`,
+      /* La edicion manual tambien entra CIFRADA: misma promesa que el insert. */
+      [req.params.id, req.user.id, encryptJson(data), req.body?.lang ?? null],
     );
     if (!rows[0]) throw badRequest('cv_not_found', 'No encontramos ese CV.');
-    res.json({ id: rows[0].id, cv: rows[0].data, edited: true, updatedAt: rows[0].updated_at });
+    res.json({ id: rows[0].id, cv: data, edited: true, updatedAt: rows[0].updated_at });
   } catch (e) {
     next(e);
   }
@@ -255,7 +257,7 @@ cvRouter.get('/:id/export', authenticate, async (req, res, next) => {
       `select data, lang from cv_documents where id = $1 and user_id = $2`,
       [req.params.id, req.user.id],
     );
-    const doc = rows[0];
+    const doc = readCvRow(rows[0]);   // descifrar antes de sanear: en la base vive cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
     const cv = sanitizeCv(doc.data);
@@ -288,12 +290,13 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
       `select data, lang from cv_documents where id = $1 and user_id = $2`,
       [req.params.id, req.user.id],
     );
-    if (!rows[0]) throw badRequest('cv_not_found', 'No encontramos ese CV.');
+    const doc = readCvRow(rows[0]);   // descifrar: al LLM le llega el JSON, no el cifrado
+    if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
     const quota = await consumeQuota(req.user);
     const out = await completeJson({
       system: CV_TAILOR_PROMPT,
-      user: buildTailorMessage(rows[0].data, jobDescription),
+      user: buildTailorMessage(doc.data, jobDescription),
     });
 
     const tailored = sanitizeCv(out.cv ?? {});
