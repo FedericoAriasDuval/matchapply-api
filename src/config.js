@@ -74,26 +74,32 @@ export const config = {
   },
 
   billing: {
-    /* Proveedor de pago. 'stripe' (legado, NO opera en Argentina) | 'paddle'.
-       Se elige con BILLING_PROVIDER. El plan Pro lo activa SIEMPRE el webhook del
-       proveedor tras cobrar — nunca un clic del usuario. */
+    /* VARIOS métodos pueden coexistir: el usuario elige en el checkout.
+       Cada método se prende solo si tiene sus credenciales. El plan Pro lo
+       activa SIEMPRE el webhook del proveedor tras cobrar — nunca un clic.
+       (BILLING_PROVIDER queda de legado; ya no gatea nada.) */
     provider: (process.env.BILLING_PROVIDER ?? 'stripe').toLowerCase(),
-    // Stripe (legado)
+    // Stripe (legado, no opera en Argentina)
     stripeKey: process.env.STRIPE_SECRET_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     pricePro: process.env.STRIPE_PRICE_PRO,
-    // Paddle (Merchant of Record: cobra global, paga a Argentina)
+    // Paddle — internacional, USD (Merchant of Record)
     paddleApiKey: process.env.PADDLE_API_KEY,
     paddleWebhookSecret: process.env.PADDLE_WEBHOOK_SECRET,
     paddlePriceId: process.env.PADDLE_PRICE_ID,
-    /* Base del checkout hospedado por Paddle. Opcional: si hay un "default
-       payment link" configurado, la transacción ya trae checkout.url. */
     paddleCheckoutUrl: process.env.PADDLE_CHECKOUT_URL,
-    paddleEnv: (process.env.PADDLE_ENV ?? 'sandbox').toLowerCase(),   // sandbox hasta aprobar producción
-    enabled:
-      (process.env.BILLING_PROVIDER ?? 'stripe').toLowerCase() === 'paddle'
-        ? Boolean(process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET && process.env.PADDLE_PRICE_ID)
-        : Boolean(process.env.STRIPE_SECRET_KEY),
+    paddleEnv: (process.env.PADDLE_ENV ?? 'sandbox').toLowerCase(),
+    paddleEnabled: Boolean(process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET && process.env.PADDLE_PRICE_ID),
+    // Mercado Pago — Argentina, ARS. Access token del panel de MP + precio en pesos.
+    mpAccessToken: process.env.MP_ACCESS_TOKEN,
+    mpPriceArs: Number(process.env.MP_PRICE_ARS ?? 0),
+    mpEnabled: Boolean(process.env.MP_ACCESS_TOKEN && Number(process.env.MP_PRICE_ARS ?? 0) > 0),
+    // ¿hay ALGÚN método disponible? (lo usa el front para saber si mostrar el botón)
+    enabled: Boolean(
+      (process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET && process.env.PADDLE_PRICE_ID) ||
+      (process.env.MP_ACCESS_TOKEN && Number(process.env.MP_PRICE_ARS ?? 0) > 0) ||
+      process.env.STRIPE_SECRET_KEY,
+    ),
   },
 
   quota: { free: 5, pro: 30 },

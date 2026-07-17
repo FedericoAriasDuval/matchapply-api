@@ -11,7 +11,7 @@ import { cvQueue } from './lib/queue.js';
 import { llmHealth } from './lib/llm.js';
 import { cvCache } from './lib/cache.js';
 import { authRouter } from './routes/auth.js';
-import { billingRouter, billingWebhook } from './routes/billing.js';
+import { billingRouter, billingWebhook, availableMethods } from './routes/billing.js';
 import { adminRouter } from './routes/admin.js';
 import { cvRouter } from './routes/cv.js';
 import { reviewsRouter } from './routes/reviews.js';
@@ -59,6 +59,7 @@ app.get('/health', async (_req, res) => {
       llmModel: llmHealth().model,         // y qué modelo, para verlo de un vistazo
       mail: config.mail.enabled,
       billing: config.billing.enabled,   // ¿los pagos están activos? el front no dibuja un botón que miente
+      billingMethods: availableMethods(),// qué métodos ofrecer: ['mercadopago','paddle']
       encrypted: encryptionEnabled(),
       queue: cvQueue.snapshot(),
       breaker: llmHealth().breaker,
