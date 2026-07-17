@@ -59,10 +59,14 @@ export const config = {
     model: process.env.LLM_MODEL ?? 'claude-sonnet-5',
     // Google Gemini
     geminiKey: process.env.GEMINI_API_KEY,
-    /* Alias 'latest': Google restringió gemini-2.5-flash para cuentas nuevas
-       (404 "no longer available to new users"). El alias apunta siempre al Flash
-       vigente y evita ese problema. Se puede fijar con GEMINI_MODEL. */
-    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-flash-latest',   // Flash: barato, para abaratar costos
+    /* Modelo FIJO y GA. Descartados en el camino (16-17/07):
+         - gemini-2.5-flash  -> 404 "no longer available to new users" (cuenta nueva).
+         - gemini-flash-latest (alias) -> 503 "high demand" persistente: el alias
+           apunta a un modelo bajo carga, sin capacidad dedicada.
+       gemini-2.0-flash es GA, mas barato todavia y con capacidad estable (casi no
+       tira 503). Es extraccion de campos, no necesita razonar. Se puede fijar con
+       GEMINI_MODEL en el env si algun dia conviene otro. */
+    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.0-flash',
     maxTokens: 4000,
     enabled: (process.env.LLM_PROVIDER ?? 'anthropic').toLowerCase() === 'gemini'
       ? Boolean(process.env.GEMINI_API_KEY)
