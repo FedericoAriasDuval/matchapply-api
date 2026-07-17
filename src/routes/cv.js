@@ -73,7 +73,10 @@ const getQuota = async (user) => {
     [user.id, today()],
   );
   const used = rows[0]?.cv_adaptations ?? 0;
-  return { used, limit, left: Math.max(0, limit - used) };
+  /* pro va en la respuesta para que el front reconcilie el tier: el server es la
+     fuente de verdad. Sin esto, un USER local viejo puede mostrar el badge/cuota
+     equivocados (Pro que se ve "free"). */
+  return { used, limit, left: Math.max(0, limit - used), pro: user.tier === 'pro' };
 };
 
 /**
