@@ -59,7 +59,10 @@ export const config = {
     model: process.env.LLM_MODEL ?? 'claude-sonnet-5',
     // Google Gemini
     geminiKey: process.env.GEMINI_API_KEY,
-    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',   // Flash: barato, para abaratar costos
+    /* Alias 'latest': Google restringió gemini-2.5-flash para cuentas nuevas
+       (404 "no longer available to new users"). El alias apunta siempre al Flash
+       vigente y evita ese problema. Se puede fijar con GEMINI_MODEL. */
+    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-flash-latest',   // Flash: barato, para abaratar costos
     maxTokens: 4000,
     enabled: (process.env.LLM_PROVIDER ?? 'anthropic').toLowerCase() === 'gemini'
       ? Boolean(process.env.GEMINI_API_KEY)
