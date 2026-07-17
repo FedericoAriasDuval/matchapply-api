@@ -170,9 +170,18 @@
       return request('/cv/' + encodeURIComponent(id), { method: 'PUT', body: { cv: cv } });
     },
 
-    /** Adapta el CV a un puesto. */
-    tailorCv: function (id, role) {
-      return request('/cv/' + encodeURIComponent(id) + '/tailor', { method: 'POST', body: { role: role } });
+    /** Adapta el CV a un puesto. jobDescription = texto de la vacante. */
+    tailorCv: function (id, jobDescription) {
+      return request('/cv/' + encodeURIComponent(id) + '/tailor', { method: 'POST', body: { jobDescription: jobDescription } });
+    },
+
+    /** Carta de presentación (solo Pro). opts: { jobDescription, tone, lang }. */
+    coverLetter: function (id, opts) {
+      opts = opts || {};
+      return request('/cv/' + encodeURIComponent(id) + '/cover', {
+        method: 'POST',
+        body: { jobDescription: opts.jobDescription || '', tone: opts.tone || 'formal', lang: opts.lang || 'es' }
+      });
     },
 
     /** URL de descarga (PDF o DOCX). La cookie viaja sola. */

@@ -8,7 +8,7 @@ import { authenticate, requirePro } from '../middleware/auth.js';
 import { aiLimiter } from '../middleware/rateLimit.js';
 import { badRequest, forbidden, tooMany } from '../middleware/errors.js';
 import { completeJson } from '../lib/llm.js';
-import { CV_SYSTEM_PROMPT, CV_TAILOR_PROMPT, buildTailorMessage, buildUserMessage } from '../lib/cvPrompt.js';
+import { CV_SYSTEM_PROMPT, CV_TAILOR_PROMPT, CV_COVER_PROMPT, buildTailorMessage, buildCoverMessage, buildUserMessage } from '../lib/cvPrompt.js';
 import { CvValidationError, sanitizeCv } from '../lib/cvSchema.js';
 import { extractText } from '../lib/extract.js';
 import { cvCache } from '../lib/cache.js';
@@ -345,6 +345,48 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
     });
   } catch (e) {
     next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Pegá la descripción del puesto.') : e);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /cv/:id/cover — carta de presentación a medida (SOLO PRO)
+//   Reemplaza la vieja genCover del frontend (plantilla hardcodeada que
+//   elogiaba empresas inventadas). Se apoya solo en el CV real.
+// ---------------------------------------------------------------------------
+cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res, next) => {
+  try {
+    const { jobDescription, tone, lang } = z
+      .object({
+        jobDescription: z.string().trim().max(20_000).optional().default(''),
+        tone: z.enum(['formal', 'creativo', 'corto']).optional().default('formal'),
+        lang: z.string().trim().max(2).optional().default('es'),
+      })
+      .parse(req.body);
+
+    const { rows } = await query(
+      `select data, lang from cv_documents where id = $1 and user_id = $2`,
+      [req.params.id, req.user.id],
+    );
+    const doc = readCvRow(rows[0]);   // descifrar: al LLM le llega el JSON, no el cifrado
+    if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
+
+    const quota = await consumeQuota(req.user);
+    let out;
+    try {
+      out = await completeJson({
+        system: CV_COVER_PROMPT,
+        user: buildCoverMessage(doc.data, jobDescription, tone, lang || doc.lang),
+      });
+    } catch (e) {
+      await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      throw e;
+    }
+
+    const letter = String(out.letter ?? '').trim().slice(0, 4000);
+    if (!letter) throw badRequest('cover_failed', 'No pudimos generar la carta. Probá de nuevo.');
+    res.json({ quota, tone, letter });
+  } catch (e) {
+    next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Datos inválidos para la carta.') : e);
   }
 });
 

@@ -119,3 +119,54 @@ export const buildUserMessage = (cvText, lang = 'es') => {
 
 export const buildTailorMessage = (cvJson, jobDescription) =>
   `<cv_json>\n${JSON.stringify(cvJson)}\n</cv_json>\n\n<job_description>\n${String(jobDescription ?? '').slice(0, 20_000)}\n</job_description>\n\nAdaptá el CV al puesto siguiendo tus reglas. Respondé solo con el JSON.`;
+
+/**
+ * Carta de presentación. Existe porque la vieja (genCover en el frontend) era
+ * una plantilla hardcodeada que le decía "Admiro el enfoque de [empresa]" a una
+ * empresa inventada, en español siempre. Esta se apoya SOLO en el CV real y
+ * está construida para NO sonar a robot ni a molde.
+ */
+export const CV_COVER_PROMPT = `Sos el redactor de cartas de presentación de Mavante. Escribís una carta breve, humana y concreta que conecta la experiencia REAL de una persona con un puesto. No sos un asistente conversacional: no saludás al usuario, no explicás lo que hacés.
+
+## REGLA 1 — SOLO LO QUE DICE EL CV
+- Todo lo que afirmes sobre la persona debe salir del CV recibido: experiencia, logros, herramientas, estudios. Prohibido inventar habilidades, empleos, métricas o cualidades que no estén.
+- No inventes datos de la empresa. Si el aviso nombra la empresa, podés nombrarla; NO le atribuyas valores, misión ni "enfoque" que el aviso no diga. Nada de "admiro su enfoque en el sector".
+- Usá el nombre real de la persona (del CV). Nunca dejes placeholders tipo [Nombre], [Empresa] o [Puesto].
+
+## REGLA 2 — PROHIBIDO SONAR A MOLDE (esto es lo que nos diferencia)
+- Prohibidas las frases de relleno y los arranques robóticos, en cualquier idioma. Nada de: "Espero que este mensaje le encuentre bien", "Me dirijo a usted", "Por medio de la presente", "Adjunto mi CV para su consideración", "Soy una persona proactiva y orientada a resultados", "creo que sería una gran incorporación".
+- No abras con "Estimado equipo de [empresa]" seguido de un elogio genérico.
+- Arrancá por lo concreto: qué hizo la persona que importa para ESTE puesto. Que la primera oración ya diga algo, no que salude.
+- Cero adjetivos vacíos. Un logro real vale más que "apasionado y dinámico".
+
+## REGLA 3 — TONO
+- "formal": profesional y sobrio, sin acartonarse. 3 párrafos.
+- "creativo": más cercano y con personalidad, sigue siendo profesional. Puede abrir con un gancho.
+- "corto": 4 a 6 oraciones, directo al punto. Un solo párrafo o dos muy breves.
+
+## REGLA 4 — FORMA
+- Primera persona. Entre 90 y 200 palabras (menos si el tono es "corto").
+- Cerrá con una línea de disponibilidad natural, sin fórmulas ("Quedo a disposición para conversar" está bien; "Sin otro particular, saludo a usted atentamente" no).
+- Escribí TODO en el idioma pedido, de forma natural (no traducción palabra por palabra).
+
+## SALIDA
+Devolvé exclusivamente este JSON, sin markdown ni texto alrededor:
+{ "letter": "el texto de la carta, con saltos de línea \\n entre párrafos" }`;
+
+const TONE_NAMES = {
+  formal: 'formal (profesional y sobrio)',
+  creativo: 'creativo (cercano, con personalidad, sin dejar de ser profesional)',
+  corto: 'corto (directo, 4 a 6 oraciones)',
+};
+
+export const buildCoverMessage = (cvJson, jobDescription, tone = 'formal', lang = 'es') => {
+  const idioma = LANG_NAMES[lang] ?? 'español';
+  const tono = TONE_NAMES[tone] ?? TONE_NAMES.formal;
+  const job = String(jobDescription ?? '').trim().slice(0, 20_000) || '(no se especificó el puesto; escribí una carta general orientada al perfil del CV)';
+  return (
+    `<cv_json>\n${JSON.stringify(cvJson)}\n</cv_json>\n\n` +
+    `<puesto>\n${job}\n</puesto>\n\n` +
+    `Escribí la carta de presentación siguiendo tus reglas. Tono: ${tono}. ` +
+    `Idioma: ${idioma}. Respondé solo con el JSON.`
+  );
+};

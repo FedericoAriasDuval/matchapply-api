@@ -12,6 +12,7 @@ import { llmHealth } from './lib/llm.js';
 import { cvCache } from './lib/cache.js';
 import { authRouter } from './routes/auth.js';
 import { billingRouter, billingWebhook } from './routes/billing.js';
+import { adminRouter } from './routes/admin.js';
 import { cvRouter } from './routes/cv.js';
 import { reviewsRouter } from './routes/reviews.js';
 import { statsRouter } from './routes/stats.js';
@@ -85,6 +86,7 @@ app.use('/reviews', featuredRouter);  // GET /reviews/featured: solo testimonios
 app.use('/stats', statsRouter);       // numeros propios, sin inflar
 app.use('/referrals', referralsRouter);// el credito se paga al verificar, no al hacer clic
 app.use('/billing', billingRouter);
+app.use('/admin', adminRouter);        // llave de fundador (ADMIN_TOKEN): comp-ear Pro hasta que haya pagos
 
 app.use(notFound);
 app.use(errorHandler);
