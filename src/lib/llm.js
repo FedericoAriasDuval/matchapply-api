@@ -17,6 +17,7 @@
  * convertirse en un error del usuario.
  */
 import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import { config } from '../config.js';
 import { HttpError } from '../middleware/errors.js';
 import { JsonExtractError, extractJson } from './json.js';
@@ -27,9 +28,20 @@ export { extractJson } from './json.js';
 const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 30000);
 const MAX_RETRIES = 2;
 
-const client = config.llm.enabled
+/* Dos proveedores, un solo cliente. El flag LLM_PROVIDER decide cuál se usa;
+   todo el blindaje de abajo (timeout, reintentos, breaker, fallback) es igual
+   para los dos. Cambiar de proveedor NO toca ninguna otra parte del sistema. */
+const PROVIDER = config.llm.provider === 'gemini' ? 'gemini' : 'anthropic';
+
+const anthropic = (PROVIDER === 'anthropic' && config.llm.enabled)
   ? new Anthropic({ apiKey: config.llm.apiKey, maxRetries: 0 })
   : null;
+const gemini = (PROVIDER === 'gemini' && config.llm.enabled)
+  ? new GoogleGenAI({ apiKey: config.llm.geminiKey })
+  : null;
+
+const hasClient = () => (PROVIDER === 'gemini' ? !!gemini : !!anthropic);
+const activeModel = () => (PROVIDER === 'gemini' ? config.llm.geminiModel : config.llm.model);
 
 /* 429 y 5xx son transitorios: reintentar sirve. Un 400 es culpa nuestra: no. */
 const isTransient = (e) => {
@@ -44,20 +56,39 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
    herd): una caida corta se convierte en una caida larga. */
 const backoff = (attempt) => 400 * 2 ** attempt + Math.floor(Math.random() * 250);
 
+/* Claude: system aparte, texto en content. Devuelve el texto plano. */
+const callAnthropic = async ({ system, user, maxTokens, signal }) => {
+  const res = await anthropic.messages.create(
+    { model: config.llm.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] },
+    { signal },
+  );
+  return res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+};
+
+/* Gemini: systemInstruction en config, JSON forzado por responseMimeType.
+   El texto se saca del getter res.text; extractJson igual lo sanea. */
+const callGemini = async ({ system, user, maxTokens, signal }) => {
+  const res = await gemini.models.generateContent({
+    model: config.llm.geminiModel,
+    contents: user,
+    config: {
+      systemInstruction: system,
+      maxOutputTokens: maxTokens,
+      responseMimeType: 'application/json',
+      abortSignal: signal,
+    },
+  });
+  return res.text ?? '';
+};
+
 const callOnce = async ({ system, user, maxTokens }) => {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await client.messages.create(
-      {
-        model: config.llm.model,
-        max_tokens: maxTokens,
-        system,
-        messages: [{ role: 'user', content: user }],
-      },
-      { signal: ctrl.signal },
-    );
-    const text = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+    const text =
+      PROVIDER === 'gemini'
+        ? await callGemini({ system, user, maxTokens, signal: ctrl.signal })
+        : await callAnthropic({ system, user, maxTokens, signal: ctrl.signal });
     return extractJson(text);
   } finally {
     clearTimeout(timer);
@@ -65,7 +96,7 @@ const callOnce = async ({ system, user, maxTokens }) => {
 };
 
 export const completeJson = async ({ system, user, maxTokens = config.llm.maxTokens, fallback }) => {
-  if (!client) {
+  if (!hasClient()) {
     if (fallback) return fallback();
     throw new HttpError(503, 'llm_disabled', 'El servicio de IA no esta configurado.');
   }
@@ -105,7 +136,8 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
 
 export const llmHealth = () => ({
   enabled: config.llm.enabled,
-  model: config.llm.model,   // el modelo en uso, visible: un LLM_MODEL viejo en el env se detecta mirando /health
+  provider: PROVIDER,        // qué proveedor está activo (anthropic | gemini): visible en /health
+  model: activeModel(),      // el modelo en uso: un modelo viejo en el env se detecta mirando /health
   timeoutMs: TIMEOUT_MS,
   breaker: llmBreaker.snapshot(),
 });

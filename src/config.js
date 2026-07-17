@@ -50,10 +50,20 @@ export const config = {
   },
 
   llm: {
+    /* Proveedor activo. 'anthropic' (default, lo que corre hoy) | 'gemini'.
+       Para pasar a Gemini: setear LLM_PROVIDER=gemini + GEMINI_API_KEY en el env.
+       Nada cambia hasta hacer ese flip — Claude sigue siendo el default. */
+    provider: (process.env.LLM_PROVIDER ?? 'anthropic').toLowerCase(),
+    // Anthropic (Claude)
     apiKey: process.env.ANTHROPIC_API_KEY,
     model: process.env.LLM_MODEL ?? 'claude-sonnet-5',
+    // Google Gemini
+    geminiKey: process.env.GEMINI_API_KEY,
+    geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',   // Flash: barato, para abaratar costos
     maxTokens: 4000,
-    enabled: Boolean(process.env.ANTHROPIC_API_KEY),
+    enabled: (process.env.LLM_PROVIDER ?? 'anthropic').toLowerCase() === 'gemini'
+      ? Boolean(process.env.GEMINI_API_KEY)
+      : Boolean(process.env.ANTHROPIC_API_KEY),
   },
 
   billing: {
