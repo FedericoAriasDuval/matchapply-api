@@ -66,7 +66,13 @@ const callAnthropic = async ({ system, user, maxTokens, signal }) => {
 };
 
 /* Gemini: systemInstruction en config, JSON forzado por responseMimeType.
-   El texto se saca del getter res.text; extractJson igual lo sanea. */
+   El texto se saca del getter res.text; extractJson igual lo sanea.
+
+   thinkingBudget: 0 APAGA el razonamiento interno. Gemini 2.5 Flash lo trae
+   PRENDIDO por defecto: para extraer campos de un CV a JSON no aporta nada y
+   costaba ~22s por parseo (medido) + tokens de thinking facturados. Apagado
+   baja a pocos segundos. Si algun dia sumamos una tarea que SI necesite
+   razonar, se le sube el budget solo a esa. */
 const callGemini = async ({ system, user, maxTokens, signal }) => {
   const res = await gemini.models.generateContent({
     model: config.llm.geminiModel,
@@ -75,6 +81,7 @@ const callGemini = async ({ system, user, maxTokens, signal }) => {
       systemInstruction: system,
       maxOutputTokens: maxTokens,
       responseMimeType: 'application/json',
+      thinkingConfig: { thinkingBudget: 0 },
       abortSignal: signal,
     },
   });
