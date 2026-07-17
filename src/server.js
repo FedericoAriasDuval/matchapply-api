@@ -55,6 +55,8 @@ app.get('/health', async (_req, res) => {
       ok: true,
       env: config.env,
       llm: config.llm.enabled,
+      llmProvider: llmHealth().provider,   // qué motor está activo: anthropic | gemini
+      llmModel: llmHealth().model,         // y qué modelo, para verlo de un vistazo
       mail: config.mail.enabled,
       encrypted: encryptionEnabled(),
       queue: cvQueue.snapshot(),
