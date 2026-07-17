@@ -74,10 +74,26 @@ export const config = {
   },
 
   billing: {
+    /* Proveedor de pago. 'stripe' (legado, NO opera en Argentina) | 'paddle'.
+       Se elige con BILLING_PROVIDER. El plan Pro lo activa SIEMPRE el webhook del
+       proveedor tras cobrar — nunca un clic del usuario. */
+    provider: (process.env.BILLING_PROVIDER ?? 'stripe').toLowerCase(),
+    // Stripe (legado)
     stripeKey: process.env.STRIPE_SECRET_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     pricePro: process.env.STRIPE_PRICE_PRO,
-    enabled: Boolean(process.env.STRIPE_SECRET_KEY),
+    // Paddle (Merchant of Record: cobra global, paga a Argentina)
+    paddleApiKey: process.env.PADDLE_API_KEY,
+    paddleWebhookSecret: process.env.PADDLE_WEBHOOK_SECRET,
+    paddlePriceId: process.env.PADDLE_PRICE_ID,
+    /* Base del checkout hospedado por Paddle. Opcional: si hay un "default
+       payment link" configurado, la transacción ya trae checkout.url. */
+    paddleCheckoutUrl: process.env.PADDLE_CHECKOUT_URL,
+    paddleEnv: (process.env.PADDLE_ENV ?? 'sandbox').toLowerCase(),   // sandbox hasta aprobar producción
+    enabled:
+      (process.env.BILLING_PROVIDER ?? 'stripe').toLowerCase() === 'paddle'
+        ? Boolean(process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET && process.env.PADDLE_PRICE_ID)
+        : Boolean(process.env.STRIPE_SECRET_KEY),
   },
 
   quota: { free: 5, pro: 30 },

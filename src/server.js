@@ -58,6 +58,7 @@ app.get('/health', async (_req, res) => {
       llmProvider: llmHealth().provider,   // qué motor está activo: anthropic | gemini
       llmModel: llmHealth().model,         // y qué modelo, para verlo de un vistazo
       mail: config.mail.enabled,
+      billing: config.billing.enabled,   // ¿los pagos están activos? el front no dibuja un botón que miente
       encrypted: encryptionEnabled(),
       queue: cvQueue.snapshot(),
       breaker: llmHealth().breaker,
