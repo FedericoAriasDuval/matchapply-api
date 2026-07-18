@@ -411,7 +411,10 @@ cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req,
         jobDescription: z.string().trim().max(8_000).optional().default(''),
         lang: z.string().trim().max(2).optional().default('es'),
         history: z
-          .array(z.object({ q: z.string().trim().max(600), a: z.string().trim().max(2_500) }))
+          // q hasta 800: es el largo máximo de pregunta que NOSOTROS emitimos
+          // (slice(0,800) en la respuesta). Con 600 acá, una pregunta larga
+          // nuestra hacía 400 al volver en el turno siguiente.
+          .array(z.object({ q: z.string().trim().max(800), a: z.string().trim().max(2_500) }))
           .max(6)
           .optional()
           .default([]),
