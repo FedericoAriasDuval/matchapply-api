@@ -36,6 +36,29 @@
     return { signal: c.signal, clear: function () { clearTimeout(id); } };
   }
 
+  /* Un solo refresh a la vez, compartido entre todas las llamadas. Antes, 5
+     requests con el access vencido disparaban 5 /auth/refresh en paralelo (la
+     lluvia de 401 en consola). Y si el refresh MISMO da 401, la sesión está
+     muerta de verdad: se avisa una vez al frontend (MA_SESSION_EXPIRED, que
+     desloguea) y no se insiste hasta el próximo login. */
+  var refreshing = null, sessionDead = false;
+  function tryRefresh() {
+    if (sessionDead) return Promise.resolve(false);
+    if (!refreshing) {
+      refreshing = request('/auth/refresh', { method: 'POST', _retried: true })
+        .then(function () { return true; })
+        .catch(function (e) {
+          if (e && e.status === 401) {
+            sessionDead = true;
+            try { if (typeof window.MA_SESSION_EXPIRED === 'function') window.MA_SESSION_EXPIRED(); } catch (err) {}
+          }
+          return false;
+        })
+        .finally(function () { refreshing = null; });
+    }
+    return refreshing;
+  }
+
   async function request(path, opts) {
     opts = opts || {};
     var t = timeout(opts.timeoutMs || TIMEOUT_MS);
@@ -66,6 +89,10 @@
     t.clear();
     wokenUp = true;
 
+    /* un login/verify/refresh exitoso revive la sesión: se levanta el candado.
+       Va ANTES del atajo de los 204, que también son res.ok. */
+    if (res.ok && (path === '/auth/login' || path === '/auth/verify' || path === '/auth/refresh')) sessionDead = false;
+
     /* 204 y respuestas sin cuerpo */
     if (res.status === 204) return {};
 
@@ -73,11 +100,9 @@
     try { data = await res.json(); } catch (e) { data = null; }
 
     if (!res.ok) {
-      /* El access token venció: se rota el refresh una sola vez y se reintenta. */
+      /* El access token venció: UN refresh compartido y se reintenta una vez. */
       if (res.status === 401 && !opts._retried && path !== '/auth/refresh' && path !== '/auth/login') {
-        var refreshed = await request('/auth/refresh', { method: 'POST', _retried: true })
-          .then(function () { return true; })
-          .catch(function () { return false; });
+        var refreshed = await tryRefresh();
         if (refreshed) return request(path, Object.assign({}, opts, { _retried: true }));
       }
       throw ApiError(
