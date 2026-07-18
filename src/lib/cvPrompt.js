@@ -162,6 +162,9 @@ Un logro concreto vale más que diez adjetivos. Mostrá, no declames.
 - Un solo idioma, el pedido, de forma natural (jamás traducción palabra por palabra).
 - Sin fecha, sin encabezado postal, sin asunto: escribís el cuerpo de la carta.
 
+## SI HAY BORRADOR DEL CANDIDATO
+Si llega una <carta_borrador>, tu trabajo NO es escribir de cero: es MEJORAR esa carta. Mantené su voz, su estructura general y todos sus hechos; arreglá lo que la debilita (clichés, arranques de relleno, falta de gancho o de prueba concreta, desorden, largo). Podés traer del CV un dato que la refuerce, pero nada que contradiga el borrador. El resultado tiene que sentirse como "mi carta, pero mejor" — no como una carta nueva.
+
 ## SALIDA
 Devolvé exclusivamente este JSON, sin markdown ni texto alrededor:
 { "letter": "el texto de la carta, con \\n entre párrafos" }`;
@@ -172,14 +175,18 @@ const TONE_NAMES = {
   corto: 'corto (directo, 4 a 6 oraciones)',
 };
 
-export const buildCoverMessage = (cvJson, jobDescription, tone = 'formal', lang = 'es') => {
+export const buildCoverMessage = (cvJson, jobDescription, tone = 'formal', lang = 'es', draft = '') => {
   const idioma = LANG_NAMES[lang] ?? 'español';
   const tono = TONE_NAMES[tone] ?? TONE_NAMES.formal;
   const job = String(jobDescription ?? '').trim().slice(0, 20_000) || '(no se especificó el puesto; escribí una carta general orientada al perfil del CV)';
+  const propia = String(draft ?? '').trim().slice(0, 6_000);
   return (
     `<cv_json>\n${JSON.stringify(cvJson)}\n</cv_json>\n\n` +
     `<puesto>\n${job}\n</puesto>\n\n` +
-    `Escribí la carta de presentación siguiendo tus reglas. Tono: ${tono}. ` +
+    (propia ? `<carta_borrador>\n${propia}\n</carta_borrador>\n\n` : '') +
+    (propia
+      ? `Mejorá la carta del borrador siguiendo tus reglas (sección "SI HAY BORRADOR"). Tono: ${tono}. `
+      : `Escribí la carta de presentación siguiendo tus reglas. Tono: ${tono}. `) +
     `Idioma: ${idioma}. Respondé solo con el JSON.`
   );
 };

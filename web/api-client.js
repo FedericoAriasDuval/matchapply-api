@@ -175,12 +175,13 @@
       return request('/cv/' + encodeURIComponent(id) + '/tailor', { method: 'POST', body: { jobDescription: jobDescription } });
     },
 
-    /** Carta de presentación (solo Pro). opts: { jobDescription, tone, lang }. */
+    /** Carta de presentación (solo Pro). opts: { jobDescription, tone, lang, draft }.
+        Con draft (carta propia del usuario), la IA la MEJORA en vez de escribir de cero. */
     coverLetter: function (id, opts) {
       opts = opts || {};
       return request('/cv/' + encodeURIComponent(id) + '/cover', {
         method: 'POST',
-        body: { jobDescription: opts.jobDescription || '', tone: opts.tone || 'formal', lang: opts.lang || 'es' }
+        body: { jobDescription: opts.jobDescription || '', tone: opts.tone || 'formal', lang: opts.lang || 'es', draft: opts.draft || '' }
       });
     },
 

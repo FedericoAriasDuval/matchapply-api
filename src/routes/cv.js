@@ -358,11 +358,13 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
 // ---------------------------------------------------------------------------
 cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res, next) => {
   try {
-    const { jobDescription, tone, lang } = z
+    const { jobDescription, tone, lang, draft } = z
       .object({
         jobDescription: z.string().trim().max(20_000).optional().default(''),
         tone: z.enum(['formal', 'creativo', 'corto']).optional().default('formal'),
         lang: z.string().trim().max(2).optional().default('es'),
+        // carta que el usuario ya escribió: la IA la MEJORA en vez de escribir de cero
+        draft: z.string().trim().max(6_000).optional().default(''),
       })
       .parse(req.body);
 
@@ -378,7 +380,7 @@ cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res
     try {
       out = await completeJson({
         system: CV_COVER_PROMPT,
-        user: buildCoverMessage(doc.data, jobDescription, tone, lang || doc.lang),
+        user: buildCoverMessage(doc.data, jobDescription, tone, lang || doc.lang, draft),
       });
     } catch (e) {
       await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
