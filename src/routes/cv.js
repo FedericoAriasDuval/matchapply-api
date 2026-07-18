@@ -8,7 +8,7 @@ import { authenticate, requirePro } from '../middleware/auth.js';
 import { aiLimiter } from '../middleware/rateLimit.js';
 import { badRequest, forbidden, tooMany } from '../middleware/errors.js';
 import { completeJson } from '../lib/llm.js';
-import { CV_SYSTEM_PROMPT, CV_TAILOR_PROMPT, CV_COVER_PROMPT, buildTailorMessage, buildCoverMessage, buildUserMessage } from '../lib/cvPrompt.js';
+import { CV_SYSTEM_PROMPT, CV_TAILOR_PROMPT, CV_COVER_PROMPT, CV_INTERVIEW_PROMPT, buildTailorMessage, buildCoverMessage, buildInterviewMessage, buildUserMessage } from '../lib/cvPrompt.js';
 import { CvValidationError, sanitizeCv } from '../lib/cvSchema.js';
 import { extractText } from '../lib/extract.js';
 import { cvCache } from '../lib/cache.js';
@@ -390,6 +390,69 @@ cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res
     res.json({ quota, tone, letter });
   } catch (e) {
     next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Datos inválidos para la carta.') : e);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /cv/:id/interview — simulador de entrevista conversacional (SOLO PRO)
+//   Un turno por llamada: el cliente manda el transcript completo (pares q/a) y
+//   recibe feedback de la última respuesta + la siguiente pregunta; tras la 5ª,
+//   la evaluación final. La cuota se consume UNA vez por entrevista (el primer
+//   turno), no por mensaje: si no, una entrevista se comería 5 usos del día.
+// ---------------------------------------------------------------------------
+cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req, res, next) => {
+  try {
+    const { role, context, jobDescription, lang, history } = z
+      .object({
+        role: z.string().trim().max(120).optional().default(''),
+        context: z.string().trim().max(30).optional().default('regular'),
+        jobDescription: z.string().trim().max(8_000).optional().default(''),
+        lang: z.string().trim().max(2).optional().default('es'),
+        history: z
+          .array(z.object({ q: z.string().trim().max(600), a: z.string().trim().max(2_500) }))
+          .max(6)
+          .optional()
+          .default([]),
+      })
+      .parse(req.body);
+
+    const { rows } = await query(
+      `select data, lang from cv_documents where id = $1 and user_id = $2`,
+      [req.params.id, req.user.id],
+    );
+    const doc = readCvRow(rows[0]);   // descifrar: al LLM le llega el JSON, no el cifrado
+    if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
+
+    const firstTurn = history.length === 0;
+    const quota = firstTurn ? await consumeQuota(req.user) : undefined;
+    let out;
+    try {
+      out = await completeJson({
+        system: CV_INTERVIEW_PROMPT,
+        user: buildInterviewMessage(doc.data, { role, context, jobDescription, history, lang: lang || doc.lang }),
+      });
+    } catch (e) {
+      if (firstTurn) await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      throw e;
+    }
+
+    const done = out.done === true || history.length >= 5;
+    const ev = (done && out.evaluation && typeof out.evaluation === 'object') ? out.evaluation : null;
+    res.json({
+      quota,
+      feedback: String(out.feedback ?? '').trim().slice(0, 1_500) || null,
+      question: done ? null : (String(out.question ?? '').trim().slice(0, 800) || null),
+      done,
+      evaluation: ev
+        ? {
+            score: Math.max(0, Math.min(100, Number(ev.score) || 0)),
+            strengths: Array.isArray(ev.strengths) ? ev.strengths.slice(0, 4).map((s) => String(s).slice(0, 300)) : [],
+            improvements: Array.isArray(ev.improvements) ? ev.improvements.slice(0, 4).map((s) => String(s).slice(0, 300)) : [],
+          }
+        : null,
+    });
+  } catch (e) {
+    next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Datos inválidos para la entrevista.') : e);
   }
 });
 

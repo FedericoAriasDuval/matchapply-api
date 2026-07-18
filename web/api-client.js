@@ -184,6 +184,20 @@
       });
     },
 
+    /** Simulador de entrevista (solo Pro). Un turno por llamada.
+        opts: { role, context, jobDescription, lang, history:[{q,a}] }. */
+    interview: function (id, opts) {
+      opts = opts || {};
+      return request('/cv/' + encodeURIComponent(id) + '/interview', {
+        method: 'POST',
+        body: {
+          role: opts.role || '', context: opts.context || 'regular',
+          jobDescription: opts.jobDescription || '', lang: opts.lang || 'es',
+          history: opts.history || []
+        }
+      });
+    },
+
     /** URL de descarga (PDF o DOCX). La cookie viaja sola. */
     exportUrl: function (id, format) {
       return BASE + '/cv/' + encodeURIComponent(id) + '/export?format=' + (format === 'docx' ? 'docx' : 'pdf');
@@ -209,8 +223,9 @@
     providers: function () { return request('/auth/providers'); },
 
     /* ---------------------------------------------------------------- billing */
-    checkout: function () {
-      return request('/billing/checkout', { method: 'POST' });
+    /* method: 'mercadopago' | 'paddle'. Sin method, el backend usa el primero disponible. */
+    checkout: function (method) {
+      return request('/billing/checkout', { method: 'POST', body: method ? { method: method } : undefined });
     }
   };
 
