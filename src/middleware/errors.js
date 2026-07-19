@@ -180,7 +180,11 @@ const HUMAN = {
   },
   invalid_payload: {
     message: 'Algunos datos llegaron incompletos.',
-    hint: 'Revisa el formulario y proba de nuevo.',
+    hint: 'Revisa el formulario y proba de nuevo. Si estas con poca senal, puede que se haya cortado el envio.',
+  },
+  payload_too_large: {
+    message: 'El texto que pegaste es demasiado largo.',
+    hint: 'Deja solo tu CV: si pegaste ademas la descripcion del puesto, va en el campo de al lado.',
   },
   bad_format: {
     message: 'Ese formato no esta disponible.',
@@ -222,6 +226,22 @@ const normalize = (err) => {
   }
   if (err instanceof TimeoutError) return new HttpError(504, 'cv_timeout', 'Se agoto el tiempo.');
   if (err instanceof HttpError) return err;
+
+  /* El pedido llegó cortado o mal armado. Lo tira body-parser ANTES de que
+     ninguna ruta lo vea, así que ningún try/catch nuestro lo agarra y caía en
+     internal_error: le decíamos "se rompió algo de nuestro lado" a alguien cuyo
+     celular perdió señal a mitad del envío. Además ensuciaba el log con 500
+     falsos, que el día del lanzamiento tapan los 500 de verdad. */
+  if (err?.type === 'entity.parse.failed') {
+    return new HttpError(400, 'invalid_payload', 'Los datos llegaron incompletos.');
+  }
+  /* OJO: esto NO es el límite de los archivos (8 MB, lo valida upload.js). Es el
+     del cuerpo JSON: se llega pegando un texto enorme, no subiendo un PDF. Usar
+     acá la copy de "el archivo supera los 8 MB" le habla de un archivo a alguien
+     que no subió ninguno. */
+  if (err?.type === 'entity.too.large') {
+    return new HttpError(413, 'payload_too_large', 'El texto que pegaste es demasiado largo.');
+  }
 
   /* :id con formato inválido (uuid/int) → Postgres 22P02. Es un 404, no un 500. (Audit L3.) */
   if (err?.code === '22P02') {

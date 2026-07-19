@@ -64,6 +64,29 @@ test('un código NUEVO sin copy conserva su mensaje humano en vez de caer en int
   assert.ok(res.body.error.hint, 'siempre hay una salida, aunque sea genérica');
 });
 
+test('un pedido cortado a mitad de camino es 400, no "se rompio de nuestro lado"', () => {
+  /* body-parser tira esto ANTES de que ninguna ruta lo vea, asi que ningun
+     try/catch nuestro lo agarra: caia en internal_error. Le decia "se rompio
+     algo nuestro" a alguien cuyo celular perdio senal al enviar, y encima
+     ensuciaba el log con 500 falsos que tapan los 500 de verdad. */
+  const err = new SyntaxError('Unexpected end of JSON input');
+  err.type = 'entity.parse.failed';
+  const res = run(err);
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error.code, 'invalid_payload');
+  assert.notEqual(res.body.error.message, CULPA_NUESTRA);
+});
+
+test('un cuerpo demasiado grande es 413 y NO le habla de un archivo a quien pego texto', () => {
+  const err = new Error('request entity too large');
+  err.type = 'entity.too.large';
+  const res = run(err);
+  assert.equal(res.statusCode, 413);
+  assert.equal(res.body.error.code, 'payload_too_large');
+  assert.doesNotMatch(res.body.error.message, /archivo|8 MB/i,
+    'el limite del cuerpo JSON se alcanza pegando texto, no subiendo un PDF');
+});
+
 test('un 500 SÍ se hace cargo, y no filtra el error real', () => {
   const res = run(new Error('connect ECONNREFUSED 10.0.0.1:5432 en la tabla users'));
   assert.equal(res.statusCode, 500);
