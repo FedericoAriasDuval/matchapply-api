@@ -22,7 +22,15 @@ export const tx = async (fn) => {
     await client.query('COMMIT');
     return out;
   } catch (e) {
-    await client.query('ROLLBACK');
+    /* Si la conexión ya está muerta, el ROLLBACK también falla — y ese segundo
+       error TAPABA al primero, que es el único que explica qué pasó de verdad.
+       Perder la causa raíz por culpa de la limpieza convierte un bug de diez
+       minutos en una tarde de adivinanzas. */
+    try {
+      await client.query('ROLLBACK');
+    } catch (errRollback) {
+      console.error('[pg] el ROLLBACK tambien fallo:', errRollback.message);
+    }
     throw e;
   } finally {
     client.release();
