@@ -137,8 +137,25 @@ const saveCv = async (userId, sourceText, data, lang, title = 'CV') => {
   return { ...row, data: decryptJson(row.data) };
 };
 
-/** Toda lectura de la base pasa por acá: nadie lee `data` crudo. */
-const readCvRow = (row) => (row ? { ...row, data: decryptJson(row.data), source_text: undefined } : row);
+/**
+ * Toda lectura de la base pasa por acá: nadie lee `data` crudo.
+ *
+ * Y si el descifrado falla (clave rotada, fila corrupta), la fila se trata como
+ * ILEGIBLE y devuelve null. Antes `decryptJson` devolvía null y ese null seguía
+ * viaje como si fuera el CV: seis lugares distintos hacían `doc.data.algo` y
+ * reventaban con un 500 genérico ("algo se rompió de nuestro lado"). El chequeo
+ * tiene que estar acá, una sola vez, y no repetido en cada handler — que es
+ * exactamente el tipo de chequeo que alguien se olvida de poner en el séptimo.
+ */
+export const readCvRow = (row) => {
+  if (!row) return row;
+  const data = decryptJson(row.data);
+  if (data === null) {
+    console.error('[cv] fila ilegible (clave rotada o dato corrupto), cv:', row.id);
+    return null;
+  }
+  return { ...row, data, source_text: undefined };
+};
 
 // ---------------------------------------------------------------------------
 // POST /cv/parse — sube un archivo o manda texto; devuelve el CV estructurado
@@ -165,20 +182,26 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     );
     /* La cache de la base solo vale si es el MISMO idioma: el contenido se
        traduce al idioma pedido, asi que cambiar de idioma re-procesa. */
-    if (cached[0] && !cached[0].edited && cached[0].lang === lang) {
-      const doc = readCvRow(cached[0]);   // data viene cifrado de la base: SIEMPRE descifrar antes de usar
+    /* Si la copia guardada no se puede descifrar, `readCvRow` devuelve null y
+       acá NO hay que fallar: seguimos de largo y la regeneramos. Al usuario le
+       da igual por qué no servía la de antes; lo que quiere es su diagnóstico.
+       (Sí consume cuota, porque hay una llamada real al modelo.) */
+    const guardado = (cached[0] && !cached[0].edited && cached[0].lang === lang)
+      ? readCvRow(cached[0])
+      : null;
+    if (guardado) {
       const editable = req.user.tier === 'pro';
       return res.json({
-        id: doc.id,
-        lang: doc.lang,
+        id: guardado.id,
+        lang: guardado.lang,
         editable,
         cached: true,
         quota: await getQuota(req.user),
-        warnings: doc.data.warnings ?? [],
+        warnings: guardado.data.warnings ?? [],
         /* Toda cuenta recibe el CV estructurado: es lo que hace que el
            diagnóstico salga bien. Lo Pro es EDITARLO (PUT) y el DOCX. */
-        cv: doc.data,
-        preview: { name: doc.data.name, downloadPdf: `/cv/${doc.id}/export?format=pdf` },
+        cv: guardado.data,
+        preview: { name: guardado.data.name, downloadPdf: `/cv/${guardado.id}/export?format=pdf` },
       });
     }
 
