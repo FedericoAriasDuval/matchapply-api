@@ -167,9 +167,13 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     const lang = (req.body?.lang ?? 'es').slice(0, 2);
     let sourceText;
     if (req.file) {
-      validateUpload(req.file);                    // firma binaria + tamaño: no confiamos en el mimetype
+      /* El tipo REAL sale de los primeros bytes, no del nombre — y ese tipo es
+         el que se le pasa al extractor. Antes se descartaba y el extractor
+         volvía a adivinar por la extensión: un PDF llamado "cv.txt" terminaba
+         leído como texto y se le mandaba binario al modelo como si fuera un CV. */
+      const tipoReal = validateUpload(req.file);
       req.file.originalname = safeFilename(req.file.originalname);
-      sourceText = await extractText(req.file);
+      sourceText = await extractText(req.file, tipoReal);
     } else {
       sourceText = String(req.body?.text ?? '').trim();
     }

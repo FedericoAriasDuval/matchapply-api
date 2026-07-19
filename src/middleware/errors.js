@@ -174,6 +174,18 @@ const HUMAN = {
     message: 'Eso no parece un CV.',
     hint: 'Necesitamos tu experiencia en texto: puesto, empresa y que hiciste.',
   },
+  pdf_locked: {
+    message: 'Ese PDF esta protegido con contrasena.',
+    hint: 'Abrilo, guardalo de nuevo sin contrasena y subilo otra vez. O pega el texto de tu CV.',
+  },
+  pdf_scanned: {
+    message: 'Ese PDF es una imagen, no texto.',
+    hint: 'Ojo: un filtro ATS tampoco va a poder leerlo. Subilo a Google Drive, abrilo con Documentos de Google y te lo convierte a texto.',
+  },
+  pdf_broken: {
+    message: 'No pudimos abrir ese archivo.',
+    hint: 'Puede estar danado o copiado a medias. Exportalo de nuevo, o pega el texto de tu CV.',
+  },
   cv_unparsable: {
     message: 'No pudimos leer el contenido de ese archivo.',
     hint: 'Suele pasar con PDFs escaneados. Proba con uno exportado desde Word o Docs.',
