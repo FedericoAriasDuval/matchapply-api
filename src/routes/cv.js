@@ -402,14 +402,48 @@ cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res
 //   la evaluación final. La cuota se consume UNA vez por entrevista (el primer
 //   turno), no por mensaje: si no, una entrevista se comería 5 usos del día.
 // ---------------------------------------------------------------------------
+/* Token de continuación de entrevista (stateless, HMAC).
+   Cierra el bypass de cuota (H2 del audit): la cuota se cobra SOLO al emitir
+   este token, en el turno 0 (history vacío + sin token). Para continuar
+   (history no vacío) hay que presentar el token; sin él, es una entrevista
+   nueva y se cobra igual — mandar history falso ya no sale gratis. El token
+   no se puede forjar (HMAC con JWT_SECRET) ni reusar entre usuarios (lleva el
+   userId) ni indefinidamente (TTL 1h). Residual conocido y acotado: el replay
+   en paralelo del MISMO token da turnos sin cobro, pero lo limita aiLimiter
+   (30 req/5min por IP). El fix completo sería estado en DB (fila por entrevista
+   con contador atómico) — anotado como follow-up si se observa abuso. */
+const IV_TTL_MS = 60 * 60 * 1000;
+const signInterviewSession = (userId, turns) => {
+  const body = `${userId}.${turns}.${Date.now() + IV_TTL_MS}`;
+  const mac = crypto.createHmac('sha256', config.auth.jwtSecret).update(body).digest('base64url');
+  return `${Buffer.from(body).toString('base64url')}.${mac}`;
+};
+/** Turnos ya jugados si el token es válido y del mismo usuario; si no, null. */
+const readInterviewSession = (token, userId) => {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
+  const i = token.lastIndexOf('.');
+  const b64 = token.slice(0, i), mac = token.slice(i + 1);
+  let body;
+  try { body = Buffer.from(b64, 'base64url').toString('utf8'); } catch { return null; }
+  const expected = crypto.createHmac('sha256', config.auth.jwtSecret).update(body).digest('base64url');
+  const a = Buffer.from(mac), b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  const [uid, turnsStr, expStr] = body.split('.');
+  if (uid !== String(userId) || Number(expStr) < Date.now()) return null;
+  const turns = Number(turnsStr);
+  return Number.isFinite(turns) ? turns : null;
+};
+
 cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req, res, next) => {
   try {
-    const { role, context, jobDescription, lang, history } = z
+    const { role, context, jobDescription, lang, history, session } = z
       .object({
         role: z.string().trim().max(120).optional().default(''),
         context: z.string().trim().max(30).optional().default('regular'),
         jobDescription: z.string().trim().max(8_000).optional().default(''),
         lang: z.string().trim().max(2).optional().default('es'),
+        // token de continuación emitido por el server (ver arriba)
+        session: z.string().max(400).optional().default(''),
         history: z
           // q hasta 800: es el largo máximo de pregunta que NOSOTROS emitimos
           // (slice(0,800) en la respuesta). Con 600 acá, una pregunta larga
@@ -428,7 +462,14 @@ cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req,
     const doc = readCvRow(rows[0]);   // descifrar: al LLM le llega el JSON, no el cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
-    const firstTurn = history.length === 0;
+    // Continuar una entrevista (history no vacío) EXIGE el token que emitimos en
+    // el turno 0. Sin token válido, mandar history es un intento de saltear el
+    // cobro: se rechaza. El turno 0 real (history vacío + sin token) sí cobra.
+    const prevTurns = readInterviewSession(session, req.user.id);
+    if (history.length > 0 && prevTurns === null) {
+      throw badRequest('interview_session', 'La sesión de entrevista venció o no es válida. Empezá de nuevo.');
+    }
+    const firstTurn = prevTurns === null;
     const quota = firstTurn ? await consumeQuota(req.user) : undefined;
     let out;
     try {
@@ -441,13 +482,16 @@ cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req,
       throw e;
     }
 
-    const done = out.done === true || history.length >= 5;
+    const turnsPlayed = (firstTurn ? 0 : prevTurns) + 1;
+    const done = out.done === true || turnsPlayed >= 6 || history.length >= 5;
     const ev = (done && out.evaluation && typeof out.evaluation === 'object') ? out.evaluation : null;
     res.json({
       quota,
       feedback: String(out.feedback ?? '').trim().slice(0, 1_500) || null,
       question: done ? null : (String(out.question ?? '').trim().slice(0, 800) || null),
       done,
+      // token para el próximo turno; ausente cuando la entrevista terminó
+      session: done ? undefined : signInterviewSession(req.user.id, turnsPlayed),
       evaluation: ev
         ? {
             score: Math.max(0, Math.min(100, Number(ev.score) || 0)),

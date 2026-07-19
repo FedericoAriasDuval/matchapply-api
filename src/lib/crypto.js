@@ -82,11 +82,16 @@ export const decryptText = (payload) => {
 export const encryptJson = (obj) => encryptText(JSON.stringify(obj ?? null));
 
 export const decryptJson = (payload) => {
-  const txt = decryptText(payload);
-  if (!txt) return null;
+  /* El descifrado va DENTRO del try: si la clave rotó o el registro se corrompió,
+     GCM lanza en decipher.final(). Antes eso subía hasta el errorHandler como un
+     500 por CADA lectura del CV. Ahora se aísla a ese CV (null + aviso), no
+     voltea toda la cuenta. */
   try {
+    const txt = decryptText(payload);
+    if (!txt) return null;
     return JSON.parse(txt);
-  } catch {
+  } catch (e) {
+    console.warn('[crypto] no se pudo descifrar/parsear un CV (clave rotada o dato corrupto):', e?.message);
     return null;
   }
 };

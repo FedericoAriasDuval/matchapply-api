@@ -211,7 +211,9 @@
     },
 
     /** Simulador de entrevista (solo Pro). Un turno por llamada.
-        opts: { role, context, jobDescription, lang, history:[{q,a}] }. */
+        opts: { role, context, jobDescription, lang, history:[{q,a}], session }.
+        session = token de continuación que devuelve el server; se reenvía en
+        cada turno para no re-cobrar la cuota (el server lo exige para seguir). */
     interview: function (id, opts) {
       opts = opts || {};
       return request('/cv/' + encodeURIComponent(id) + '/interview', {
@@ -219,7 +221,7 @@
         body: {
           role: opts.role || '', context: opts.context || 'regular',
           jobDescription: opts.jobDescription || '', lang: opts.lang || 'es',
-          history: opts.history || []
+          history: opts.history || [], session: opts.session || ''
         }
       });
     },
