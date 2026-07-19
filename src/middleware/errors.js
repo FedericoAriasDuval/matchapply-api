@@ -96,6 +96,116 @@ const HUMAN = {
     message: 'Algo se rompio de nuestro lado.',
     hint: 'No es culpa tuya y no perdiste nada. Si vuelve a pasar, escribinos con este codigo.',
   },
+
+  /* ── Los 4xx que una persona real toca todos los dias. ──────────────────────
+     Antes caian en el fallback y le decian "algo se rompio de nuestro lado" a
+     alguien que solo tenia que iniciar sesion. Un error que se echa la culpa
+     equivocada es peor que uno tecnico: manda a la persona a esperar en vez de
+     a hacer lo unico que la destraba. */
+  unauthorized: {
+    message: 'Necesitas iniciar sesion para hacer esto.',
+    hint: 'Toca "Iniciar sesion" arriba a la derecha. Tu CV sigue en pantalla.',
+  },
+  session_expired: {
+    message: 'Tu sesion se cerro por seguridad.',
+    hint: 'Volve a entrar con tu email. No perdiste nada de lo que escribiste.',
+  },
+  not_verified: {
+    message: 'Todavia falta verificar tu email.',
+    hint: 'Te mandamos un codigo cuando te registraste. Revisa tambien el correo no deseado.',
+  },
+  pro_required: {
+    message: 'Esta funcion es parte de Mavante Pro.',
+    hint: 'El diagnostico y el CV estructurado siguen siendo gratis. Podes activar Pro desde tu cuenta.',
+  },
+  quota_exceeded: {
+    message: 'Llegaste a tu limite de analisis por hoy.',
+    hint: 'Se renueva manana. Lo que ya generaste queda guardado.',
+  },
+  invalid_code: {
+    message: 'Ese codigo no es correcto, o ya vencio.',
+    hint: 'Pedi uno nuevo desde la misma pantalla y usa el ultimo que te llegue.',
+  },
+  resend_cooldown: {
+    message: 'Recien te mandamos un codigo.',
+    hint: 'Espera unos segundos antes de pedir otro; a veces el mail tarda en llegar.',
+  },
+  account_locked: {
+    message: 'Bloqueamos la cuenta un rato por intentos fallidos.',
+    hint: 'Es para protegerte. Proba de nuevo en unos minutos, o entra con Google.',
+  },
+  weak_password: {
+    message: 'Esa contrasena es facil de adivinar.',
+    hint: 'Usa al menos 8 caracteres y mezcla letras con numeros.',
+  },
+  password_mismatch: {
+    message: 'Las dos contrasenas no coinciden.',
+    hint: 'Escribilas de nuevo con cuidado.',
+  },
+  user_not_found: {
+    message: 'No encontramos una cuenta con ese email.',
+    hint: 'Fijate si lo escribiste bien, o crea una cuenta nueva.',
+  },
+  already_verified: {
+    message: 'Esa cuenta ya estaba verificada.',
+    hint: 'Podes iniciar sesion directamente.',
+  },
+  token_invalid: {
+    message: 'Ese enlace ya no sirve.',
+    hint: 'Los enlaces vencen por seguridad. Pedi uno nuevo desde la pantalla de ingreso.',
+  },
+  cv_not_found: {
+    message: 'No encontramos ese CV.',
+    hint: 'Puede que lo hayas borrado. Volve a Herramientas y subilo de nuevo.',
+  },
+  empty_cv: {
+    message: 'El CV llego vacio.',
+    hint: 'Pega el texto en el recuadro, o subi el archivo otra vez.',
+  },
+  no_file: {
+    message: 'No llego ningun archivo.',
+    hint: 'Elegi el archivo de nuevo y fijate que la subida termine.',
+  },
+  invalid_cv: {
+    message: 'Eso no parece un CV.',
+    hint: 'Necesitamos tu experiencia en texto: puesto, empresa y que hiciste.',
+  },
+  cv_unparsable: {
+    message: 'No pudimos leer el contenido de ese archivo.',
+    hint: 'Suele pasar con PDFs escaneados. Proba con uno exportado desde Word o Docs.',
+  },
+  invalid_payload: {
+    message: 'Algunos datos llegaron incompletos.',
+    hint: 'Revisa el formulario y proba de nuevo.',
+  },
+  bad_format: {
+    message: 'Ese formato no esta disponible.',
+    hint: 'Elegi uno de los formatos que ofrece el boton de descarga.',
+  },
+  interview_session: {
+    message: 'Se corto el hilo de la entrevista.',
+    hint: 'Empeza una entrevista nueva: las respuestas que diste quedan en el transcript.',
+  },
+  cover_failed: {
+    message: 'No nos salio una carta que valiera la pena.',
+    hint: 'Antes que darte un texto generico, preferimos que lo intentes otra vez.',
+  },
+  billing_disabled: {
+    message: 'Los pagos no estan disponibles en este momento.',
+    hint: 'Escribinos a support@mavante.com y lo resolvemos con vos.',
+  },
+  billing_no_url: {
+    message: 'No pudimos abrir la pantalla de pago.',
+    hint: 'Proba de nuevo en un minuto. No se te cobro nada.',
+  },
+  oauth_disabled: {
+    message: 'El ingreso con Google no esta disponible ahora.',
+    hint: 'Podes entrar con tu email y contrasena.',
+  },
+  admin_only: {
+    message: 'Esa direccion no existe.',
+    hint: 'Volve al inicio y proba de nuevo.',
+  },
 };
 
 /* Normaliza cualquier cosa lanzada a un HttpError con vocabulario humano. */
@@ -131,13 +241,17 @@ export const errorHandler = (err, req, res, _next) => {
     console.warn(`[warn:${requestId}]`, req.method, req.path, e.code);
   }
 
-  const human = HUMAN[e.code] ?? HUMAN.internal_error;
+  /* El fallback NUNCA es internal_error para un 4xx: un codigo nuevo que todavia
+     no tiene copy igual trae su propio mensaje humano desde donde se lanzo, y
+     echarle la culpa al servidor manda a la persona a esperar en vez de a
+     arreglar lo unico que la destraba. Solo el 5xx es culpa nuestra. */
+  const human = HUMAN[e.code] ?? (e.status < 500 ? { message: e.message } : HUMAN.internal_error);
 
   res.status(e.status).json({
     error: {
       code: e.code,
-      message: human.message ?? (e.status < 500 ? e.message : HUMAN.internal_error.message),
-      hint: human.hint,
+      message: human.message || HUMAN.internal_error.message,
+      hint: human.hint ?? (e.status < 500 ? 'Corregilo y proba de nuevo.' : HUMAN.internal_error.hint),
       soft: human.soft ?? false,
       requestId,
       ...e.extra,

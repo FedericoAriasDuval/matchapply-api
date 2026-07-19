@@ -27,6 +27,9 @@
     e.code = code || 'unknown';
     e.status = status || 0;
     e.details = details || null;
+    /* El backend siempre manda un 'hint': lo que la persona puede HACER ahora.
+       Lo dejamos a mano para que quien muestre el error no tenga que bucear. */
+    e.hint = (details && details.hint) || '';
     return e;
   }
 
@@ -105,11 +108,16 @@
         var refreshed = await tryRefresh();
         if (refreshed) return request(path, Object.assign({}, opts, { _retried: true }));
       }
+      /* El backend envuelve TODO en {error:{code,message,hint,...}}. Leerlo plano
+         dejaba e.code en 'http_429' y el mensaje en un genérico: los chequeos por
+         código acertaban de casualidad (porque además miran e.status) y el texto
+         humano del backend no llegaba nunca. */
+      var payload = (data && data.error) ? data.error : (data || {});
       throw ApiError(
-        (data && data.code) || 'http_' + res.status,
-        (data && data.message) || 'El servidor respondió con un error.',
+        payload.code || 'http_' + res.status,
+        payload.message || 'El servidor respondió con un error.',
         res.status,
-        (data && data.details) || null
+        payload
       );
     }
     return data || {};
