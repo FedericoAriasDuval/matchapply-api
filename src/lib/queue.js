@@ -54,6 +54,7 @@ export class Queue {
 
     this.running = 0;
     this.waiting = [];
+    this.closing = false;   // se prende al apagar: ver drain()
 
     // métricas: sin esto, el día del pico estás volando a ciegas
     this.stats = { done: 0, failed: 0, timedOut: 0, rejected: 0, maxWaitMs: 0, maxDepth: 0 };
@@ -85,6 +86,12 @@ export class Queue {
    * @returns {Promise<T>}
    */
   run(fn) {
+    if (this.closing) {
+      /* Estamos apagando por un deploy: no aceptamos trabajo nuevo, pero el que
+         ya estaba corriendo se termina. Es un 503 honesto, no una desconexión. */
+      this.stats.rejected++;
+      return Promise.reject(new QueueFullError(this.waiting.length, this.eta()));
+    }
     if (this.waiting.length >= this.maxQueue) {
       this.stats.rejected++;
       return Promise.reject(new QueueFullError(this.waiting.length, this.eta()));
@@ -96,6 +103,26 @@ export class Queue {
       this.stats.maxDepth = Math.max(this.stats.maxDepth, this.waiting.length);
       this._pump();
     });
+  }
+
+  /**
+   * Deja de aceptar trabajo nuevo y espera a que se vacíe lo que está corriendo.
+   *
+   * POR QUÉ: en cada deploy Render manda SIGTERM. Sin esto, los CVs que estaban
+   * a mitad de análisis se cortaban de un hachazo — y el usuario perdía el
+   * análisis DESPUÉS de que ya le habíamos descontado la cuota. Un deploy no
+   * puede costarle un uso a alguien que hizo todo bien.
+   *
+   * @param {number} ms cuánto esperamos como máximo antes de cortar igual.
+   * @returns {Promise<boolean>} true si se vació sola, false si venció el plazo.
+   */
+  async drain(ms = 25_000) {
+    this.closing = true;
+    const hasta = Date.now() + ms;
+    while ((this.running > 0 || this.waiting.length > 0) && Date.now() < hasta) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return this.running === 0 && this.waiting.length === 0;
   }
 
   _pump() {

@@ -17,7 +17,6 @@
  * convertirse en un error del usuario.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { GoogleGenAI } from '@google/genai';
 import { config } from '../config.js';
 import { HttpError } from '../middleware/errors.js';
 import { JsonExtractError, extractJson } from './json.js';
@@ -28,6 +27,18 @@ export { extractJson } from './json.js';
 const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 30000);
 const MAX_RETRIES = 2;
 
+/* PRESUPUESTO TOTAL de la operación, reintentos y esperas incluidos.
+ *
+ * Sin esto los dos timeouts del sistema se contradecían: la cola abandona a los
+ * 45 s (CV_TIMEOUT_MS) y le contesta al usuario, pero acá seguíamos reintentando
+ * hasta ~95 s (3 intentos de 30 s + backoff). O sea: pagábamos llamadas a la IA
+ * que ya no le importaban a nadie, y encima ocupábamos memoria de un proceso que
+ * en el pico la necesita para los que SÍ están esperando.
+ *
+ * 40 s deja margen bajo los 45 de la cola: si vamos a fallar, fallamos antes de
+ * que nos corten, y el usuario recibe el error nuestro —humano— y no un timeout. */
+const BUDGET_MS = Number(process.env.LLM_BUDGET_MS ?? 40000);
+
 /* Dos proveedores, un solo cliente. El flag LLM_PROVIDER decide cuál se usa;
    todo el blindaje de abajo (timeout, reintentos, breaker, fallback) es igual
    para los dos. Cambiar de proveedor NO toca ninguna otra parte del sistema. */
@@ -36,11 +47,22 @@ const PROVIDER = config.llm.provider === 'gemini' ? 'gemini' : 'anthropic';
 const anthropic = (PROVIDER === 'anthropic' && config.llm.enabled)
   ? new Anthropic({ apiKey: config.llm.apiKey, maxRetries: 0 })
   : null;
-const gemini = (PROVIDER === 'gemini' && config.llm.enabled)
-  ? new GoogleGenAI({ apiKey: config.llm.geminiKey })
-  : null;
+/* Gemini se carga SOLO si de verdad se va a usar (import dinámico dentro de la
+   llamada). Antes se importaba siempre, y eso significaba que un paquete que hoy
+   no usamos podía impedir que arrancara TODA la API: si `@google/genai` faltaba
+   o se rompía en un deploy, Mavante no levantaba aunque el motor activo fuera
+   Claude. Un proveedor dormido no puede tener poder de veto sobre el arranque.
+   De paso, no se paga su memoria en un plan con poca RAM. */
+let gemini = null;
+const getGemini = async () => {
+  if (!gemini) {
+    const { GoogleGenAI } = await import('@google/genai');
+    gemini = new GoogleGenAI({ apiKey: config.llm.geminiKey });
+  }
+  return gemini;
+};
 
-const hasClient = () => (PROVIDER === 'gemini' ? !!gemini : !!anthropic);
+const hasClient = () => (PROVIDER === 'gemini' ? Boolean(config.llm.geminiKey) : !!anthropic);
 const activeModel = () => (PROVIDER === 'gemini' ? config.llm.geminiModel : config.llm.model);
 
 /* 429 y 5xx son transitorios: reintentar sirve. Un 400 es culpa nuestra: no. */
@@ -80,7 +102,8 @@ const callGemini = async ({ system, user, maxTokens, signal }) => {
     abortSignal: signal,
   };
   if (config.llm.geminiModel.includes('2.5')) cfg.thinkingConfig = { thinkingBudget: 0 };
-  const res = await gemini.models.generateContent({
+  const g = await getGemini();
+  const res = await g.models.generateContent({
     model: config.llm.geminiModel,
     contents: user,
     config: cfg,
@@ -88,9 +111,9 @@ const callGemini = async ({ system, user, maxTokens, signal }) => {
   return res.text ?? '';
 };
 
-const callOnce = async ({ system, user, maxTokens }) => {
+const callOnce = async ({ system, user, maxTokens, timeoutMs = TIMEOUT_MS }) => {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const text =
       PROVIDER === 'gemini'
@@ -110,14 +133,23 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
 
   const attemptAll = async () => {
     let lastErr;
+    const t0 = Date.now();
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      /* Cada intento se recorta a lo que queda de presupuesto: el último no
+         puede pasarse de los 40 s aunque el timeout suelto diga 30. */
+      const restante = BUDGET_MS - (Date.now() - t0);
+      if (restante <= 1000) break;
       try {
-        return await callOnce({ system, user, maxTokens });
+        return await callOnce({ system, user, maxTokens, timeoutMs: Math.min(TIMEOUT_MS, restante) });
       } catch (e) {
         lastErr = e;
         if (e instanceof JsonExtractError) throw new HttpError(502, 'llm_bad_output', e.message);
         if (!isTransient(e) || attempt === MAX_RETRIES) break;
-        await sleep(backoff(attempt));
+        const espera = backoff(attempt);
+        /* No arrancamos un reintento que no va a llegar a tiempo: esperar para
+           después abandonar es gastar el doble y contestar más tarde. */
+        if (Date.now() - t0 + espera + 2000 >= BUDGET_MS) break;
+        await sleep(espera);
       }
     }
     const timedOut = lastErr?.name === 'AbortError';

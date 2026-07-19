@@ -11,10 +11,27 @@ import {
 } from '../lib/tokens.js';
 import { authenticate } from '../middleware/auth.js';
 import { codeLimiter, loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
-import { badRequest, forbidden, tooMany, unauthorized } from '../middleware/errors.js';
+import { HttpError, badRequest, forbidden, tooMany, unauthorized } from '../middleware/errors.js';
 import { attachReferral, creditReferral } from './referrals.js';
 
 export const authRouter = Router();
+
+/**
+ * Manda el código y traduce una falla del SMTP a algo que la persona entiende.
+ *
+ * Sin esto, un hipo del proveedor de mail salía como error 500 genérico ("algo
+ * se rompió de nuestro lado") justo en el alta, que es el momento de más
+ * intención de toda la web. Con `mail_failed` decimos la verdad —el mail no
+ * salió— y le damos la única salida real: volver a pedirlo. La cuenta ya quedó
+ * creada sin verificar, así que reintentar funciona.
+ */
+const enviarCodigo = async ({ to, name, code }) => {
+  try {
+    await sendVerificationEmail({ to, name, code });
+  } catch (e) {
+    throw new HttpError(503, 'mail_failed', 'No pudimos enviarte el código.', { email: to });
+  }
+};
 
 const publicUser = (u) => ({
   id: u.id,
@@ -108,7 +125,7 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     }
 
     const { code } = await issueCode(user.id, 'signup');
-    await sendVerificationEmail({ to: email, name: body.name, code });
+    await enviarCodigo({ to: email, name: body.name, code });
     await audit(req, 'signup', { userId: user.id, email });
 
     // El código NUNCA vuelve al cliente.
@@ -204,7 +221,7 @@ authRouter.post('/resend', codeLimiter, async (req, res, next) => {
     if (wait > 0) throw tooMany('resend_cooldown', `Esperá ${wait} segundos antes de pedir otro código.`, { wait });
 
     const { code } = await issueCode(user.id, 'signup');
-    await sendVerificationEmail({ to: user.email, name: user.name, code });
+    await enviarCodigo({ to: user.email, name: user.name, code });
     await audit(req, 'resend', { userId: user.id, email: user.email });
 
     res.status(202).json({ status: 'sent', resendCooldownSeconds: config.auth.resendCooldownSeconds });
@@ -252,7 +269,14 @@ authRouter.post('/login', loginLimiter, async (req, res, next) => {
       const wait = await inResendCooldown(user.id, 'signup');
       if (wait === 0) {
         const { code } = await issueCode(user.id, 'signup');
-        await sendVerificationEmail({ to: user.email, name: user.name, code });
+        /* Acá el mail es un EXTRA: la respuesta real es "verificá tu email".
+           Si el envío falla, se loguea y se sigue — tapar esa respuesta con un
+           error de mail dejaría a la persona sin entender por qué no entra. */
+        try {
+          await sendVerificationEmail({ to: user.email, name: user.name, code });
+        } catch (e) {
+          console.error('[auth] login de cuenta sin verificar: el reenvío del código falló', e?.message);
+        }
       }
       throw forbidden('not_verified', 'Verificá tu email para entrar.', {
         email: user.email,

@@ -122,6 +122,10 @@ const HUMAN = {
     message: 'Llegaste a tu limite de analisis por hoy.',
     hint: 'Se renueva manana. Lo que ya generaste queda guardado.',
   },
+  mail_failed: {
+    message: 'No pudimos mandarte el codigo por mail.',
+    hint: 'Tu cuenta quedo creada. Toca "Reenviar codigo" en un minuto, o escribinos a support@mavante.com.',
+  },
   invalid_code: {
     message: 'Ese codigo no es correcto, o ya vencio.',
     hint: 'Pedi uno nuevo desde la misma pantalla y usa el ultimo que te llegue.',

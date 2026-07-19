@@ -8,6 +8,7 @@ import { verifyMailer } from './lib/mailer.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { announceEncryption, encryptionEnabled } from './lib/crypto.js';
 import { cvQueue } from './lib/queue.js';
+import { cerrarOrdenado } from './lib/shutdown.js';
 import { llmHealth } from './lib/llm.js';
 import { cvCache } from './lib/cache.js';
 import { authRouter } from './routes/auth.js';
@@ -77,7 +78,10 @@ app.get('/health', async (_req, res) => {
 app.get('/ready', (_req, res) => {
   const q = cvQueue.snapshot();
   const saturated = q.waiting >= cvQueue.maxQueue * 0.9;
-  res.status(saturated ? 503 : 200).json({ ready: !saturated, queue: q });
+  /* Durante un deploy tampoco estamos listos: seguimos vivos terminando lo que
+     quedó, pero no queremos tráfico nuevo. */
+  const ready = !saturated && !cvQueue.closing;
+  res.status(ready ? 200 : 503).json({ ready, closing: cvQueue.closing, queue: q });
 });
 
 app.use('/auth', authRouter);
@@ -103,15 +107,49 @@ const server = app.listen(config.port, async () => {
   if (!config.llm.enabled) console.warn('[llm] ANTHROPIC_API_KEY sin configurar: /cv/parse va a responder 503.');
 });
 
-const shutdown = async (signal) => {
+/*
+ * RED DE SEGURIDAD DEL PROCESO.
+ *
+ * Node mata el proceso ante una promesa rechazada que nadie atrapó. Un solo
+ * `.catch` que falta en cualquier rincón —un webhook raro, un mail que revienta,
+ * un await olvidado— y la API entera se cae para TODOS. Render la reinicia, pero
+ * son 30-60 segundos de sitio muerto, y el día del lanzamiento eso es la
+ * diferencia entre "andaba lento" y "no andaba".
+ *
+ * La distinción importa:
+ *   - unhandledRejection: casi siempre es un pedido puntual que salió mal. Se
+ *     loguea con el detalle completo y se SIGUE sirviendo. Matar a los otros 200
+ *     usuarios por el error de uno es la peor decisión posible.
+ *   - uncaughtException: el proceso ya quedó en un estado que no entendemos.
+ *     Ahí sí se cierra ordenado (drenando lo que estaba corriendo) y se deja que
+ *     Render levante uno limpio. Seguir sirviendo desde un estado corrupto es
+ *     peor que un reinicio.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal:rejection] promesa sin catch — la API SIGUE viva:', reason?.stack || reason);
+});
+
+let cerrando = false;
+
+const shutdown = async (signal, code = 0) => {
+  if (cerrando) return;          // SIGTERM dos veces no puede duplicar el cierre
+  cerrando = true;
   console.log(`\n${signal} recibido, cerrando...`);
-  server.close(async () => {
-    await pool.end();
-    process.exit(0);
-  });
-  setTimeout(() => process.exit(1), 10_000).unref();
+
+  await cerrarOrdenado({ server, queue: cvQueue, pool, drainMs: 25_000 });
+  process.exit(code);
 };
+
+process.on('uncaughtException', (err) => {
+  console.error('[fatal:exception] estado desconocido, reiniciamos:', err?.stack || err);
+  shutdown('uncaughtException', 1);
+});
+
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+/* Render corta a los ~30 s del SIGTERM; si el drenaje se pasa, salimos igual
+   antes de que nos maten de afuera (un SIGKILL no cierra el pool). */
+process.on('exit', () => { if (!cerrando) console.log('[shutdown] salida sin senal'); });
 
 export { app };
