@@ -103,6 +103,12 @@ export const sha256 = (txt) => crypto.createHash('sha256').update(String(txt ?? 
 export const announceEncryption = () => {
   if (KEY) {
     console.log('[crypto] CVs cifrados en reposo con AES-256-GCM.');
+  } else if (process.env.NODE_ENV === 'production') {
+    // En producción NO arrancamos sin la clave: persistir PII (CVs) en texto
+    // plano por un olvido de config es peor que fallar ruidoso. (Audit M4.)
+    throw new Error(
+      'CV_ENC_KEY es obligatoria en producción: los CVs no pueden guardarse en texto plano. Generala con: openssl rand -hex 32',
+    );
   } else {
     console.warn(
       '[crypto] ⚠️  CV_ENC_KEY no está configurada: los CVs se guardan EN TEXTO PLANO.\n' +

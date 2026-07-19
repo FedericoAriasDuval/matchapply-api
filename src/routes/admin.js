@@ -1,7 +1,17 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { query } from '../db.js';
 import { badRequest, unauthorized } from '../middleware/errors.js';
+import { adminLimiter } from '../middleware/rateLimit.js';
+
+/** Comparación en tiempo constante del token de fundador (Audit L2). */
+export const adminTokenOk = (token) => {
+  const expected = process.env.ADMIN_TOKEN || '';
+  if (!expected) return false;   // sin token configurado, deniega (fail-closed)
+  const a = Buffer.from(String(token || '')), b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
 
 /**
  * Llave de fundador. Protegida con ADMIN_TOKEN (header x-admin-token).
@@ -16,15 +26,14 @@ import { badRequest, unauthorized } from '../middleware/errors.js';
 export const adminRouter = Router();
 
 const requireAdmin = (req, _res, next) => {
-  const token = req.get('x-admin-token');
-  if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+  if (!adminTokenOk(req.get('x-admin-token'))) {
     return next(unauthorized('admin_only', 'Solo para los fundadores.'));
   }
   next();
 };
 
 // POST /admin/tier  { email, tier: 'free'|'pro' }  → setea el plan de una cuenta
-adminRouter.post('/tier', requireAdmin, async (req, res, next) => {
+adminRouter.post('/tier', adminLimiter, requireAdmin, async (req, res, next) => {
   try {
     const { email, tier } = z
       .object({ email: z.string().trim().email(), tier: z.enum(['free', 'pro']) })

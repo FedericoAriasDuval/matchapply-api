@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { asyncRoute, unauthorized } from '../middleware/errors.js';
 import { reviewLimiter } from '../middleware/rateLimit.js';
+import { adminTokenOk } from './admin.js';
 import { completeJson } from '../lib/llm.js';
 
 export const reviewsRouter = Router();
@@ -62,8 +63,7 @@ reviewsRouter.post(
 /* Protegido con ADMIN_TOKEN. No es una pantalla de admin: es una lectura para
    los dos, y no queremos construir un panel que nadie va a mirar dos veces. */
 const requireAdmin = (req, _res, next) => {
-  const token = req.get('x-admin-token');
-  if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+  if (!adminTokenOk(req.get('x-admin-token'))) {
     return next(unauthorized('admin_only', 'Solo para los fundadores.'));
   }
   next();

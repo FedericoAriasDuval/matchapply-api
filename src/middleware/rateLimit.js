@@ -26,3 +26,11 @@ export const aiLimiter = rateLimit(opts(5 * 60_000, 30, 'ai_rate_limited'));
 /* Resenas: 5 cada 10 minutos por IP. Suficiente para que alguien deje la suya y
    corrija; insuficiente para inundarnos el feedback y ensuciar el resumen. */
 export const reviewLimiter = rateLimit(opts(10 * 60_000, 5, 'review_rate_limited'));
+
+/* Llave de fundador: 20 intentos por IP cada 15 min. El token es largo y
+   aleatorio; esto solo le saca al brute-force la fuerza bruta. (Audit L4.) */
+export const adminLimiter = rateLimit(opts(15 * 60_000, 20, 'admin_rate_limited'));
+
+/* Webhooks de pago: 60/min por IP. MP/Paddle mandan poco; frena la amplificación
+   de fetch salientes con ids arbitrarios hacia la API del proveedor. (Audit M7.) */
+export const webhookLimiter = rateLimit(opts(60_000, 60, 'webhook_rate_limited'));

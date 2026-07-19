@@ -4,6 +4,7 @@ import { Paddle, Environment } from '@paddle/paddle-node-sdk';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
+import { webhookLimiter } from '../middleware/rateLimit.js';
 import { HttpError } from '../middleware/errors.js';
 
 export const billingRouter = Router();
@@ -117,7 +118,7 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
  * así un aviso falsificado no puede activar un Pro.
  * Se monta dentro del router (body JSON ya parseado por el server).
  */
-billingRouter.post('/mp-webhook', async (req, res) => {
+billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
   if (!mpToken) return res.sendStatus(503);
   try {
     const type = String(req.query.type || req.query.topic || req.body?.type || req.body?.action || '');

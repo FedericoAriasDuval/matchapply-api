@@ -187,7 +187,7 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     try {
       data = await structureCv(sourceText, lang);
     } catch (e) {
-      await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
     const doc = await saveCv(req.user.id, sourceText, data, lang);
@@ -331,7 +331,7 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
         user: buildTailorMessage(doc.data, jobDescription),
       });
     } catch (e) {
-      await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
 
@@ -383,7 +383,7 @@ cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res
         user: buildCoverMessage(doc.data, jobDescription, tone, lang || doc.lang, draft),
       });
     } catch (e) {
-      await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
 
@@ -478,7 +478,7 @@ cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req,
         user: buildInterviewMessage(doc.data, { role, context, jobDescription, history, lang: lang || doc.lang }),
       });
     } catch (e) {
-      if (firstTurn) await refundQuota(req.user).catch(() => {});   // el fallo es nuestro, el uso se devuelve
+      if (firstTurn) await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
 

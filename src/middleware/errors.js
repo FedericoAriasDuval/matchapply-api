@@ -109,6 +109,10 @@ const normalize = (err) => {
   if (err instanceof TimeoutError) return new HttpError(504, 'cv_timeout', 'Se agoto el tiempo.');
   if (err instanceof HttpError) return err;
 
+  /* :id con formato inválido (uuid/int) → Postgres 22P02. Es un 404, no un 500. (Audit L3.) */
+  if (err?.code === '22P02') {
+    return new HttpError(404, 'not_found', 'No encontramos eso.');
+  }
   /* Errores de Postgres (conexion, recursos, esquema): jamas salen hacia afuera. */
   if (err?.code && /^(08|53|57|3D)/.test(String(err.code))) {
     return new HttpError(503, 'db_unavailable', 'Base de datos no disponible.');

@@ -14,7 +14,8 @@ export const signAccessToken = (user) =>
   );
 
 export const verifyAccessToken = (token) =>
-  jwt.verify(token, config.auth.jwtSecret, { issuer: 'mavante', audience: 'mavante-web' });
+  // algorithms fijo: no aceptamos que el token declare su propio alg. (Audit L5.)
+  jwt.verify(token, config.auth.jwtSecret, { algorithms: ['HS256'], issuer: 'mavante', audience: 'mavante-web' });
 
 const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex');
 
@@ -58,7 +59,10 @@ export const revokeAllSessions = (userId) =>
 const baseCookie = {
   httpOnly: true,
   secure: config.isProd,
-  sameSite: config.isProd ? 'none' : 'lax',
+  // Lax, no None: el front (mavante.com) y la API (api.mavante.com) son
+  // same-site, así que la cookie viaja igual en los requests legítimos, y Lax
+  // corta el envío cross-site que habilitaba CSRF. OAuth ya usaba Lax. (Audit M3.)
+  sameSite: 'lax',
   domain: config.auth.cookieDomain,
   path: '/',
 };
