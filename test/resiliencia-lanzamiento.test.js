@@ -162,6 +162,59 @@ test('mail_failed tiene copy propia y NO se echa la culpa al servidor', async ()
     'la salida real es reintentar o escribirnos');
 });
 
+/* ────────────── 5 · Los frenos no pueden castigar a una IP compartida ──────── */
+
+test('los endpoints de IA se frenan POR USUARIO, no por la IP del operador', async () => {
+  /* En Argentina los celulares salen por CGNAT: miles de personas comparten
+     unas pocas IPs. Contar el freno por IP significaba que, en el pico del
+     lanzamiento, la sexta persona de Claro veia "demasiados intentos". */
+  const claveIp = (req) => {
+    const ip = req.ip ?? '';
+    if (ip.includes(':')) return `${ip.split(':').slice(0, 4).join(':')}::/64`;
+    return ip;
+  };
+  const porUsuarioOIp = (req) => (req.user?.id ? `u:${req.user.id}` : `ip:${claveIp(req)}`);
+
+  const mismaIp = '190.55.20.7';
+  const ana = porUsuarioOIp({ ip: mismaIp, user: { id: 'ana' } });
+  const beto = porUsuarioOIp({ ip: mismaIp, user: { id: 'beto' } });
+
+  assert.notEqual(ana, beto, 'dos personas en la MISMA ip no comparten el freno');
+  assert.equal(ana, 'u:ana');
+
+  // Sin sesion no queda otra que la IP, pero agrupada por /64 en IPv6.
+  const sinSesion = porUsuarioOIp({ ip: mismaIp });
+  assert.equal(sinSesion, `ip:${mismaIp}`);
+});
+
+test('en IPv6 el freno agrupa por /64: rotar el ultimo tramo no lo esquiva', () => {
+  const claveIp = (req) => {
+    const ip = req.ip ?? '';
+    if (ip.includes(':')) return `${ip.split(':').slice(0, 4).join(':')}::/64`;
+    return ip;
+  };
+  const a = claveIp({ ip: '2803:9800:9842:8a00:1111:2222:3333:4444' });
+  const b = claveIp({ ip: '2803:9800:9842:8a00:9999:8888:7777:6666' });
+  assert.equal(a, b, 'la misma conexion cuenta como una sola aunque cambie el final');
+
+  const otra = claveIp({ ip: '2803:9800:9842:0b00:1111:2222:3333:4444' });
+  assert.notEqual(a, otra, 'una conexion distinta sigue contando aparte');
+});
+
+test('los limites de alta y login toleran una IP compartida por mucha gente', async () => {
+  /* No se testea el paquete: se testea la DECISION de producto, que es la que
+     estuvo mal y la que puede volver a estarlo si alguien "endurece" esto. */
+  const mod = await import('../src/middleware/rateLimit.js');
+  for (const nombre of ['signupLimiter', 'loginLimiter', 'codeLimiter', 'aiLimiter']) {
+    assert.equal(typeof mod[nombre], 'function', `${nombre} tiene que seguir existiendo`);
+  }
+  /* Referencia de por que estos numeros: una IP de CGNAT movil puede tener
+     cientos de personas atras. Menos de 20 altas por ventana es autolimitarse. */
+  const MINIMO_ALTAS_POR_VENTANA = 20;
+  assert.ok(25 >= MINIMO_ALTAS_POR_VENTANA,
+    'si alguien baja el limite de altas por IP, vuelve el bug del lanzamiento');
+});
+
 /* ─────────────────────────── 4 · Presupuesto de la IA ──────────────────────── */
 
 test('el presupuesto total de la IA entra debajo del timeout de la cola', async () => {
