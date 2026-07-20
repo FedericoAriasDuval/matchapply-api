@@ -6,8 +6,8 @@ import { DUMMY_HASH, checkPasswordStrength, hashPassword, verifyPassword } from 
 import { consumeCode, inResendCooldown, issueCode } from '../lib/otp.js';
 import { sendVerificationEmail } from '../lib/mailer.js';
 import {
-  clearAuthCookies, createSession, readRefreshCookie, revokeAllSessions, revokeSession,
-  rotateSession, setAuthCookies, signAccessToken,
+  clearAuthCookies, createSession, readAccessCookie, readRefreshCookie, revokeAllSessions,
+  revokeSession, rotateSession, setAuthCookies, signAccessToken, verifyAccessToken,
 } from '../lib/tokens.js';
 import { authenticate } from '../middleware/auth.js';
 import { codeLimiter, loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
@@ -320,7 +320,60 @@ authRouter.post('/refresh', async (req, res, next) => {
 // ---------------------------------------------------------------------------
 // GET /auth/me · POST /auth/logout · POST /auth/logout-all · DELETE /auth/account
 // ---------------------------------------------------------------------------
-authRouter.get('/me', authenticate, (req, res) => res.json({ user: publicUser(req.user) }));
+/**
+ * GET /auth/me — "¿quién soy?"
+ *
+ * POR QUÉ NO LLEVA `authenticate` DELANTE (y no es un descuido):
+ * es una PREGUNTA, y "nadie" es una respuesta válida, no un error. Con el
+ * middleware adelante, cada visita sin sesión —o con el token de acceso vencido,
+ * que dura 15 minutos— dejaba un 401 rojo en la consola del navegador. Y eso NO
+ * se puede tapar desde el frontend: lo imprime la capa de red, antes de que el
+ * JavaScript pueda atraparlo. Encima disparaba un /auth/refresh que también
+ * fallaba, así que eran dos errores por visita.
+ *
+ * Además se cura solo: si el acceso venció pero el refresh sigue vivo, rota la
+ * sesión acá mismo. Antes eso costaba DOS viajes (401 → refresh → reintento) y
+ * ahora es uno. Ojo con la tentación de "arreglarlo" devolviendo user:null sin
+ * intentar la rotación: dejaría afuera a cualquiera que vuelve después de 15
+ * minutos con su sesión perfectamente válida.
+ *
+ * Sigue sin filtrar nada: sin cookies válidas, la respuesta es user:null.
+ */
+authRouter.get('/me', async (req, res, next) => {
+  try {
+    /* 1) ¿Hay un token de acceso que valga? */
+    const bearer = req.get('authorization')?.replace(/^Bearer\s+/i, '');
+    const token = readAccessCookie(req) ?? bearer;
+    if (token) {
+      try {
+        const payload = verifyAccessToken(token);
+        const { rows } = await query(
+          `select id, email, name, tier, is_verified, is_discoverable from users where id = $1`,
+          [payload.sub],
+        );
+        /* Sin verificar el email no hay sesión utilizable: se contesta "nadie"
+           en vez de un 403, que dejaría el mismo error rojo. */
+        if (rows[0]?.is_verified) return res.json({ user: publicUser(rows[0]) });
+      } catch { /* token vencido o roto: seguimos al refresh */ }
+    }
+
+    /* 2) El acceso no sirve, pero el refresh puede seguir vivo. */
+    const raw = readRefreshCookie(req);
+    if (raw) {
+      const rotated = await rotateSession(raw, req);
+      if (rotated) {
+        setAuthCookies(res, { access: signAccessToken(rotated.user), refresh: rotated.refresh });
+        return res.json({ user: publicUser(rotated.user) });
+      }
+      clearAuthCookies(res);   // refresh muerto: que el navegador no lo siga mandando
+    }
+
+    /* 3) No hay sesión. Es una respuesta, no una falla. */
+    res.json({ user: null });
+  } catch (e) {
+    next(e);
+  }
+});
 
 authRouter.post('/logout', async (req, res, next) => {
   try {

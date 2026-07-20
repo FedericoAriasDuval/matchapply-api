@@ -3552,10 +3552,19 @@
   }
   .reader-card.active .rc-ic { background:var(--navy); color:#fff; transform:scale(1.04); }
   .reader-card.active h5 { color:var(--navy); }
-  .reader-card.active::after {                              /* marca de estado, discreta */
-    content:""; position:absolute; top:18px; right:18px; width:7px; height:7px; border-radius:50%;
-    background:var(--navy); animation:dotIn .4s cubic-bezier(.34,1.56,.64,1) both;
+  /* Marca de estado: un TILDE, no un puntito. El punto de 7px era tan discreto
+     que no se leía como "esta está elegida", y las tres tarjetas parecían texto
+     informativo en vez de una elección. Un tilde dice las dos cosas a la vez:
+     que esto se elige, y cuál está elegida. */
+  .reader-card.active::after {
+    content:""; position:absolute; top:16px; right:16px; width:18px; height:18px; border-radius:50%;
+    background:var(--navy) center/9px 9px no-repeat;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+    animation:dotIn .4s cubic-bezier(.34,1.56,.64,1) both;
   }
+  /* Sin elegir nada todavía, el borde punteado invita a tocar: le dice al ojo
+     "acá falta que decidas algo". */
+  .reader-cards:not(:has(.reader-card.active)) .reader-card { border-style:dashed; }
   @keyframes dotIn { from { transform:scale(0); } to { transform:scale(1); } }
   .reader-cards:hover .reader-card:not(:hover):not(.active) { opacity:.72; }
 
@@ -4783,6 +4792,7 @@ es:{
   cv_updated:"CV actualizado. Recalculamos todo con la información nueva.",
   cv_kept:"Seguimos con tu CV anterior.", cv_same:"Ese CV ya es el que estás usando.",
   cv_pending:"Tenés un CV nuevo listo para aplicar.",
+  ad_ai_cta_base:"Analizar mi CV base", ad_role_auto:"Detectamos el puesto: {r}. Lo dejamos elegido en Entrevista.",
   pay_need_acct_h:"Primero, tu cuenta", pay_need_acct_p:"Creala en 30 segundos y volvés directo al pago. Es para que la suscripción quede asociada a vos.",
   cvdrop_h:"Arrastrá tu CV acá", cvdrop_s:"PDF o Word — o tocá para elegirlo",
   cvdrop_or:"o pegalo como texto",
@@ -5232,6 +5242,7 @@ en:{
   cv_updated:"CV updated. Everything was recalculated with the new information.",
   cv_kept:"Sticking with your previous CV.", cv_same:"That's already the CV you're using.",
   cv_pending:"You have a new CV ready to apply.",
+  ad_ai_cta_base:"Analyze my base CV", ad_role_auto:"We spotted the role: {r}. It is now selected under Interview.",
   pay_need_acct_h:"Your account first", pay_need_acct_p:"Create it in 30 seconds and you go straight back to payment. This ties the subscription to you.",
   cvdrop_h:"Drop your CV here", cvdrop_s:"PDF or Word — or tap to choose it",
   cvdrop_or:"or paste it as text",
@@ -5680,6 +5691,7 @@ fr:{
   cv_updated:"CV mis à jour. Tout a été recalculé avec les nouvelles informations.",
   cv_kept:"On garde votre CV précédent.", cv_same:"C'est déjà le CV que vous utilisez.",
   cv_pending:"Un nouveau CV est prêt à être appliqué.",
+  ad_ai_cta_base:"Analyser mon CV de base", ad_role_auto:"Poste détecté : {r}. Il est déjà sélectionné dans Entretien.",
   pay_need_acct_h:"D'abord votre compte", pay_need_acct_p:"Créez-le en 30 secondes et vous revenez directement au paiement. C'est ce qui rattache l'abonnement à vous.",
   cvdrop_h:"Déposez votre CV ici", cvdrop_s:"PDF ou Word — ou touchez pour le choisir",
   cvdrop_or:"ou collez-le en texte",
@@ -6127,6 +6139,7 @@ pt:{
   cv_updated:"CV atualizado. Recalculamos tudo com a informação nova.",
   cv_kept:"Seguimos com o seu CV anterior.", cv_same:"Esse CV já é o que você está usando.",
   cv_pending:"Você tem um CV novo pronto para aplicar.",
+  ad_ai_cta_base:"Analisar meu CV base", ad_role_auto:"Detectamos a vaga: {r}. Já ficou selecionada em Entrevista.",
   pay_need_acct_h:"Primeiro, sua conta", pay_need_acct_p:"Crie em 30 segundos e você volta direto ao pagamento. É o que liga a assinatura a você.",
   cvdrop_h:"Arraste seu CV aqui", cvdrop_s:"PDF ou Word — ou toque para escolher",
   cvdrop_or:"ou cole como texto",
@@ -7383,10 +7396,18 @@ function ensureCvDoc(){
     return null;
   });
 }
+/* El botón dice DOS cosas distintas según haya o no un aviso pegado, así que
+   tiene que HACER dos cosas distintas. El orden importa: el cobro se chequea
+   DESPUÉS de saber qué pidió la persona. Si estuviera antes —como estaba—,
+   alguien que toca "Analizar mi CV base" (que es gratis) se comía el paywall
+   por una función que no pidió. */
 function adapterAI(){
-  if(!((typeof isPremium==='function') && isPremium())){ openUpgrade(); return; }   // paywall real
   var job=((document.getElementById('adapterJob')||{}).value||'').trim();
-  if(job.length<30){ if(typeof toast==='function') toast(t('ad_ai_needjob')); return; }
+
+  if(!job){ adapterBase(); return; }                                  // sin aviso: el diagnóstico base, gratis
+  if(job.length<30){ if(typeof toast==='function') toast(t('ad_ai_needjob')); return; }  // empezó a pegar algo, pero falta
+
+  if(!((typeof isPremium==='function') && isPremium())){ openUpgrade(); return; }   // paywall real
   var btn=document.getElementById('adapterAiBtn'), body=document.getElementById('adapterAiBody');
   if(btn){ btn.disabled=true; btn.classList.add('is-working'); }
   if(body) body.innerHTML='<div class="ad-ai-loading"><span class="gate-spin" aria-hidden="true"></span> '+t('ad_ai_loading')+'</div>';
@@ -7427,6 +7448,84 @@ function renderAdapterAI(out){
       (summary? '<div class="adapted"><span class="tape">'+t('ad_ai_sumtitle')+'</span><p>'+summary+'</p><div class="base-note">'+t('ad_basenote')+'</div></div>' : '')+
     '</div>';
 }
+/* ===== Detección del puesto a partir del aviso pegado =====
+   Cada puesto del catálogo ya declara sus habilidades, así que alcanza con
+   contar cuáles aparecen en el aviso. Es local, instantáneo y GRATIS.
+   A propósito NO se llama a la IA: gastar una llamada (y cuota del usuario)
+   para adivinar una etiqueta que un contador de palabras acierta igual sería
+   cobrarle por nada. Y tampoco se "simula" una llamada: si el resultado sale de
+   contar palabras, se dice que sale de contar palabras.
+   Pide DOS coincidencias como mínimo — con una sola, "aws" en cualquier aviso
+   arrastraba a Backend y le cambiábamos la elección a la persona por error. */
+function detectRoleFromJob(txt){
+  var s=(txt||'').toLowerCase();
+  if(s.length<60 || typeof JOBS==='undefined') return null;
+  var mejor=null, mejorN=0;
+  JOBS.forEach(function(j){
+    var n=0;
+    (j.skills||[]).forEach(function(k){ if(k && s.indexOf(String(k).toLowerCase())>=0) n++; });
+    if(n>mejorN){ mejorN=n; mejor=j; }
+  });
+  return mejorN>=2 ? mejor : null;
+}
+
+/* Lo elige en el desplegable de Entrevista y lo dice. Nunca pisa una elección
+   MANUAL: si la persona ya eligió un puesto a mano, ese manda. */
+var _roleAutoDone=false;
+function autoPickRole(){
+  var sel=document.getElementById('roleSel'); if(!sel) return;
+  if(_roleAutoDone) return;                       // una sola vez por aviso: no peleamos con el usuario
+  var ta=document.getElementById('adapterJob'); if(!ta) return;
+  var j=detectRoleFromJob(ta.value);
+  if(!j || String(sel.value)===String(j.id)) return;
+  sel.value=String(j.id);
+  if(typeof renderRole==='function') renderRole();
+  if(typeof comboSync==='function') comboSync('roleSel');
+  _roleAutoDone=true;
+  var nombre=(sel.options[sel.selectedIndex]||{}).text||'';
+  if(typeof notify==='function') notify({ type:'info', title:tf('ad_role_auto',{r:nombre}), duration:6000 });
+  track('role_autodetect', { id:j.id });
+}
+
+/* Sin aviso pegado: se lleva a la persona al diagnóstico de su CV base, que ya
+   está calculado en esta misma pestaña. No consume cuota ni llama a la IA — solo
+   deja de dejarla mirando un formulario que se siente incompleto. */
+function adapterBase(){
+  track('adapter_base', {});
+  if(typeof renderAnalysis==='function') renderAnalysis();
+  var el=document.getElementById('analysisBody')||document.getElementById('tab-analysis');
+  if(el && el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* La etiqueta del botón sigue al contenido del campo. Y el sello PRO se retira
+   cuando el botón ofrece el análisis base: ese es gratis, y dejar el sello sería
+   prometer un candado que no existe. */
+function adapterCtaSync(){
+  var ta=document.getElementById('adapterJob'), btn=document.getElementById('adapterAiBtn');
+  if(!ta||!btn) return;
+  var hayAviso=((ta.value||'').trim().length>0);
+  var lab=btn.querySelector('[data-i18n="ad_ai_cta"]');
+  if(lab) lab.textContent = hayAviso ? t('ad_ai_cta') : t('ad_ai_cta_base');
+  var pro=document.getElementById('adapterAiPro');
+  if(pro) pro.style.display = (hayAviso && !((typeof isPremium==='function')&&isPremium())) ? '' : 'none';
+}
+
+/* Un solo listener para las dos cosas, con tiempos distintos a propósito:
+   la etiqueta del botón cambia AL INSTANTE (si tarda, parpadea y se siente
+   roto), y la detección del puesto espera a que la persona termine de pegar.
+   700 ms: pegar un aviso es un evento único, no hace falta correr antes. */
+(function(){
+  var ta=document.getElementById('adapterJob'); if(!ta) return;
+  var timer=null;
+  ta.addEventListener('input', function(){
+    adapterCtaSync();
+    if(!(ta.value||'').trim()) _roleAutoDone=false;   // vaciar el campo habilita una detección nueva
+    clearTimeout(timer);
+    timer=setTimeout(autoPickRole, 700);
+  });
+  adapterCtaSync();                                   // el estado inicial también tiene que ser correcto
+})();
+
 /* el badge PRO del botón: solo para quien no es Pro */
 function adapterProBadge(){ var b=document.getElementById('adapterAiPro'); if(b) b.style.display=((typeof isPremium==='function')&&isPremium())?'none':''; }
 
@@ -10190,6 +10289,13 @@ function refConsume(){
 async function renderRefer(){
   var host = document.getElementById('rfAction'); if(!host) return;
 
+  /* Esperamos a saber si la sesion vive. Si esta vencida, el chequeo de arriba
+     ya hizo logout() y USER queda en null, asi que caemos en la rama de "sin
+     sesion" y NUNCA se llama a /referrals/me con una cookie muerta. */
+  if(window.SESSION_READY && typeof SESSION_READY.then==='function'){
+    try { await SESSION_READY; } catch(e){}
+  }
+
   /* SIN SESIÓN: no invento un link. Explico el trato y ofrezco entrar. */
   if(!USER || !window.MA_API || typeof MA_API.referrals !== 'function'){
     host.innerHTML =
@@ -10369,6 +10475,11 @@ function applyI18n(){
   if(typeof simLangSyncSeg==='function') simLangSyncSeg();
   if(typeof renderTipCards==='function') renderTipCards();
   if(typeof renderProfStrength==='function') renderProfStrength();
+  /* DESPUÉS de applyI18n, siempre. La etiqueta del botón del adaptador tiene
+     data-i18n, así que cada pasada de traducción la vuelve a "Adaptar mi CV a
+     este aviso" y se comía el estado dinámico ("Analizar mi CV base"). Acá se
+     recalcula con el contenido real del campo. */
+  if(typeof adapterCtaSync==='function') adapterCtaSync();
 }
 /* #1 · los ejemplos "En lugar de X → Y" de la guía se dibujan como tarjetas
    Antes / Después. Se parsea SIEMPRE desde el i18n (no del DOM ya transformado):
@@ -11643,7 +11754,12 @@ function renderProfStrength(){
   host.querySelector('.ps-tasks').innerHTML=fl.map(function(f){
     var caja='<span class="ps-box">'+(f.done?ICO.check:'')+'</span>';
     var txt='<span class="ps-txt">'+cvEscape(t(f.k))+'</span>';
-    var pts='<span class="ps-pts">+'+f.pts+'%</span>';
+    /* Los pesos suman 100 exacto (30+20+15+20+15), así que la cuenta siempre
+       cierra. Lo que confundía era el SIGNO: un "+30%" tachado al lado de una
+       tarea YA hecha se lee como "esto todavía va a sumar", y da la sensación de
+       que el total se pasa de 100. Lo hecho muestra cuánto aporta (sin "+");
+       solo lo pendiente promete sumar. */
+    var pts='<span class="ps-pts">'+(f.done?'':'+')+f.pts+'%</span>';
     return f.done
       ? '<span class="ps-task done">'+caja+txt+pts+'</span>'
       : '<button type="button" class="ps-task" onclick="psGo(\''+f.k+'\')">'+caja+txt+pts+'</button>';
@@ -12369,8 +12485,12 @@ markLang(); updateLangBtn(); loadUser(); loadChat(); cvLoadModel();
    también fallaba (los 4 errores de consola). Verificamos UNA vez contra el
    server; si no hay sesión, limpiamos el estado local (logout) y no hacemos
    ninguna llamada autenticada. Si hay, ahí sí pedimos la cuota. */
+/* Se expone como PROMESA para que nadie llame a un endpoint autenticado antes
+   de saber si la sesion sigue viva. Sin esto, renderRefer() salia disparado con
+   el USER viejo del localStorage y dejaba un 401 rojo en la consola. */
+var SESSION_READY = Promise.resolve();
 if(typeof isLogged==='function' && isLogged() && window.MA_API && typeof MA_API.me==='function'){
-  MA_API.me().then(function(u){
+  SESSION_READY = MA_API.me().then(function(u){
     if(!u){
       /* sesión vencida → limpiar. Guarda: si el navegador está offline, no
          deslogueamos por un parpadeo de red (sería un falso logout). */
