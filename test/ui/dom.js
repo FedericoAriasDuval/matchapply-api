@@ -62,7 +62,18 @@ const makeEl = (id = '') => ({
 export const boot = ({ profile = '', storage = {}, absent = ['authBody'] } = {}) => {
   const missing = new Set(absent); // ids que aún no están montados: getElementById devuelve null, como el DOM real
   const html = fs.readFileSync(HTML, 'utf8');
-  const script = /<script>\n([\s\S]*)\n<\/script>/.exec(html)[1];
+  /* El frontend tiene TRES bloques <script> y este regex era CODICIOSO: agarraba
+     desde el primer <script> hasta el ÚLTIMO </script>, metiendo adentro los
+     `</script><script>` del medio. Eso no es JavaScript válido y revienta al
+     evaluarlo.
+     No saltaba porque web/index.html era una copia VIEJA del frontend (la
+     regenera el CI en cada deploy, y la commiteada quedaba atrás). O sea que
+     estos 9 tests venían probando, en verde, una versión del producto que ya no
+     era la que se publicaba. El día que la copia se puso al día, saltó.
+     Se toman todos los bloques y se usa el MÁS GRANDE, que es donde vive la app. */
+  const bloques = [...html.matchAll(/<script>\n([\s\S]*?)\n<\/script>/g)].map((m) => m[1]);
+  if (!bloques.length) throw new Error(`no se encontro ningun <script> en ${HTML}`);
+  const script = bloques.reduce((a, b) => (b.length > a.length ? b : a));
 
   const els = new Map();
   const get = (id) => {

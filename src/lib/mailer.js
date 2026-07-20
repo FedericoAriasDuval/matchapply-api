@@ -105,13 +105,48 @@ export const sendVerificationEmail = async ({ to, name, code }) => {
   throw ultimo;
 };
 
+/** Saca la dirección de un "Nombre <dir@dominio>" o de un "dir@dominio" pelado. */
+const soloDireccion = (s) => {
+  const m = /<([^>]+)>/.exec(String(s ?? ''));
+  return (m ? m[1] : String(s ?? '')).trim().toLowerCase();
+};
+
 export const verifyMailer = async () => {
   if (!transporter) return false;
+
+  /* Zoho (y casi cualquier SMTP serio) RECHAZA un "From" que no sea la cuenta
+     autenticada ni uno de sus alias: contesta 553 y el mail no sale. Sin este
+     aviso, esa incompatibilidad recién se descubría cuando una persona real
+     intentaba registrarse — o sea, en el peor momento y sin que nos enteremos.
+     `verify()` no lo detecta: comprueba la conexión y la clave, no el remitente. */
+  const from = soloDireccion(config.mail.from);
+  const user = String(config.mail.user ?? '').trim().toLowerCase();
+  if (user.includes('@') && from && from !== user) {
+    console.warn(
+      `[mailer] ⚠️  MAIL_FROM (${from}) no coincide con SMTP_USER (${user}).\n` +
+      `          Zoho va a rechazar el envío con un 553 salvo que "${from}" esté\n` +
+      `          dado de alta como ALIAS de esa cuenta en Zoho Mail.`,
+    );
+  }
+  if (!from.endsWith('@mavante.com')) {
+    console.warn(`[mailer] ⚠️  el remitente (${from}) no es del dominio mavante.com.`);
+  }
+
   try {
     await transporter.verify();
+    console.log(`[mailer] SMTP OK · ${config.mail.host}:${config.mail.port} · from ${from}`);
     return true;
   } catch (e) {
+    /* El motivo importa: una clave mal puesta y un host de otra región de Zoho
+       fallan igual de silenciosos pero se arreglan distinto. */
     console.error('[mailer] no se pudo verificar el SMTP:', e.message);
+    if (/auth/i.test(e.message ?? '')) {
+      console.error(
+        '          Si es Zoho: revisá que SMTP_USER sea la dirección COMPLETA, que\n' +
+        '          SMTP_PASS sea una contraseña de aplicación (no la de tu cuenta) y\n' +
+        '          que el host sea el de TU región (smtp.zoho.com / .eu / .in).',
+      );
+    }
     return false;
   }
 };
