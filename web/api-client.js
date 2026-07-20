@@ -204,8 +204,14 @@
     },
 
     /** Adapta el CV a un puesto. jobDescription = texto de la vacante. */
-    tailorCv: function (id, jobDescription) {
-      return request('/cv/' + encodeURIComponent(id) + '/tailor', { method: 'POST', body: { jobDescription: jobDescription } });
+    /* lang manda el idioma de la RESPUESTA del modelo (motivos y resumen
+       adaptado). Sin el, el backend contestaba siempre en espanol y alguien con
+       la web en ingles recibia un resumen en espanol pegado a su CV. */
+    tailorCv: function (id, jobDescription, lang) {
+      return request('/cv/' + encodeURIComponent(id) + '/tailor', {
+        method: 'POST',
+        body: { jobDescription: jobDescription, lang: lang || undefined }
+      });
     },
 
     /** Carta de presentación (solo Pro). opts: { jobDescription, tone, lang, draft }.

@@ -102,5 +102,5 @@ export const config = {
     ),
   },
 
-  quota: { free: 3, pro: 30 },
+  quota: { free: 3, pro: 10 },
 };

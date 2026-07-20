@@ -339,8 +339,14 @@ cvRouter.get('/:id/export', authenticate, async (req, res, next) => {
 // ---------------------------------------------------------------------------
 cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => {
   try {
-    const { jobDescription } = z
-      .object({ jobDescription: z.string().trim().min(30).max(20_000) })
+    /* `lang` es opcional y gana sobre el idioma del CV: el usuario puede tener
+       el CV guardado en español y estar mirando la web en inglés. Si no viene,
+       cae al idioma del documento (que es como se venía comportando). */
+    const { jobDescription, lang } = z
+      .object({
+        jobDescription: z.string().trim().min(30).max(20_000),
+        lang: z.enum(['es', 'en', 'fr', 'pt']).optional(),
+      })
       .parse(req.body);
 
     const { rows } = await query(
@@ -355,7 +361,7 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
     try {
       out = await completeJson({
         system: CV_TAILOR_PROMPT,
-        user: buildTailorMessage(doc.data, jobDescription),
+        user: buildTailorMessage(doc.data, jobDescription, lang || doc.lang),
       });
     } catch (e) {
       await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve

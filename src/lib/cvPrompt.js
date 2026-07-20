@@ -117,8 +117,24 @@ export const buildUserMessage = (cvText, lang = 'es') => {
   );
 };
 
-export const buildTailorMessage = (cvJson, jobDescription) =>
-  `<cv_json>\n${JSON.stringify(cvJson)}\n</cv_json>\n\n<job_description>\n${String(jobDescription ?? '').slice(0, 20_000)}\n</job_description>\n\nAdaptá el CV al puesto siguiendo tus reglas. Respondé solo con el JSON.`;
+/**
+ * El adaptador NO recibía el idioma, así que el modelo contestaba SIEMPRE en
+ * español: alguien con la web en inglés veía las etiquetas traducidas y, abajo,
+ * los motivos y el resumen adaptado en español. Peor todavía, ese resumen se
+ * pega al CV — o sea que le metíamos un párrafo en español al CV de alguien que
+ * se está postulando en inglés.
+ * `salida` es explícito: sin decirlo, el modelo copia el idioma del prompt.
+ */
+export const buildTailorMessage = (cvJson, jobDescription, lang = 'es') => {
+  const idioma = LANG_NAMES[lang] ?? 'español';
+  return (
+    `<cv_json>\n${JSON.stringify(cvJson)}\n</cv_json>\n\n` +
+    `<job_description>\n${String(jobDescription ?? '').slice(0, 20_000)}\n</job_description>\n\n` +
+    `Adaptá el CV al puesto siguiendo tus reglas. ` +
+    `TODO el texto que devuelvas (el resumen adaptado y cada motivo) va en ${idioma}, ` +
+    `sin importar en qué idioma estén el CV o el aviso. Respondé solo con el JSON.`
+  );
+};
 
 /**
  * Carta de presentación. Existe porque la vieja (genCover en el frontend) era
@@ -149,6 +165,37 @@ Nunca, en ningún idioma:
 - Autoelogios vacíos: "persona proactiva y orientada a resultados", "apasionado y dinámico", "excelentes habilidades de comunicación", "trabajo bien en equipo y bajo presión", "creo que sería una gran incorporación".
 - Cierres acartonados: "Sin otro particular, saludo a usted atentamente", "Quedo a la espera de su pronta respuesta".
 Un logro concreto vale más que diez adjetivos. Mostrá, no declames.
+
+MISMAS PROHIBICIONES EN LOS OTROS IDIOMAS (la lista de arriba estaba solo en
+español, así que en inglés, francés y portugués no frenaba nada):
+- EN: "I hope this message finds you well", "I am writing to express my interest in", "I am excited to apply for", "As a seasoned professional with X years of experience", "I believe I would be a great fit", "team player who thrives under pressure", "Thank you for your time and consideration", "I look forward to hearing from you at your earliest convenience".
+- FR: "J'espère que ce message vous trouve en bonne santé", "Je me permets de vous écrire", "C'est avec grand intérêt que je postule", "Dans l'attente de votre retour", "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées".
+- PT: "Espero que esta mensagem o encontre bem", "Venho por meio desta", "É com grande interesse que me candidato", "Fico no aguardo de seu retorno", "Desde já agradeço a atenção".
+
+## LAS OTRAS MARCAS DE TEXTO ESCRITO POR IA
+Estas no son clichés de carta: son tics de redacción automática. Delatan a la
+máquina aunque cada frase suene bien por separado.
+- El tríptico: agrupar todo de a tres ("rápido, escalable y confiable"). Una o dos, no siempre tres.
+- "No solo… sino que también" y sus equivalentes en cada idioma.
+- Aperturas de ensayo: "En un mundo donde…", "En el competitivo mercado actual…".
+- Todas las oraciones del mismo largo. Alterná: una corta después de una larga es lo que hace que se lea como una persona.
+- Adverbios de relleno al empezar: "Además", "Asimismo", "Por otro lado", "Es importante destacar que".
+- Repetir el nombre de la empresa o del puesto en cada párrafo.
+
+## LA PRUEBA QUE TIENE QUE PASAR CADA ORACIÓN
+Antes de dar la carta por buena, releé oración por oración y preguntate:
+**"¿esta oración podría estar, igual, en la carta de otra persona para otro puesto?"**
+Si la respuesta es sí, esa oración no dice nada: borrala o reemplazala por un
+hecho del CV. Una carta que sirve para cualquiera no convence a nadie.
+
+## EL ARRANQUE NO PUEDE SER SIEMPRE EL MISMO
+Si todas nuestras cartas abren igual, se nota que las escribe una máquina.
+Elegí el arranque que la evidencia del CV banque mejor, y variá entre estos:
+a) El resultado más fuerte, con su número, sin preámbulo.
+b) El problema concreto que la persona resolvió y que este puesto también tiene.
+c) La especialidad exacta que el aviso pide, dicha en una línea.
+d) Una decisión profesional que explica por qué este puesto es el paso lógico.
+No anuncies la estructura ("En esta carta voy a…"): entrá directo.
 
 ## TONO
 - "formal": profesional y sobrio, sin acartonarse. Trato de usted si el idioma lo distingue. 3 párrafos cortos.
