@@ -20,6 +20,8 @@ import { statsRouter } from './routes/stats.js';
 import { featuredRouter } from './routes/featured.js';
 import { referralsRouter } from './routes/referrals.js';
 import { oauthRouter } from './routes/oauth.js';
+import { corporateRouter } from './routes/corporate.js';
+import { talentRouter } from './routes/talent.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -95,6 +97,12 @@ app.use('/stats', statsRouter);       // numeros propios, sin inflar
 app.use('/referrals', referralsRouter);// el credito se paga al verificar, no al hacer clic
 app.use('/billing', billingRouter);
 app.use('/admin', adminRouter);        // llave de fundador (ADMIN_TOKEN): comp-ear Pro hasta que haya pagos
+/* Panel de Talento. /talent es del USUARIO (su sesion); /corporate es de la
+   EMPRESA (su clave). Namespaces separados a proposito: dos puertas distintas
+   para dos mundos distintos, sin cruce posible. /corporate ademas devuelve 404
+   entero mientras TALENT_PANEL_ENABLED no este en true. */
+app.use('/talent', talentRouter);
+app.use('/corporate', corporateRouter);
 
 app.use(notFound);
 app.use(errorHandler);

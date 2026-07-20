@@ -103,4 +103,14 @@ export const config = {
   },
 
   quota: { free: 3, pro: 10 },
+
+  /* Panel de Talento (B2B2C). APAGADO por defecto, y es a propósito: mientras
+     esté en false, /corporate/* no existe — devuelve 404 como cualquier ruta
+     inventada. Ninguna empresa puede ver un perfil por accidente, ni siquiera
+     con una clave válida, hasta que alguien lo prenda a mano en Render.
+     Una función que muestra datos de personas se enciende con la mano, nunca
+     por venir incluida en un deploy. */
+  talentPanel: {
+    enabled: String(process.env.TALENT_PANEL_ENABLED ?? 'false') === 'true',
+  },
 };

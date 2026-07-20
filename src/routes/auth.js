@@ -39,7 +39,9 @@ const publicUser = (u) => ({
   name: u.name,
   tier: u.tier,
   isVerified: u.is_verified,
-  isDiscoverable: u.is_discoverable,
+  /* ?? false: la columna puede no venir en el SELECT (o no existir todavia, si
+     la migracion 005 no corrio). El perfil no puede romperse por eso. */
+  isVisibleToCompanies: u.is_visible_to_companies ?? false,
 });
 
 const audit = (req, event, { userId = null, email = null } = {}) =>
@@ -53,7 +55,7 @@ const signupSchema = z.object({
   email: z.string().trim().email().max(160),
   password: z.string().min(1).max(128),
   passwordConfirm: z.string().min(1).max(128),
-  isDiscoverable: z.boolean().optional().default(false),
+  isVisibleToCompanies: z.boolean().optional().default(false),
   // El codigo de invitacion. Opcional y tolerante: si viene roto, la persona se
   // registra igual. Nadie se queda afuera por un link mal pegado.
   ref: z.string().trim().max(16).optional(),
@@ -98,15 +100,15 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     if (user) {
       // Cuenta creada pero nunca verificada: se pisan los datos y se reintenta.
       await query(
-        `update users set name = $2, password_hash = $3, is_discoverable = $4 where id = $1`,
-        [user.id, body.name, passwordHash, body.isDiscoverable],
+        `update users set name = $2, password_hash = $3 where id = $1`,
+        [user.id, body.name, passwordHash],
       );
     } else {
       const { rows } = await query(
-        `insert into users (email, name, password_hash, is_discoverable, tier, is_verified)
-         values ($1, $2, $3, $4, 'free', false)
+        `insert into users (email, name, password_hash, tier, is_verified)
+         values ($1, $2, $3, 'free', false)
          returning id, email, is_verified`,
-        [email, body.name, passwordHash, body.isDiscoverable],
+        [email, body.name, passwordHash],
       );
       user = rows[0];
     }
@@ -348,7 +350,7 @@ authRouter.get('/me', async (req, res, next) => {
       try {
         const payload = verifyAccessToken(token);
         const { rows } = await query(
-          `select id, email, name, tier, is_verified, is_discoverable from users where id = $1`,
+          `select id, email, name, tier, is_verified from users where id = $1`,
           [payload.sub],
         );
         /* Sin verificar el email no hay sesión utilizable: se contesta "nadie"

@@ -17,7 +17,7 @@ export const authenticate = async (req, _res, next) => {
     }
 
     const { rows } = await query(
-      `select id, email, name, tier, is_verified, is_discoverable from users where id = $1`,
+      `select id, email, name, tier, is_verified from users where id = $1`,
       [payload.sub],
     );
     if (!rows[0]) throw unauthorized();

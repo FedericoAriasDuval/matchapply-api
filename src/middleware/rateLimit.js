@@ -111,6 +111,17 @@ export const adminLimiter = rateLimit(
   opts(15 * 60_000, 20, 'admin_rate_limited', 'Esperá unos minutos.'),
 );
 
+/* Panel de empresas: 120 cada 5 min POR CLAVE (no por IP): varias personas
+   de la misma empresa salen por la misma oficina, y contarlas juntas dejaria a
+   media empresa afuera. Sin clave todavia, cae a la IP. */
+export const corporateLimiter = rateLimit(
+  opts(5 * 60_000, 120, 'corporate_rate_limited', 'Esperá un momento y volvé a intentarlo.',
+    (req) => {
+      const k = (req.get('authorization') || '').replace(/^Bearer\s+/i, '').trim();
+      return k ? 'co:' + k.slice(0, 24) : 'ip:' + claveIp(req);
+    }),
+);
+
 /* Webhooks de pago: 60/min por IP. MP/Paddle mandan poco; frena la amplificación
    de fetch salientes con ids arbitrarios hacia la API del proveedor. (Audit M7.) */
 export const webhookLimiter = rateLimit(
