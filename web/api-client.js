@@ -266,8 +266,17 @@
 
     /* ---------------------------------------------------------------- billing */
     /* method: 'mercadopago' | 'paddle'. Sin method, el backend usa el primero disponible. */
-    checkout: function (method) {
-      return request('/billing/checkout', { method: 'POST', body: method ? { method: method } : undefined });
+    /* plan: 'lifetime' pide el precio de PAGO UNICO. Sin el, el backend usa el
+       mensual — y jamas cae de uno al otro por su cuenta: si se pide el de por
+       vida y no esta configurado, contesta 503 en vez de cobrar otra cosa. */
+    checkout: function (method, plan) {
+      var body = {};
+      if (method) body.method = method;
+      if (plan) body.plan = plan;
+      return request('/billing/checkout', {
+        method: 'POST',
+        body: Object.keys(body).length ? body : undefined
+      });
     }
   };
 

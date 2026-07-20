@@ -87,6 +87,11 @@ export const config = {
     paddleApiKey: process.env.PADDLE_API_KEY,
     paddleWebhookSecret: process.env.PADDLE_WEBHOOK_SECRET,
     paddlePriceId: process.env.PADDLE_PRICE_ID,
+    /* Pago ÚNICO ("Para siempre"). Es un precio distinto y un flujo distinto:
+       Paddle no manda eventos de suscripción para esto, manda transaction.*.
+       Si falta, el plan de por vida simplemente no se ofrece — nunca se cae al
+       precio mensual, que sería cobrarle a alguien algo distinto de lo que pidió. */
+    paddleLifetimePriceId: process.env.PADDLE_LIFETIME_PRICE_ID,
     paddleCheckoutUrl: process.env.PADDLE_CHECKOUT_URL,
     paddleEnv: (process.env.PADDLE_ENV ?? 'sandbox').toLowerCase(),
     paddleEnabled: Boolean(process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET && process.env.PADDLE_PRICE_ID),

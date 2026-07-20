@@ -138,7 +138,7 @@
   /* Bloque de waitlist dentro de "Nuestra premisa" */
   .wl-soon { margin:44px auto 0; padding:34px 30px; max-width:620px; text-align:center;
     border:1px solid var(--border); border-radius:22px; background:var(--surface); }
-  .wl-soon h3 { font-size:22px; letter-spacing:-.02em; margin:0 0 10px; }
+  .wl-soon h2 { font-size:22px; letter-spacing:-.02em; margin:0 0 10px; }
   .wl-soon .wl-sub { margin:0 auto; }
   @media (max-width:560px){ .wl-soon { padding:26px 20px; } .wl-form { flex-direction:column; } }
 
@@ -152,6 +152,12 @@
   .wl-input[aria-invalid="true"] { border-color:var(--red); box-shadow:0 0 0 3px rgba(192,54,44,.14); }
   .wl-form .btn { white-space:nowrap; }
   .wl-form .btn[disabled] { opacity:.6; pointer-events:none; }
+
+  /* Estados del campo de email. El borde habla antes que el texto. */
+  .wl-input.bad  { border-color:var(--red); box-shadow:0 0 0 3px rgba(192,54,44,.10); }
+  .wl-input.good { border-color:#1a9150; box-shadow:0 0 0 3px rgba(26,145,80,.10); }
+  .wl-form.is-sending .wl-input { opacity:.6; pointer-events:none; }
+  .wl-form.is-sending .btn { pointer-events:none; opacity:.75; }
 
   .wl-msg { margin-top:14px; font-size:14px; line-height:1.5; min-height:20px; }
   .wl-msg.ok { color:var(--green); font-weight:600; }
@@ -301,7 +307,7 @@
   .about-quote .by { color:var(--ink-3); display:block; font-size:14px; font-weight:500; margin-top:14px; letter-spacing:0; }
   .values { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:20px; }
   .value { background:var(--surface); border:1px solid var(--border-2); border-radius:18px; padding:24px; }
-  .value h4 { font-size:17px; font-weight:600; margin-bottom:6px; } .value p { font-size:14.5px; color:var(--ink-2); line-height:1.5; }
+  .value h3 { font-size:17px; font-weight:600; margin-bottom:6px; } .value p { font-size:14.5px; color:var(--ink-2); line-height:1.5; }
   hr.soft { border:none; border-top:1px solid var(--border-2); margin:46px 0; }
 
   .tools-hero { text-align:center; padding:66px 22px 26px; }
@@ -1316,7 +1322,7 @@
   }
   h1, h2, h3, h4, h5,
   .hero h1, .section-title, .about-hero h1, .about-quote, .tools-hero h1,
-  .panel-head h2, .feature h3, .value h4, .cta-band h2, .modal h3, .nav-logo strong, .bot-head b {
+  .panel-head h2, .feature h3, .value h3, .cta-band h2, .modal h3, .nav-logo strong, .bot-head b {
     font-family:var(--font-display); font-weight:700; letter-spacing:-0.025em;
   }
   .hero h1, .about-hero h1, .tools-hero h1 { font-weight:800; letter-spacing:-0.04em; line-height:1.02; }
@@ -1702,7 +1708,12 @@
   .star::before { content:"★"; font-size:26px; line-height:1; color:var(--border-2);
     transition:color .22s var(--ease), text-shadow .22s var(--ease); }
   .star:hover { transform:scale(1.18); }
-  .star.on::before { color:#f5b301; text-shadow:0 2px 10px rgba(245,179,1,.35); }
+  /* Vista previa: se pintan TODAS las estrellas hasta la que tocás, no solo esa.
+     El hover de antes agrandaba la de abajo del cursor, así que no sabías si
+     ibas a marcar 3 o 4 hasta después del clic — y una reseña enviada no se
+     corrige. Más apagada que la elección real para que se distingan. */
+  .star.pre::before { color:#f5b301; opacity:.5; }
+  .star.on::before { color:#f5b301; opacity:1; text-shadow:0 2px 10px rgba(245,179,1,.35); }
   .star:active { transform:scale(.94); }
   .stars-hint { margin-left:10px; font-size:13px; color:var(--ink-3); }
 
@@ -2076,7 +2087,7 @@
     transition:transform .4s cubic-bezier(.25,1,.5,1), box-shadow .4s var(--ease); }
   .s3:hover .s3-n { transform:scale(1.08);
     box-shadow:0 0 0 5px var(--bg, #fbfbfd), 0 6px 20px rgba(0,113,227,.22); }
-  .s3 h4 { font-family:var(--font-display); font-size:18px; font-weight:600;
+  .s3 h2 { font-family:var(--font-display); font-size:18px; font-weight:600;
     letter-spacing:-0.025em; color:var(--ink); margin-bottom:7px; }
   .s3 p { font-size:14.5px; line-height:1.55; color:var(--ink-2); max-width:30ch; margin:0 auto; }
   .s3-cta { text-align:center; margin-top:38px; display:flex; flex-direction:column;
@@ -2555,7 +2566,7 @@
   .improved:hover h5, .adapted:hover h5 { color:var(--blue); }
 
   /* 3.3 · la Guía habla con la tipografía del sitio, no con la de una plantilla */
-  #page-guia .acc-title h3 { font-family:var(--font-display); font-weight:600; letter-spacing:-0.025em;
+  #page-guia .acc-title h2 { font-family:var(--font-display); font-weight:600; letter-spacing:-0.025em;
     color:var(--ink); }
   #page-guia .acc-title p { font-family:var(--font-body); font-weight:400; color:var(--ink-2); }
   #page-guia .g-list li b, #page-guia .acc-body .lead b { color:var(--ink); font-weight:600; }
@@ -2792,7 +2803,7 @@
   .acc-num { font-family:var(--font-display); font-size:13px; font-weight:600; letter-spacing:-0.01em; color:var(--blue);
     background:var(--accent-soft); border-radius:3px; padding:4px 7px; flex-shrink:0; }
   .acc-title { flex:1; min-width:0; }
-  .acc-title h3 { font-family:var(--font-display); font-size:19px; font-weight:700; letter-spacing:-0.025em; color:var(--accent-deep); }
+  .acc-title h2 { font-family:var(--font-display); font-size:19px; font-weight:700; letter-spacing:-0.025em; color:var(--accent-deep); }
   .acc-title p { font-size:13px; color:#78829a; margin-top:3px; line-height:1.4; }
   .acc-chev { color:#98a2b6; transition:transform .35s var(--ease), color .25s var(--ease); flex-shrink:0; }
   .acc.open .acc-chev { transform:rotate(180deg); color:var(--accent); }
@@ -2811,7 +2822,7 @@
     box-shadow:var(--shadow-sm);
     transition:transform .34s cubic-bezier(.25,1,.5,1), box-shadow .34s cubic-bezier(.25,1,.5,1); }
   .g-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); }
-  .g-card h5 { font-family:var(--font-display); font-size:15.5px; font-weight:600; letter-spacing:-0.02em;
+  .g-card h3 { font-family:var(--font-display); font-size:15.5px; font-weight:600; letter-spacing:-0.02em;
     margin-bottom:10px; color:var(--ink); }
   .g-card ul { list-style:none; display:grid; gap:7px; }
   .g-card li { font-size:13.5px; line-height:1.5; color:#5d6675; padding-left:12px; position:relative; }
@@ -2828,8 +2839,8 @@
   /* ---- ajuste tipográfico: titulares en Manrope, sin la display de antes ---- */
   h1, h2, h3, h4, h5,
   .hero h1, .section-title, .about-hero h1, .about-quote, .tools-hero h1,
-  .panel-head h2, .feature h3, .value h4, .modal h3, .nav-logo strong, .bot-head b,
-  .guide-hero h1, .acc-title h3, .g-card h5 {
+  .panel-head h2, .feature h3, .value h3, .modal h3, .nav-logo strong, .bot-head b,
+  .guide-hero h1, .acc-title h2, .g-card h3 {
     font-family:var(--font-body) !important; font-weight:800; letter-spacing:-0.03em;
   }
   .hero h1, .about-hero h1, .tools-hero h1, .guide-hero h1 { font-weight:800; letter-spacing:-0.038em; line-height:1.06; }
@@ -2845,7 +2856,7 @@
     }
   .about-quote { font-weight:700; letter-spacing:-0.025em; font-style:normal; }
   .acc-title h3 { font-size:20px; letter-spacing:-0.025em; }
-  .value h4, .feature h3 { letter-spacing:-0.025em; }
+  .value h3, .feature h3 { letter-spacing:-0.025em; }
   /* la cita de la guía: sin itálica ni aire de serif, mismo cuerpo corporativo */
   .g-quote { font-family:var(--font-body) !important; font-style:normal !important; font-weight:600;
     font-size:15.5px; line-height:1.55; color:var(--ink); letter-spacing:-0.01em; }
@@ -3998,17 +4009,17 @@
       <ol class="s3-grid">
         <li class="s3">
           <span class="s3-n">1</span>
-          <h4 data-i18n="w1_h">Subí tu CV</h4>
+          <h2 data-i18n="w1_h">Subí tu CV</h2>
           <p data-i18n="w1_p">PDF, Word o pegado a mano. Sin cuenta, sin tarjeta.</p>
         </li>
         <li class="s3">
           <span class="s3-n">2</span>
-          <h4 data-i18n="w2_h">Mirá cómo te leen</h4>
+          <h2 data-i18n="w2_h">Mirá cómo te leen</h2>
           <p data-i18n="w2_p">Lo que ve un reclutador en 6 segundos, y qué cambiaríamos.</p>
         </li>
         <li class="s3">
           <span class="s3-n">3</span>
-          <h4 data-i18n="w3_h">Llegá preparado</h4>
+          <h2 data-i18n="w3_h">Llegá preparado</h2>
           <p data-i18n="w3_p">Simulá la entrevista según el puesto al que apuntás.</p>
         </li>
       </ol>
@@ -4117,7 +4128,7 @@
            active un tier que no venza; (3) recién ahí sacar el `gone` de acá.
            Mientras tanto se esconde: una oferta que no podemos cumplir no puede
            estar en la página. -->
-      <div class="pr-card gone">
+      <div class="pr-card gone" id="prLifetime">
         <div class="pr-top">
           <h3 data-i18n="pz_life_h">Para siempre</h3>
           <div class="pr-amount">
@@ -4131,7 +4142,7 @@
           <li><span class="pr-ck"></span><span data-i18n="pz_l2">Todas las búsquedas de tu vida</span></li>
           <li><span class="pr-ck"></span><span data-i18n="pz_l3">Lo que construyamos después, incluido</span></li>
         </ul>
-        <button class="btn btn-outline block hv-btn" onclick="openUpgrade()" data-i18n="pz_life_cta">Comprar una vez</button>
+        <button class="btn btn-outline block hv-btn" onclick="buyLifetime()" data-i18n="pz_life_cta">Comprar una vez</button>
       </div>
 
     </div>
@@ -4170,7 +4181,7 @@
          promesa a futuro con captura de email. Reconecta submitWaitlist(), que
          quedó huérfano cuando se retiró la página de Ofertas. -->
     <div class="wl-soon">
-      <h3 data-i18n="wl_soon_h">Las ofertas están en camino</h3>
+      <h2 data-i18n="wl_soon_h">Las ofertas están en camino</h2>
       <p class="wl-sub" data-i18n="wl_sub">Estamos cruzando las ofertas remotas que de verdad aceptan gente en Argentina con tu CV ya optimizado.</p>
       <form class="wl-form" id="wlForm" novalidate onsubmit="submitWaitlist(event)">
         <input class="wl-input" id="wlEmail" type="email" autocomplete="email" data-i18n-ph="wl_ph" placeholder="tu@email.com" aria-label="Email" />
@@ -4180,9 +4191,9 @@
     </div>
     <hr class="soft" />
     <div class="values hover-focus">
-      <div class="value"><h4 data-i18n="val1_h">Tu tiempo primero</h4><p data-i18n="val1_p">Te ayudamos a enfocar el esfuerzo donde de verdad tenés oportunidades.</p></div>
-      <div class="value"><h4 data-i18n="val2_h">Criterio, no volumen</h4><p data-i18n="val2_p">No se trata de postularse a todo, sino de postularse bien.</p></div>
-      <div class="value"><h4 data-i18n="val3_h">Una experiencia a la altura</h4><p data-i18n="val3_p">Herramientas de nivel profesional, para que cada postulación sea distinta de la anterior.</p></div>
+      <div class="value"><h3 data-i18n="val1_h">Tu tiempo primero</h3><p data-i18n="val1_p">Te ayudamos a enfocar el esfuerzo donde de verdad tenés oportunidades.</p></div>
+      <div class="value"><h3 data-i18n="val2_h">Criterio, no volumen</h3><p data-i18n="val2_p">No se trata de postularse a todo, sino de postularse bien.</p></div>
+      <div class="value"><h3 data-i18n="val3_h">Una experiencia a la altura</h3><p data-i18n="val3_p">Herramientas de nivel profesional, para que cada postulación sea distinta de la anterior.</p></div>
     </div>
 
   </div>
@@ -4202,7 +4213,7 @@
       <button class="acc-head" onclick="toggleAcc('a')" aria-expanded="false">
         <span class="acc-num">01</span>
         <span class="acc-title">
-          <h3 data-i18n="gA_h">Para quién es Mavante y cómo armar tu CV</h3>
+          <h2 data-i18n="gA_h">Para quién es Mavante y cómo armar tu CV</h2>
           <p data-i18n="gA_sub">Si te reconocés acá, esta herramienta es para vos.</p>
         </span>
         <span class="acc-chev"></span>
@@ -4219,7 +4230,7 @@
       <button class="acc-head" onclick="toggleAcc('b')" aria-expanded="false">
         <span class="acc-num">02</span>
         <span class="acc-title">
-          <h3 data-i18n="gB_h">El factor humano: donde la IA no llega</h3>
+          <h2 data-i18n="gB_h">El factor humano: donde la IA no llega</h2>
           <p data-i18n="gB_sub">Lo que decide el resultado sigue dependiendo de vos.</p>
         </span>
         <span class="acc-chev"></span>
@@ -4228,11 +4239,11 @@
         <p class="lead" data-i18n="gB_lead"><b>La IA te ordena el CV; el trabajo lo conseguís vos.</b> Podemos acomodar tu experiencia, mostrarte qué búsquedas valen tu tiempo y ahorrarte las horas de formulario. Lo que ninguna herramienta puede hacer es dar la entrevista por vos, ni darte habilidades que todavía no tenés. De la puerta para adentro, jugás solo.</p>
         <div class="g-split">
           <div class="g-card">
-            <h5 data-i18n="gB_c1_h">En qué te ayudamos</h5>
+            <h3 data-i18n="gB_c1_h">En qué te ayudamos</h3>
             <ul id="gB_c1"></ul>
           </div>
           <div class="g-card">
-            <h5 data-i18n="gB_c2_h">Lo que entrenás vos</h5>
+            <h3 data-i18n="gB_c2_h">Lo que entrenás vos</h3>
             <ul id="gB_c2"></ul>
           </div>
         </div>
@@ -4245,7 +4256,7 @@
     <div class="acc" id="acc-d">
       <button class="acc-head" onclick="toggleAcc('d')" aria-expanded="false">
         <span class="acc-title">
-          <h3 data-i18n="gD_h">¿Y si todavía no tengo mucho para poner?</h3>
+          <h2 data-i18n="gD_h">¿Y si todavía no tengo mucho para poner?</h2>
           <p data-i18n="gD_sub">Cómo armar un CV cuando recién arrancás.</p>
         </span>
         <span class="acc-chev"></span>
@@ -4281,7 +4292,7 @@
       <button class="acc-head" onclick="toggleAcc('c')" aria-expanded="false">
         <span class="acc-num">03</span>
         <span class="acc-title">
-          <h3 data-i18n="gC_h">¿Qué es un ATS y por qué te frena?</h3>
+          <h2 data-i18n="gC_h">¿Qué es un ATS y por qué te frena?</h2>
           <p data-i18n="gC_sub">El filtro automático que lee tu CV antes que una persona.</p>
         </span>
         <span class="acc-chev"></span>
@@ -4905,7 +4916,7 @@ es:{
   foot:"Mavante · Tu CV es tuyo: privado, cifrado y lo borrás cuando quieras.",
   bot_name:"Asistente Mavante", bot_status:"Respondo tus dudas", bot_ph:"Escribí tu pregunta…",
   bot_hi:"¡Hola! Soy el asistente de Mavante. ¿En qué te ayudo? Podés preguntarme cómo funciona, qué incluye Pro, cómo se calcula el match y más.",
-  bot_fallback:"Buena pregunta. Puedo contarte sobre: qué es Mavante, los planes y Pro, cómo funciona el match, el CV a medida, la postulación automática, la preparación de entrevista o la privacidad. ¿Sobre cuál querés saber?",
+  bot_fallback:"Buena pregunta. Puedo contarte sobre: qué es Mavante, los planes y qué es gratis, el diagnóstico de tu CV, cómo lo adaptamos a un aviso, la vista ATS, la carta de presentación, el simulador de entrevista o la privacidad. ¿Sobre cuál querés saber?",
   bot_s1:"¿Qué es Mavante?", bot_s2:"¿Qué incluye Pro?", bot_s3:"¿Cómo funciona el match?",
   ad_placeholder:"Sin puesto específico (opcional)", ad_optional:"Opcional",
   combo_ph:"Buscá tu puesto…", combo_ph_role:"Buscá el puesto de la entrevista…", combo_none:"Ningún puesto coincide. Probá con una palabra sola: «datos», «diseño», «ventas».",
@@ -5354,7 +5365,7 @@ en:{
   foot:"Mavante · Your CV is yours: private, encrypted, and you delete it whenever you want.",
   bot_name:"Mavante Assistant", bot_status:"I answer your questions", bot_ph:"Type your question…",
   bot_hi:"Hi! I'm the Mavante assistant. How can I help? You can ask me how it works, what Pro includes, how the match is calculated and more.",
-  bot_fallback:"Good question. I can tell you about: what Mavante is, the plans and Pro, how the match works, the tailored CV, autopilot, interview prep or privacy. Which one would you like?",
+  bot_fallback:"Good question. I can tell you about: what Mavante is, the plans and what is free, your CV diagnosis, tailoring it to a posting, the ATS view, the cover letter, the interview simulator or privacy. Which one would you like?",
   bot_s1:"What is Mavante?", bot_s2:"What's in Pro?", bot_s3:"How does the match work?",
   ad_placeholder:"No specific role (optional)", ad_optional:"Optional",
   combo_ph:"Search your role…", combo_ph_role:"Search the interview role…", combo_none:"No role matches. Try a single word: “data”, “design”, “sales”.",
@@ -5803,7 +5814,7 @@ fr:{
   foot:"Mavante · Votre CV vous appartient : privé, chiffré, et vous le supprimez quand vous voulez.",
   bot_name:"Assistant Mavante", bot_status:"Je réponds à vos questions", bot_ph:"Écrivez votre question…",
   bot_hi:"Bonjour ! Je suis l'assistant Mavante. Comment puis-je vous aider ? Vous pouvez me demander comment ça marche, ce qu'inclut Pro, comment le match est calculé et plus encore.",
-  bot_fallback:"Bonne question. Je peux vous parler de : ce qu'est Mavante, les formules et Pro, comment fonctionne le match, le CV sur mesure, le pilote automatique, la préparation d'entretien ou la confidentialité. Lequel vous intéresse ?",
+  bot_fallback:"Bonne question. Je peux vous parler de : ce qu'est Mavante, les formules et ce qui est gratuit, le diagnostic de votre CV, son adaptation à une offre, la vue ATS, la lettre de motivation, le simulateur d'entretien ou la confidentialité. Lequel vous intéresse ?",
   bot_s1:"Qu'est-ce que Mavante ?", bot_s2:"Que comprend Pro ?", bot_s3:"Comment fonctionne le match ?",
   ad_placeholder:"Aucun poste précis (facultatif)", ad_optional:"Facultatif",
   combo_ph:"Cherchez votre poste…", combo_ph_role:"Cherchez le poste de l'entretien…", combo_none:"Aucun poste ne correspond. Essayez un seul mot : « données », « design », « ventes ».",
@@ -6249,7 +6260,7 @@ pt:{
   foot:"Mavante · Seu CV é seu: privado, criptografado, e você apaga quando quiser.",
   bot_name:"Assistente Mavante", bot_status:"Respondo suas dúvidas", bot_ph:"Escreva sua pergunta…",
   bot_hi:"Olá! Sou o assistente do Mavante. Como posso ajudar? Você pode perguntar como funciona, o que o Pro inclui, como o match é calculado e mais.",
-  bot_fallback:"Boa pergunta. Posso falar sobre: o que é o Mavante, os planos e o Pro, como funciona o match, o CV sob medida, a candidatura automática, preparação de entrevista ou privacidade. Sobre qual você quer saber?",
+  bot_fallback:"Boa pergunta. Posso falar sobre: o que é o Mavante, os planos e o que é grátis, o diagnóstico do seu CV, a adaptação a uma vaga, a visão ATS, a carta de apresentação, o simulador de entrevista ou privacidade. Sobre qual você quer saber?",
   bot_s1:"O que é o Mavante?", bot_s2:"O que inclui o Pro?", bot_s3:"Como funciona o match?",
   ad_placeholder:"Sem cargo específico (opcional)", ad_optional:"Opcional",
   combo_ph:"Busque seu cargo…", combo_ph_role:"Busque o cargo da entrevista…", combo_none:"Nenhum cargo encontrado. Tente uma palavra só: “dados”, “design”, “vendas”.",
@@ -7118,6 +7129,35 @@ function updateStats(){ const sc=document.getElementById('scored'), ex=document.
 var WL_ENDPOINT = 'https://formspree.io/f/mwvgbvke';
 var WL_MAILTO   = 'support@mavante.com';
 
+/* El MISMO patrón que valida al enviar, para que el campo y el botón nunca
+   discrepen sobre qué es un mail válido. */
+var WL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/* Validación en vivo, con el criterio que importa: NO se marca error mientras
+   la persona escribe. Escribir "a" y que te griten en rojo es hostil — todavía
+   no terminó. Se avisa al SALIR del campo; y una vez que hay error, ahí sí se
+   revisa en cada tecla, para que el rojo se apague en el momento en que lo
+   corrige. ("premiar temprano, castigar tarde".) */
+(function(){
+  var i=document.getElementById('wlEmail'); if(!i) return;
+  var tocado=false;
+
+  var revisar=function(forzar){
+    var v=(i.value||'').trim();
+    if(!v){ i.classList.remove('bad','good'); i.removeAttribute('aria-invalid'); return; }
+    var ok=WL_RE.test(v);
+    if(ok){
+      i.classList.remove('bad'); i.classList.add('good'); i.removeAttribute('aria-invalid');
+      if(tocado) wlSay('', '');
+    } else if(forzar || tocado){
+      i.classList.add('bad'); i.classList.remove('good'); i.setAttribute('aria-invalid','true');
+    }
+  };
+
+  i.addEventListener('blur',  function(){ tocado=true; revisar(true); });
+  i.addEventListener('input', function(){ revisar(false); });
+})();
+
 function wlSay(kind, msg){
   var el=document.getElementById('wlMsg'); if(!el) return;
   el.className='wl-msg'+(kind?' '+kind:''); el.textContent=msg||'';
@@ -7130,11 +7170,13 @@ async function submitWaitlist(ev){
   var email=(input.value||'').trim();
 
   // Validacion propia: novalidate esta puesto para que el mensaje sea nuestro y traducido.
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){
-    input.setAttribute('aria-invalid','true'); input.focus();
+  /* MISMO patrón que la validación en vivo (WL_RE). Tenerlo duplicado hacía que
+     el campo y el botón pudieran discrepar sobre qué es un mail válido. */
+  if(!WL_RE.test(email)){
+    input.setAttribute('aria-invalid','true'); input.classList.add('bad'); input.focus();
     wlSay('err', t('wl_bad')); return;
   }
-  input.removeAttribute('aria-invalid');
+  input.removeAttribute('aria-invalid'); input.classList.remove('bad');
 
   if(!WL_ENDPOINT){                            // sin endpoint: el mail igual llega
     wlSay('', t('wl_mailto'));
@@ -7144,6 +7186,7 @@ async function submitWaitlist(ev){
     return;
   }
 
+  var frm0=document.getElementById('wlForm'); if(frm0) frm0.classList.add('is-sending');
   btn.disabled=true; wlSay('', t('wl_sending'));
   try{
     var res=await fetch(WL_ENDPOINT,{
@@ -7159,6 +7202,7 @@ async function submitWaitlist(ev){
     if(typeof track==='function') track('waitlist_signup',{ lang:lang });
   }catch(e){
     btn.disabled=false;
+    var frm1=document.getElementById('wlForm'); if(frm1) frm1.classList.remove('is-sending');
     wlSay('err', t('wl_err'));                 // el error se dice, no se traga
   }
 }
@@ -7525,6 +7569,40 @@ function adapterCtaSync(){
   });
   adapterCtaSync();                                   // el estado inicial también tiene que ser correcto
 })();
+
+/* ===== Plan "Para siempre" (pago único) =====
+   Va por el MISMO camino que el mensual —el tier lo activa el webhook tras
+   cobrar, nunca un clic— pero pidiendo el precio de pago único. Antes este botón
+   llamaba a openUpgrade(), o sea que ofrecía "$99 una vez" y abría un modal que
+   dice "USD 7,99/mes": se le cobraba a la persona algo distinto de lo que pidió.
+   Esa fue la razón de esconder la tarjeta el 19/07. */
+var LIFETIME_ON=false;
+
+function buyLifetime(){
+  if(!USER){
+    notify({ type:'info', title:t('pay_need_acct_h'), text:t('pay_need_acct_p'), duration:7000 });
+    openAuth('register');
+    return;
+  }
+  if(!LIFETIME_ON || !(window.MA_API && MA_API.checkout)){
+    notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
+    return;
+  }
+  track('lifetime_checkout', {});
+  var btn = (typeof event!=='undefined' && event && event.currentTarget) ? event.currentTarget : null;
+  var orig = btn ? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent=t('up_opening'); }
+
+  MA_API.checkout('paddle','lifetime').then(function(r){
+    if(r && r.url){ window.location.href=r.url; return; }
+    if(btn){ btn.disabled=false; btn.textContent=orig; }
+    notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
+  }).catch(function(){
+    /* No se toca el plan por un error: el tier lo escribe el webhook y nadie más. */
+    if(btn){ btn.disabled=false; btn.textContent=orig; }
+    notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
+  });
+}
 
 /* el badge PRO del botón: solo para quien no es Pro */
 function adapterProBadge(){ var b=document.getElementById('adapterAiPro'); if(b) b.style.display=((typeof isPremium==='function')&&isPremium())?'none':''; }
@@ -9817,79 +9895,91 @@ async function handleCV(input){
 }
 
 /* ============ chatbot ============ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   El asistente responde por lo que Mavante HACE, no por lo que alguna vez se
+   pensó que iba a hacer.
+
+   Este catálogo describía otro producto: "postulación automática que envía
+   todas tus postulaciones", una extensión de Chrome, ofertas traídas de
+   Greenhouse y Lever, y frases como "en la versión completa vas a poder crear
+   una cuenta" — cuando las cuentas existen y el producto está en vivo. También
+   mandaba a pestañas que no existen ("Postulación automática, Ofertas").
+
+   Alguien que le preguntaba al bot qué es Mavante recibía la descripción de una
+   herramienta distinta. Eso es la regla 3 rota en el lugar más caro: el primer
+   contacto de un visitante que quiere entender qué compró.
+
+   REGLA PARA EDITAR ESTO: si una respuesta nombra algo, ese algo tiene que
+   poder tocarse hoy en la web. Las ofertas son lista de espera, y así se dicen.
+   ═══════════════════════════════════════════════════════════════════════════ */
 const BOT_KB = {
-  es:[ {k:["que es","qué es","what","funciona como","de que"],a:"Mavante es la herramienta de quien busca empleo con criterio. Puntúa cada oferta según tu perfil, adapta tu CV a cada búsqueda, te prepara para la entrevista y puede postularte a varias ofertas con un clic. Todo pensado para que tu tiempo rinda."},
-       {k:["premium","pro","plan","precio","cuesta","pagar","costo","suscrip"],a:"Hay un plan de entrada para probar todo y Mavante Pro (USD 7,99/mes), que suma 10 adaptaciones de CV por día, descarga en DOCX editable, carta de presentación con IA, simulador de entrevista e historial ilimitado."},
-       {k:["match","puntaje","score","compatib"],a:"Pegás tu CV y te decimos qué falla y por qué te descartan, con la versión mejorada. También ves cómo te lee un filtro automático (ATS). Todo con IA, sin inventar nada."},
-       {k:["cv","curriculum","currículum","pdf","docx","subir","mejorar"],a:"Podés pegar tu CV o subirlo en PDF/DOCX: lo leemos, detectamos tus skills y generamos una versión mejorada y adaptada a cada búsqueda, sin tocar tu CV base."},
-       {k:["automatico","automático","piloto","tanda","varias","masiv"],a:"La Postulación automática busca ofertas compatibles según tu modalidad, jornada y ubicación, y con un clic prepara y envía todas las postulaciones. Siempre podés revisar antes del envío final."},
-       {k:["entrevista","interview","prepar"],a:"En la sección Entrevista te decimos qué se valora en el puesto, qué conviene reforzar y las preguntas más probables."},
-       {k:["dato","privac","segur"],a:"Tus datos son tuyos. En producción se cifran y hay borrado de cuenta real; pedimos permisos mínimos. Nunca enviamos una postulación sin tu confirmación."},
-       {k:["idioma","language","lang"],a:"Podés cambiar el idioma arriba a la derecha: español, inglés y francés."},
-       {k:["usar","empezar","como uso","empiezo","arrancar","funciona la pagina","navegar"],a:"Entrá a Herramientas, pegá o subí tu CV una vez y usá las pestañas: Postulación automática, Ofertas, CV a medida, Diagnóstico y Entrevista."},
-       {k:["empresa","reclutador","contratar","publicar","empleador"],a:"Las empresas llegan a candidatos ya filtrados por compatibilidad, y vos llegás a búsquedas donde de verdad tenés chances. Todo el producto está construido alrededor de tu experiencia como postulante."},
-       {k:["extension","chrome","navegador","instalar","complemento"],a:"En la versión completa, una extensión de Chrome autocompleta los formularios en cada sitio de empleo. En este demo se simula el proceso."},
-       {k:["dominio","url","propio",".com"],a:"Sí, se puede conectar un dominio propio (ej. mavante.com). Hoy vive en mavante.com."},
-       {k:["cuenta","registr","login","sincroniz","guardar","dispositivo"],a:"En la versión completa vas a poder crear una cuenta y sincronizar tu perfil entre dispositivos. En este demo los datos viven solo en tu navegador."},
-       {k:["ofertas reales","tiempo real","de donde","fuentes","reales"],a:"En producción las ofertas vienen de fuentes reales (portales y ATS como Greenhouse o Lever). En el demo son de ejemplo."},
-       {k:["quien","creo","hizo","fundador","detras"],a:"Mavante es un proyecto en construcción, pensado para que buscar empleo sea más rápido y con criterio."},
-       {k:["contacto","hablar","soporte","humano","ayuda"],a:"Dejá tus consultas acá; en la versión completa habrá soporte y un asistente con IA para preguntas más abiertas."},
-       {k:["revisar","confirmar","envia solo","automatico envia","seguro"],a:"Nunca enviamos una postulación sin tu confirmación. La postulación automática las prepara y vos revisás antes del envío final."},
-       {k:["carta","presentacion","cover"],a:"Podemos generar una carta de presentación a partir de tu perfil; siempre la revisás vos antes de enviarla."} ],
-  en:[ {k:["what is","what's","que es"],a:"Mavante is the tool for job seekers who apply with focus. It scores each job against your profile, tailors your CV to each search, preps you for interviews and can apply to several jobs in one click — so your time actually pays off."},
-       {k:["premium","pro","plan","price","cost","pay","subscription"],a:"There's an entry plan to try everything, plus Mavante Pro (USD 7,99/mo): 10 CV adaptations a day, editable DOCX downloads, AI cover letters, the interview simulator and unlimited history."},
-       {k:["match","score","compat"],a:"You paste your CV and we tell you what's failing and why you get filtered out, plus the improved version. You also see how an automated filter (ATS) reads it. All AI, nothing made up."},
-       {k:["cv","resume","résumé","pdf","docx","upload","improve"],a:"You can paste your CV or upload it as PDF/DOCX: we read it, detect your skills and generate an improved, tailored version, without touching your base CV."},
-       {k:["auto","pilot","batch","several","mass"],a:"Autopilot searches compatible jobs by work mode, schedule and location, and with one click prepares and sends all applications. You can always review before the final send."},
-       {k:["interview","prep"],a:"In the Interview section we tell you what's valued for the role, what to strengthen and the most likely questions."},
-       {k:["data","privacy","secur"],a:"Your data is yours. In production it's encrypted with real account deletion; we ask for minimal permissions. We never send an application without your confirmation."},
-       {k:["language","idioma","lang"],a:"You can change the language at the top right: Spanish, English and French."},
-       {k:["use","start","how do i","begin","get started","navigate"],a:"Go to Tools, paste or upload your CV once, and use the tabs: Autopilot, Jobs, Tailored CV, CV review and Interview."},
-       {k:["company","recruiter","hire","post","employer"],a:"Companies reach candidates already filtered by fit, and you reach searches where you truly stand a chance. The whole product is built around your experience as an applicant."},
-       {k:["extension","chrome","browser","install","plugin"],a:"In the full version a Chrome extension auto-fills forms on each job site. This demo simulates the process."},
-       {k:["domain","url","own",".com"],a:"Yes, you can connect your own domain (e.g. mavante.com). Today it lives at mavante.com."},
-       {k:["account","sign up","login","sync","save","device"],a:"In the full version you'll create an account and sync your profile across devices. In this demo data lives only in your browser."},
-       {k:["real jobs","real time","where","sources","real"],a:"In production jobs come from real sources (boards and ATS like Greenhouse or Lever). In the demo they're samples."},
-       {k:["who","made","founder","behind","built"],a:"Mavante is a project in the making, designed to make job hunting faster and more focused."},
-       {k:["contact","talk","support","human","help"],a:"Leave your questions here; the full version will have support and an AI assistant for more open questions."},
-       {k:["review","confirm","send by itself","auto send","safe"],a:"We never send an application without your confirmation. Autopilot prepares them and you review before the final send."},
-       {k:["cover letter","letter"],a:"We can generate a cover letter from your profile; you always review it before sending."} ],
-  fr:[ {k:["c'est quoi","qu'est","what","que es"],a:"Mavante est l'outil des candidats qui postulent avec discernement. Il note chaque offre selon votre profil, adapte votre CV à chaque recherche, vous prépare aux entretiens et peut postuler à plusieurs offres en un clic."},
-       {k:["premium","pro","formule","prix","coût","payer","abonnement"],a:"Il y a une formule d'entrée pour tout essayer, et Mavante Pro (7,99 USD/mois) : 10 adaptations de CV par jour, export DOCX éditable, lettre de motivation IA, simulateur d'entretien et historique illimité."},
-       {k:["match","score","compatib"],a:"Vous collez votre CV et on vous dit ce qui cloche et pourquoi on vous écarte, avec la version améliorée. Vous voyez aussi comment un filtre automatique (ATS) le lit. Tout par IA, sans rien inventer."},
-       {k:["cv","pdf","docx","importer","améliorer"],a:"Vous pouvez coller votre CV ou l'importer en PDF/DOCX : on le lit, on détecte vos compétences et on génère une version améliorée et adaptée, sans toucher à votre CV de base."},
-       {k:["auto","pilote","groupe","plusieurs"],a:"Le pilote automatique cherche des offres compatibles selon le mode, le temps de travail et le lieu, et en un clic prépare et envoie toutes les candidatures. Vous pouvez toujours vérifier avant l'envoi final."},
-       {k:["entretien","prépar","interview"],a:"Dans la section Entretien, on vous dit ce qui compte pour le poste, quoi renforcer et les questions les plus probables."},
-       {k:["donnée","confiden","sécur"],a:"Vos données vous appartiennent. En production elles sont chiffrées avec suppression réelle du compte ; nous demandons des permissions minimales. Nous n'envoyons jamais une candidature sans votre confirmation."},
-       {k:["langue","idioma","language"],a:"Vous pouvez changer la langue en haut à droite : espagnol, anglais et français."},
-       {k:["utiliser","commencer","comment","demarrer","naviguer"],a:"Allez dans Outils, collez ou importez votre CV une fois, et utilisez les onglets : Pilote automatique, Offres, CV sur mesure, Diagnostic et Entretien."},
-       {k:["entreprise","recruteur","embaucher","publier","employeur"],a:"Les entreprises atteignent des candidats déjà filtrés par compatibilité, et vous atteignez des offres où vous avez de vraies chances. Tout le produit est construit autour de votre expérience de candidat."},
-       {k:["extension","chrome","navigateur","installer"],a:"Dans la version complète, une extension Chrome remplit les formulaires sur chaque site d'emploi. Ce démo simule le processus."},
-       {k:["domaine","url","propre",".com"],a:"Oui, vous pouvez connecter votre propre domaine (ex. mavante.com). Aujourd'hui c'est sur mavante.com."},
-       {k:["compte","inscription","connexion","synchro","sauvegarder","appareil"],a:"Dans la version complète, vous créerez un compte et synchroniserez votre profil entre appareils. Dans ce démo, les données restent dans votre navigateur."},
-       {k:["offres reelles","temps reel","sources","d'ou","reelles"],a:"En production, les offres viennent de sources réelles (portails et ATS comme Greenhouse ou Lever). Dans le démo, ce sont des exemples."},
-       {k:["qui","cree","fondateur","derriere","fait"],a:"Mavante est un projet en construction, pensé pour rendre la recherche d'emploi plus rapide et pertinente."},
-       {k:["contact","parler","support","humain","aide"],a:"Laissez vos questions ici ; la version complète aura un support et un assistant IA pour des questions plus ouvertes."},
-       {k:["verifier","confirmer","envoie seul","envoi auto","sur"],a:"Nous n'envoyons jamais une candidature sans votre confirmation. Le pilote automatique les prépare et vous vérifiez avant l'envoi final."},
-       {k:["lettre","motivation","cover"],a:"Nous pouvons générer une lettre de motivation à partir de votre profil ; vous la vérifiez toujours avant l'envoi."} ],
-  pt:[ {k:["o que e","que e","what"],a:"O Mavante é a ferramenta de quem se candidata com critério. Pontua cada vaga segundo o seu perfil, adapta o seu CV a cada busca, prepara você para a entrevista e pode se candidatar a várias vagas com um clique."},
-       {k:["premium","pro","plano","preco","preço","custa","pagar","assinatura"],a:"Há um plano de entrada para testar tudo e o Mavante Pro (USD 7,99/mês): 10 adaptações de CV por dia, download em DOCX editável, carta de apresentação com IA, simulador de entrevista e histórico ilimitado."},
-       {k:["match","pontuacao","pontuação","score","compatib"],a:"Você cola seu CV e dizemos o que está falhando e por que te descartam, com a versão melhorada. Você também vê como um filtro automático (ATS) o lê. Tudo com IA, sem inventar nada."},
-       {k:["cv","curriculo","currículo","pdf","docx","enviar","melhorar"],a:"Você pode colar o seu CV ou enviá-lo em PDF/DOCX: nós lemos, detectamos as suas competências e geramos uma versão melhorada e adaptada a cada busca, sem tocar no seu CV base."},
-       {k:["automatico","automático","piloto","lote","varias","várias"],a:"A Candidatura automática busca vagas compatíveis segundo modalidade, jornada e localização, e com um clique prepara e envia todas as candidaturas. Você sempre pode revisar antes do envio final."},
-       {k:["entrevista","interview","prepar"],a:"Na seção Entrevista dizemos o que é valorizado na vaga, o que convém reforçar e as perguntas mais prováveis."},
-       {k:["dado","dados","privac","seguran"],a:"Seus dados são seus. Em produção são criptografados e há exclusão real de conta; pedimos permissões mínimas. Nunca enviamos uma candidatura sem a sua confirmação."},
-       {k:["idioma","language","lingua","língua"],a:"Você pode trocar o idioma no canto superior direito: espanhol, inglês, francês e português."},
-       {k:["usar","comecar","começar","como uso","navegar"],a:"Entre em Ferramentas, cole ou envie o seu CV uma vez e use as abas: Candidatura automática, Vagas, CV sob medida, Diagnóstico e Entrevista."},
-       {k:["empresa","recrutador","contratar","publicar","empregador"],a:"As empresas chegam a candidatos já filtrados por compatibilidade, e você chega a vagas onde realmente tem chances. Todo o produto é construído em torno da sua experiência como candidato."},
-       {k:["extensao","extensão","chrome","navegador","instalar"],a:"Na versão completa, uma extensão do Chrome preenche os formulários em cada site de emprego. Nesta demo o processo é simulado."},
-       {k:["dominio","domínio","url","proprio",".com"],a:"Sim, dá para conectar um domínio próprio (ex.: mavante.com). Hoje ele vive em mavante.com."},
-       {k:["conta","cadastro","login","sincroniz","salvar","dispositivo"],a:"Na versão completa você vai poder criar uma conta e sincronizar o perfil entre dispositivos. Nesta demo os dados ficam só no seu navegador."},
-       {k:["vagas reais","tempo real","de onde","fontes","reais"],a:"Em produção as vagas vêm de fontes reais (portais e ATS como Greenhouse ou Lever). Na demo são exemplos."},
-       {k:["quem","criou","fez","fundador","atras","atrás"],a:"O Mavante é um projeto em construção, pensado para que procurar emprego seja mais rápido e com critério."},
-       {k:["contato","falar","suporte","humano","ajuda"],a:"Deixe as suas dúvidas aqui; na versão completa haverá suporte e um assistente com IA para perguntas mais abertas."},
-       {k:["revisar","confirmar","envia sozinho","envio automatico","seguro"],a:"Nunca enviamos uma candidatura sem a sua confirmação. A candidatura automática prepara tudo e você revisa antes do envio final."},
-       {k:["carta","apresentacao","apresentação","cover"],a:"Podemos gerar uma carta de apresentação a partir do seu perfil; você sempre revisa antes de enviar."} ]
+  es:[ {k:["que es","qué es","what","funciona como","de que"],a:"Mavante es el copiloto de quien busca trabajo con criterio. Te dice qué falla en tu CV y por qué te descartan —sin darte la razón—, lo adapta a cada aviso, te muestra cómo lo lee un filtro automático, te escribe la carta y te hace practicar la entrevista."},
+       {k:["premium","pro","plan","precio","cuesta","pagar","costo","suscrip"],a:"El diagnóstico de tu CV es gratis con una cuenta. Mavante Pro (USD 7,99/mes) suma editar el CV a mano, la descarga en Word, la carta con IA y la entrevista con IA: hasta 10 análisis por día."},
+       {k:["gratis","free","sin pagar","cuanto gratis"],a:"Con una cuenta gratis tenés 3 análisis por día: el diagnóstico completo, tu CV estructurado y la vista ATS. No pedimos tarjeta."},
+       {k:["match","puntaje","score","compatib","adaptar","aviso"],a:"Pegás el aviso y adaptamos tu CV a sus palabras clave, con un puntaje de compatibilidad y qué te falta. Tu CV base no se toca."},
+       {k:["cv","curriculum","currículum","pdf","docx","subir","mejorar"],a:"Podés pegar tu CV o subirlo en PDF o Word: lo leemos, detectamos tus habilidades y te damos una versión mejorada. Si es un PDF escaneado te avisamos, porque un filtro automático tampoco podría leerlo."},
+       {k:["ats","filtro","robot","sistema"],a:"En el Diagnóstico tenés la vista ATS: cómo se ve tu CV para el filtro automático que lo lee antes que una persona. Ahí se nota lo que se pierde por formato."},
+       {k:["entrevista","interview","prepar","simulador"],a:"Hay una sala de entrevista. La práctica es gratis: preguntas reales del puesto, con voz y dictado. Con Pro sumás un entrevistador con IA que te da feedback, una evaluación y el transcript."},
+       {k:["carta","presentacion","cover"],a:"Escribimos tu carta a partir de tu CV y del aviso, sin clichés. Si ya tenés una, la subís y la mejoramos sin perder tu voz. Es una función Pro."},
+       {k:["oferta","empleo","busqueda","vacante","trabajo disponible"],a:"Todavía no publicamos ofertas: estamos cruzando las remotas que de verdad aceptan gente en Argentina. Podés dejar tu mail en ¿Quiénes somos? y te avisamos primero."},
+       {k:["dato","privac","segur","borrar"],a:"Tu CV es tuyo: se guarda cifrado, no lo usamos para entrenar modelos, no lo vendemos y podés borrar tu cuenta cuando quieras."},
+       {k:["idioma","language","lang"],a:"Arriba a la derecha podés cambiar entre español, inglés, francés y portugués. Tu CV se traduce con la interfaz."},
+       {k:["usar","empezar","como uso","empiezo","arrancar","navegar"],a:"Entrá a Herramientas y subí o pegá tu CV una vez. Después tenés tres pestañas: Diagnóstico, Carta de presentación y Entrevista."},
+       {k:["cuenta","registr","login","sincroniz","guardar"],a:"Creás la cuenta con tu email y un código de verificación. Tu CV queda guardado y lo tenés en cualquier dispositivo."},
+       {k:["empresa","reclutador","contratar","publicar","empleador"],a:"Todavía no hay panel para empresas. Cuando lo haya, va a ser opcional para el candidato y con su contacto oculto hasta que él acepte."},
+       {k:["quien","creo","hizo","fundador","detras"],a:"Mavante es un proyecto chico y reciente, hecho para que buscar trabajo se sienta menos a ciegas."},
+       {k:["contacto","hablar","soporte","humano","ayuda"],a:"Escribinos a support@mavante.com. Del otro lado hay una persona, no un ticket."} ],
+
+  en:[ {k:["what is","what's","que es"],a:"Mavante is the copilot for people who job hunt with focus. It tells you what's wrong with your CV and why you get filtered out — without just agreeing with you —, tailors it to each posting, shows you how an automated filter reads it, writes your cover letter and lets you rehearse the interview."},
+       {k:["premium","pro","plan","price","cost","pay","subscri"],a:"Your CV diagnosis is free with an account. Mavante Pro (USD 7.99/month) adds editing your CV by hand, Word download, the AI cover letter and the AI interview: up to 10 analyses a day."},
+       {k:["free","no pay","how much free"],a:"A free account gives you 3 analyses a day: the full diagnosis, your structured CV and the ATS view. No card required."},
+       {k:["match","score","compatib","tailor","posting","job description"],a:"Paste the posting and we tailor your CV to its keywords, with a match score and what you're missing. Your base CV stays untouched."},
+       {k:["cv","resume","pdf","docx","upload","improve"],a:"Paste your CV or upload it as PDF or Word: we read it, detect your skills and give you an improved version. If it's a scanned PDF we tell you, because an automated filter wouldn't be able to read it either."},
+       {k:["ats","filter","robot","system"],a:"The diagnosis includes the ATS view: how your CV looks to the automated filter that reads it before a human does. That's where formatting losses show up."},
+       {k:["interview","prepare","simulator","practice"],a:"There's an interview room. Practice is free: real questions for the role, with voice and dictation. Pro adds an AI interviewer with feedback, a score and the transcript."},
+       {k:["cover","letter"],a:"We write your letter from your CV and the posting, without clichés. If you already have one, upload it and we improve it without losing your voice. It's a Pro feature."},
+       {k:["job","opening","vacancy","listings","offers"],a:"We don't list jobs yet: we're matching the remote ones that genuinely accept people in Argentina. Leave your email under About us and we'll tell you first."},
+       {k:["data","privacy","secure","delete"],a:"Your CV is yours: stored encrypted, never used to train models, never sold, and you can delete your account whenever you want."},
+       {k:["language","idioma","lang"],a:"Top right you can switch between Spanish, English, French and Portuguese. Your CV follows the interface."},
+       {k:["use","start","how do i","begin","get started","navigate"],a:"Go to Tools and upload or paste your CV once. Then you have three tabs: Diagnosis, Cover letter and Interview."},
+       {k:["account","register","login","sync","save"],a:"You create the account with your email and a verification code. Your CV is saved and available on any device."},
+       {k:["company","recruiter","hire","employer"],a:"There's no company panel yet. When there is, it will be optional for the candidate and their contact details stay hidden until they accept."},
+       {k:["who","made","built","founder","behind"],a:"Mavante is a small, recent project, built so job hunting feels less like guessing."},
+       {k:["contact","talk","support","human","help"],a:"Write to support@mavante.com. There's a person on the other side, not a ticket."} ],
+
+  fr:[ {k:["c'est quoi","qu'est","what","que es"],a:"Mavante est le copilote de ceux qui cherchent un emploi avec discernement. Il vous dit ce qui cloche dans votre CV et pourquoi vous êtes écarté — sans vous donner raison —, l'adapte à chaque offre, vous montre comment un filtre automatique le lit, rédige votre lettre et vous fait répéter l'entretien."},
+       {k:["premium","pro","plan","prix","coute","payer","abonn"],a:"Le diagnostic de votre CV est gratuit avec un compte. Mavante Pro (7,99 USD/mois) ajoute la modification manuelle du CV, le téléchargement Word, la lettre par IA et l'entretien par IA : jusqu'à 10 analyses par jour."},
+       {k:["gratuit","sans payer","combien gratuit"],a:"Un compte gratuit donne 3 analyses par jour : le diagnostic complet, votre CV structuré et la vue ATS. Sans carte bancaire."},
+       {k:["match","score","compatib","adapter","offre"],a:"Collez l'offre et nous adaptons votre CV à ses mots-clés, avec un score de compatibilité et ce qui vous manque. Votre CV de base reste intact."},
+       {k:["cv","pdf","docx","televerser","ameliorer"],a:"Collez votre CV ou téléversez-le en PDF ou Word : nous le lisons, détectons vos compétences et vous donnons une version améliorée. Si c'est un PDF scanné, nous vous prévenons — un filtre automatique ne pourrait pas le lire non plus."},
+       {k:["ats","filtre","robot","systeme"],a:"Le diagnostic inclut la vue ATS : comment votre CV apparaît au filtre automatique qui le lit avant un humain. C'est là que se voient les pertes de mise en forme."},
+       {k:["entretien","preparer","simulateur","pratique"],a:"Il y a une salle d'entretien. La pratique est gratuite : de vraies questions du poste, avec la voix et la dictée. Pro ajoute un recruteur IA avec retour, évaluation et transcription."},
+       {k:["lettre","motivation","cover"],a:"Nous rédigeons votre lettre à partir de votre CV et de l'offre, sans clichés. Si vous en avez déjà une, téléversez-la et nous l'améliorons sans perdre votre voix. C'est une fonction Pro."},
+       {k:["offre","emploi","poste","annonces"],a:"Nous ne publions pas encore d'offres : nous croisons celles à distance qui acceptent vraiment les personnes en Argentine. Laissez votre e-mail dans Qui sommes-nous et nous vous préviendrons en premier."},
+       {k:["donnee","confidential","securit","supprimer"],a:"Votre CV vous appartient : stocké chiffré, jamais utilisé pour entraîner des modèles, jamais vendu, et vous pouvez supprimer votre compte quand vous voulez."},
+       {k:["langue","language","lang"],a:"En haut à droite vous pouvez passer de l'espagnol à l'anglais, au français et au portugais. Votre CV suit l'interface."},
+       {k:["utiliser","commencer","comment","demarrer","naviguer"],a:"Allez dans Outils et téléversez ou collez votre CV une fois. Ensuite vous avez trois onglets : Diagnostic, Lettre de motivation et Entretien."},
+       {k:["compte","inscri","connexion","synchro","sauvegarder"],a:"Vous créez le compte avec votre e-mail et un code de vérification. Votre CV est enregistré et disponible sur n'importe quel appareil."},
+       {k:["entreprise","recruteur","embaucher","employeur"],a:"Il n'y a pas encore d'espace entreprise. Quand il existera, il sera optionnel pour le candidat et ses coordonnées resteront masquées jusqu'à ce qu'il accepte."},
+       {k:["qui","cree","fait","fondateur","derriere"],a:"Mavante est un petit projet récent, fait pour que chercher un emploi ressemble moins à deviner."},
+       {k:["contact","parler","support","humain","aide"],a:"Écrivez à support@mavante.com. De l'autre côté il y a une personne, pas un ticket."} ],
+
+  pt:[ {k:["o que e","que e","what"],a:"O Mavante é o copiloto de quem procura emprego com critério. Diz o que está errado no seu CV e por que você é descartado — sem te dar razão —, adapta a cada vaga, mostra como um filtro automático lê, escreve sua carta e faz você ensaiar a entrevista."},
+       {k:["premium","pro","plano","preco","custa","pagar","assinat"],a:"O diagnóstico do seu CV é grátis com uma conta. O Mavante Pro (USD 7,99/mês) soma editar o CV à mão, download em Word, a carta com IA e a entrevista com IA: até 10 análises por dia."},
+       {k:["gratis","sem pagar","quanto gratis"],a:"Uma conta grátis dá 3 análises por dia: o diagnóstico completo, seu CV estruturado e a visão ATS. Sem cartão."},
+       {k:["match","pontuacao","score","compatib","adaptar","vaga"],a:"Cole o anúncio e adaptamos seu CV às palavras-chave dele, com uma pontuação de compatibilidade e o que falta. Seu CV base não é tocado."},
+       {k:["cv","curriculo","currículo","pdf","docx","enviar","melhorar"],a:"Cole seu CV ou envie em PDF ou Word: lemos, detectamos suas habilidades e entregamos uma versão melhorada. Se for um PDF escaneado avisamos, porque um filtro automático também não conseguiria ler."},
+       {k:["ats","filtro","robo","sistema"],a:"O diagnóstico inclui a visão ATS: como seu CV aparece para o filtro automático que lê antes de uma pessoa. É ali que aparecem as perdas de formatação."},
+       {k:["entrevista","preparar","simulador","praticar"],a:"Há uma sala de entrevista. A prática é grátis: perguntas reais da vaga, com voz e ditado. O Pro soma um entrevistador com IA, com feedback, avaliação e transcrição."},
+       {k:["carta","apresentacao","apresentação","cover"],a:"Escrevemos sua carta a partir do seu CV e da vaga, sem clichês. Se já tem uma, envie e melhoramos sem perder a sua voz. É uma função Pro."},
+       {k:["vaga","emprego","oportunidade","anuncios"],a:"Ainda não publicamos vagas: estamos cruzando as remotas que de verdade aceitam pessoas na Argentina. Deixe seu e-mail em Quem somos e avisamos você primeiro."},
+       {k:["dado","privacidade","seguran","apagar"],a:"Seu CV é seu: guardado criptografado, nunca usado para treinar modelos, nunca vendido, e você pode apagar sua conta quando quiser."},
+       {k:["idioma","language","lang"],a:"No canto superior direito dá para trocar entre espanhol, inglês, francês e português. Seu CV acompanha a interface."},
+       {k:["usar","comecar","como uso","comeco","navegar"],a:"Entre em Ferramentas e envie ou cole seu CV uma vez. Depois você tem três abas: Diagnóstico, Carta de apresentação e Entrevista."},
+       {k:["conta","cadastr","login","sincroniz","salvar"],a:"Você cria a conta com seu e-mail e um código de verificação. Seu CV fica salvo e disponível em qualquer dispositivo."},
+       {k:["empresa","recrutador","contratar","empregador"],a:"Ainda não há painel para empresas. Quando houver, será opcional para o candidato e o contato dele fica oculto até que aceite."},
+       {k:["quem","criou","fez","fundador","atras"],a:"O Mavante é um projeto pequeno e recente, feito para que procurar emprego pareça menos um chute."},
+       {k:["contato","falar","suporte","humano","ajuda"],a:"Escreva para support@mavante.com. Do outro lado há uma pessoa, não um ticket."} ]
 };
 /* --- estado del chat: persiste en memoria + localStorage, sobrevive al cambio de idioma --- */
 var BOT_HIST=[];            // [{who:'me'|'bot', text?, key?, kb?}]
@@ -10034,10 +10124,44 @@ function setStars(v){
   RV_STARS=v;
   document.querySelectorAll('#stars .star').forEach(function(b){
     b.classList.toggle('on', Number(b.dataset.v)<=v);
+    b.classList.remove('pre');                       // la elección real manda sobre la vista previa
+    b.setAttribute('aria-checked', Number(b.dataset.v)===v ? 'true' : 'false');
   });
   var h=document.getElementById('starsHint');
   if(h) h.textContent = tf('rv_score',{n:v});
 }
+
+/* Vista previa mientras el mouse recorre las estrellas. Solo con mouse fino: en
+   una pantalla táctil no existe el "antes de tocar", y encender esto ahí dejaría
+   estrellas pintadas por un roce. */
+(function(){
+  var cont=document.getElementById('stars'); if(!cont) return;
+  var fino = window.matchMedia && window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  if(!fino) return;
+
+  var pintar=function(v){
+    cont.querySelectorAll('.star').forEach(function(b){
+      b.classList.toggle('pre', v>0 && Number(b.dataset.v)<=v);
+    });
+    var h=document.getElementById('starsHint');
+    if(h) h.textContent = v>0 ? tf('rv_score',{n:v}) : (RV_STARS ? tf('rv_score',{n:RV_STARS}) : '');
+  };
+
+  cont.addEventListener('mouseover', function(e){
+    var b=e.target.closest ? e.target.closest('.star') : null;
+    if(b) pintar(Number(b.dataset.v));
+  });
+  /* Al salir se vuelve a lo ELEGIDO, no a vacío: si ya habías puesto 4, seguís
+     viendo 4. */
+  cont.addEventListener('mouseleave', function(){ pintar(0); });
+  /* El foco por teclado cuenta igual que el mouse: quien navega con Tab también
+     necesita ver cuánto va a marcar antes de apretar. */
+  cont.addEventListener('focusin', function(e){
+    var b=e.target.closest ? e.target.closest('.star') : null;
+    if(b) pintar(Number(b.dataset.v));
+  });
+  cont.addEventListener('focusout', function(){ pintar(0); });
+})();
 /* Ya no hay nada que renderizar: las reseñas no se muestran. La función queda
    como no-op para no romper las llamadas que ya existen en el arranque y en el
    cambio de idioma. */
@@ -11195,6 +11319,27 @@ async function doAuth(){
       })
       .catch(function(err){
         if(go){ go.classList.remove('is-working','is-done'); go.innerHTML=t('auth_go'); }
+
+        /* `mail_failed` NO es un alta fallida: la cuenta quedó creada y lo único
+           que no salió fue el mail. Dejar a la persona en el formulario es un
+           callejón sin salida — reintentar el alta vuelve a fallar por lo mismo,
+           y el botón "Reenviar código" que le sugiere el mensaje vive en la
+           pantalla SIGUIENTE, a la que nunca llega.
+           Así que se la lleva igual a la pantalla del código, que es donde puede
+           hacer algo, y ahí se le explica qué pasó. */
+        if(err && err.code==='mail_failed'){
+          PENDING={ name:nm, email:em, discoverable:cons, code:null, remote:true,
+                    exp:Date.now()+10*60*1000, tries:0, resendAt:Date.now()+30000 };
+          drawOTP(null);
+          if(typeof notify==='function'){
+            notify({ type:'err', duration:14000,
+                     title:(err.message||t('auth_err_generic')),
+                     text:(err.hint||'') });
+          }
+          track('signup_mail_failed', {});
+          return;
+        }
+
         authError((err && err.message) ? err.message : t('auth_err_generic'));
       });
     return;
@@ -12513,7 +12658,16 @@ if(typeof isLogged==='function' && isLogged() && window.MA_API && typeof MA_API.
 }
 /* ¿pagos activos? el backend lo dice en /health (billing:true cuando Paddle tiene
    sus claves). Así el botón "Pasar a Pro" solo se muestra cuando el checkout existe. */
-if(window.MA_API && MA_API.health){ MA_API.health().then(function(h){ BILLING_ON=!!(h&&h.billing); BILLING_METHODS=(h&&h.billingMethods)||[]; }).catch(function(){}); }
+if(window.MA_API && MA_API.health){ MA_API.health().then(function(h){
+  BILLING_ON=!!(h&&h.billing); BILLING_METHODS=(h&&h.billingMethods)||[];
+  /* La tarjeta del plan de por vida SOLO aparece si el backend confirma que se
+     puede comprar (Paddle activo + precio de pago unico configurado). Estuvo
+     oculta desde el 19/07 porque su boton cobraba una suscripcion mensual; no
+     se destapa por tenerla escrita, se destapa cuando el checkout existe. */
+  LIFETIME_ON=!!(h&&h.lifetime);
+  var card=document.getElementById("prLifetime");
+  if(card) card.classList.toggle("gone", !LIFETIME_ON);
+}).catch(function(){}); }
 if(typeof rvFlush==='function') rvFlush();   // reintenta las reseñas que quedaron pendientes
 refCapture();                                // el ?ref= del link, antes que nada
 oauthReturn();                               // la vuelta de Google/LinkedIn, si venimos de ahi

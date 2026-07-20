@@ -21,6 +21,13 @@ const mpToken = config.billing.mpEnabled ? config.billing.mpAccessToken : null;
 const stripe = config.billing.stripeKey ? new Stripe(config.billing.stripeKey) : null;
 
 /** Métodos de pago disponibles para el frontend, en orden de preferencia. */
+/* ¿Se puede vender el plan de por vida? Solo si Paddle esta configurado Y
+   existe el precio de pago unico. El frontend usa esto para NO dibujar una
+   tarjeta que lleva a un checkout que no existe. */
+export function lifetimeAvailable() {
+  return Boolean(paddle && config.billing.paddleLifetimePriceId);
+}
+
 export function availableMethods() {
   const m = [];
   if (mpToken) m.push('mercadopago');
@@ -30,6 +37,18 @@ export function availableMethods() {
 }
 
 const setTier = (userId, tier) => query(`update users set tier = $2 where id = $1`, [userId, tier]);
+
+/* ¿Esta persona compró el plan de POR VIDA?
+   Se marca con `provider = 'paddle_lifetime'` en la fila de subscriptions, y NO
+   con una columna nueva. El motivo es concreto: una columna nueva obliga a una
+   migración, y el código y la migración no viajan juntos en el mismo deploy —
+   eso ya rompió producción una vez (ver 005). Esta forma funciona con el esquema
+   que YA existe, así que no hay ventana en la que el código pida algo que la
+   base todavía no tiene. */
+const esDePorVida = async (userId) => {
+  const { rows } = await query(`select provider from subscriptions where user_id = $1`, [userId]);
+  return rows[0]?.provider === 'paddle_lifetime';
+};
 
 const upsertSub = (userId, provider, customerId, subscriptionId, status, periodEnd) =>
   query(
@@ -81,10 +100,23 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
 
     if (method === 'paddle') {
       if (!paddle) throw new HttpError(503, 'billing_disabled', 'Los pagos con tarjeta no están configurados.');
-      /* La transacción lleva el userId en customData: el webhook activa por ahí. */
+
+      /* Dos productos distintos: la suscripción mensual y el pago único.
+         Si piden el de por vida y no está configurado, se RECHAZA. Jamás se cae
+         al precio mensual: cobrarle 7,99/mes a alguien que pidió un pago único
+         de 99 es exactamente el bug que sacamos de la web el 19/07. */
+      const deporVida = String(req.body?.plan || '').toLowerCase() === 'lifetime';
+      const priceId = deporVida ? config.billing.paddleLifetimePriceId : config.billing.paddlePriceId;
+      if (deporVida && !priceId) {
+        throw new HttpError(503, 'billing_disabled', 'El plan de por vida todavía no está disponible.');
+      }
+
+      /* La transacción lleva el userId en customData: el webhook activa por ahí.
+         `plan` viaja también para que el webhook sepa qué se compró sin tener
+         que adivinarlo por el precio. */
       const txn = await paddle.transactions.create({
-        items: [{ priceId: config.billing.paddlePriceId, quantity: 1 }],
-        customData: { userId: req.user.id },
+        items: [{ priceId, quantity: 1 }],
+        customData: { userId: req.user.id, plan: deporVida ? 'lifetime' : 'monthly' },
       });
       const base = config.billing.paddleCheckoutUrl;
       const url =
@@ -173,6 +205,30 @@ async function handlePaddleWebhook(req, res) {
     const userId = d.customData?.userId;
     const status = d.status;
     const periodEnd = d.currentBillingPeriod?.endsAt ?? null;
+
+    /* ── PAGO ÚNICO ("Para siempre") ──────────────────────────────────────────
+       Un pago único NO genera eventos subscription.*: genera transaction.*.
+       Sin esta rama, alguien pagaba los 99 dólares y no se le activaba nada —
+       plata cobrada y producto no entregado, que es la peor falla posible de un
+       sistema de pagos.
+       Se exige `completed`: `transaction.paid` puede llegar antes de que el
+       dinero esté confirmado. */
+    if (userId && type === 'transaction.completed' && d.customData?.plan === 'lifetime') {
+      await setTier(userId, 'pro');
+      await upsertSub(userId, 'paddle_lifetime', d.customerId ?? null, d.id ?? null, 'active', null);
+      console.log('[billing] plan de por vida activado para', userId);
+      return res.json({ received: true });
+    }
+
+    /* Cualquier evento de suscripción que llegue para alguien que ya compró el
+       plan de por vida se IGNORA. Si no, una cancelación vieja —o una prueba en
+       sandbox— le bajaría el plan a alguien que pagó para siempre. "Para
+       siempre" tiene que aguantar incluso nuestros propios errores. */
+    if (userId && (await esDePorVida(userId))) {
+      console.log('[billing] evento', type, 'ignorado: el usuario tiene plan de por vida');
+      return res.json({ received: true });
+    }
+
     if (userId && paddleActivates(type, status)) {
       await setTier(userId, 'pro');
       await upsertSub(userId, 'paddle', d.customerId ?? null, d.id ?? null, status ?? 'active', periodEnd);
