@@ -114,6 +114,28 @@
   .hero-drop .hd-s { font-size:13px; color:var(--ink-3); }
   @media (max-width:560px){ .hero-drop { padding:18px 16px; margin:20px auto 16px; } }
 
+  /* Micro-demo: el campo donde la persona escribe SU respuesta */
+  .di-try { margin-top:16px; }
+  .di-try-h { display:block; font-size:13.5px; font-weight:650; color:var(--ink); margin-bottom:8px; }
+  .di-try textarea { width:100%; min-height:96px; resize:vertical; font-family:inherit; font-size:14.5px;
+    line-height:1.55; color:var(--ink); background:var(--surface); border:1px solid var(--border-2);
+    border-radius:14px; padding:12px 14px; transition:border-color .2s var(--ease), box-shadow .2s var(--ease); }
+  .di-try textarea:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,113,227,.12); }
+  .di-try-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:12px; }
+  .di-try-msg { margin:10px 0 0; font-size:13px; color:var(--red); min-height:18px; }
+
+  /* Las tres señales sobre la respuesta escrita */
+  .di-res { border:1px solid var(--border-2); border-radius:16px; padding:16px 18px; margin-bottom:18px;
+    background:var(--surface); }
+  .di-res h3 { font-size:15px; font-weight:650; margin:0 0 10px; color:var(--ink); }
+  .di-res ul { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+  .di-res li { display:flex; align-items:flex-start; gap:9px; font-size:14px; line-height:1.5; color:var(--ink-2); }
+  .di-res li.ok .ico { color:#1a9150; }
+  .di-res li.no .di-x { color:var(--red); font-weight:700; line-height:1.4; }
+  .di-res li .ico, .di-res li .di-x { flex:none; width:15px; text-align:center; margin-top:1px; }
+  .di-res-note { margin:12px 0 0; font-size:12.5px; line-height:1.5; color:var(--ink-3); }
+  @media (max-width:560px){ .di-res { padding:14px 15px; } }
+
   /* CRO · el simulador de la home se anima paso a paso */
   .di-step { opacity:0; transform:translateY(10px); transition:opacity .5s var(--ease), transform .5s var(--ease); }
   .di-step.in { opacity:1; transform:none; }
@@ -3879,10 +3901,19 @@
   .gate-card .btn { margin-top:8px; }
   .gate-card .gate-note { font-size:12.5px; color:var(--ink-3); margin-top:2px; }
   .gate-card.gate-loading { padding:44px 30px; }
-  .gate-card .gate-spin { width:26px; height:26px; border:2.5px solid var(--hairline);
-    border-top-color:var(--blue); border-radius:50%; animation:gateSpin .8s linear infinite; }
+  /* El spinner estaba definido SOLO dentro de .gate-card, pero se usa en tres
+     lugares más: el adaptador y las dos cartas (generar y mejorar). Ahí salía un
+     <span> sin una sola regla: ancho cero, sin borde, sin animación. Invisible.
+     Los tres mostraban un texto quieto ("Escribiendo tu carta…") y parecía que
+     el botón no había hecho nada — que es justo lo que se reportó de la carta.
+     Ahora la clase vive sola y .gate-card solo la agranda. */
+  .gate-spin { display:inline-block; flex:none; width:18px; height:18px;
+    border:2.2px solid var(--border-2); border-top-color:var(--blue);
+    border-radius:50%; animation:gateSpin .8s linear infinite; }
+  .gate-card .gate-spin { width:26px; height:26px; border-width:2.5px;
+    border-color:var(--hairline); border-top-color:var(--blue); }
   @keyframes gateSpin { to { transform:rotate(360deg); } }
-  @media (prefers-reduced-motion:reduce){ .gate-card .gate-spin { animation:none; } }
+  @media (prefers-reduced-motion:reduce){ .gate-spin { animation:none; } }
 
   /* ============== 16/07 — arreglos de responsive movil ==============
      Auditado en viewport 375px. */
@@ -4805,6 +4836,20 @@ es:{
   cv_pending:"Tenés un CV nuevo listo para aplicar.",
   ad_ai_cta_base:"Analizar mi CV base", ad_role_auto:"Detectamos el puesto: {r}. Lo dejamos elegido en Entrevista.",
   pay_need_acct_h:"Primero, tu cuenta", pay_need_acct_p:"Creala en 30 segundos y volvés directo al pago. Es para que la suscripción quede asociada a vos.",
+  di_try_h:"Probá vos primero",
+  di_try_ph:"Escribí cómo responderías. Dos o tres oraciones alcanzan.",
+  di_try_cta:"Ver qué tan sólida es",
+  di_try_skip:"Prefiero ver un ejemplo",
+  di_try_short:"Escribí un poco más: con menos de 15 palabras no hay nada que mirar.",
+  di_res_h:"Tu respuesta, en tres señales",
+  di_res_note:"Chequeo rápido acá en tu navegador — no es la IA ni se guarda nada. La evaluación de verdad está en la sala de entrevista.",
+  di_res_cta:"Practicar la entrevista completa",
+  di_ck_num_ok:"Tiene un dato concreto. Eso es lo que se recuerda.",
+  di_ck_num_no:"No hay ni un número. Un resultado medible vale más que tres adjetivos.",
+  di_ck_cli_ok:"Sin frases hechas. Bien.",
+  di_ck_cli_no:"Aparece un cliché: “{w}”. Eso lo dice todo el mundo.",
+  di_ck_star_ok:"Se entiende qué hiciste y qué pasó después.",
+  di_ck_star_no:"Falta el final: qué hiciste y cómo terminó.",
   cvdrop_h:"Arrastrá tu CV acá", cvdrop_s:"PDF o Word — o tocá para elegirlo",
   cvdrop_or:"o pegalo como texto",
   cvdrop_demo:"¿No tenés un CV a mano? Probá con este ejemplo",
@@ -5255,6 +5300,20 @@ en:{
   cv_pending:"You have a new CV ready to apply.",
   ad_ai_cta_base:"Analyze my base CV", ad_role_auto:"We spotted the role: {r}. It is now selected under Interview.",
   pay_need_acct_h:"Your account first", pay_need_acct_p:"Create it in 30 seconds and you go straight back to payment. This ties the subscription to you.",
+  di_try_h:"Try it yourself first",
+  di_try_ph:"Write how you would answer. Two or three sentences is enough.",
+  di_try_cta:"See how solid it is",
+  di_try_skip:"I'd rather see an example",
+  di_try_short:"Write a bit more: under 15 words there is nothing to look at.",
+  di_res_h:"Your answer, in three signals",
+  di_res_note:"Quick check right here in your browser — not the AI, and nothing is stored. The real evaluation lives in the interview room.",
+  di_res_cta:"Practise the full interview",
+  di_ck_num_ok:"There is a concrete fact. That is what gets remembered.",
+  di_ck_num_no:"Not a single number. One measurable result beats three adjectives.",
+  di_ck_cli_ok:"No stock phrases. Good.",
+  di_ck_cli_no:"A cliché shows up: “{w}”. Everyone says that one.",
+  di_ck_star_ok:"It is clear what you did and what happened next.",
+  di_ck_star_no:"The ending is missing: what you did and how it turned out.",
   cvdrop_h:"Drop your CV here", cvdrop_s:"PDF or Word — or tap to choose it",
   cvdrop_or:"or paste it as text",
   cvdrop_demo:"No CV at hand? Try it with this example",
@@ -5704,6 +5763,20 @@ fr:{
   cv_pending:"Un nouveau CV est prêt à être appliqué.",
   ad_ai_cta_base:"Analyser mon CV de base", ad_role_auto:"Poste détecté : {r}. Il est déjà sélectionné dans Entretien.",
   pay_need_acct_h:"D'abord votre compte", pay_need_acct_p:"Créez-le en 30 secondes et vous revenez directement au paiement. C'est ce qui rattache l'abonnement à vous.",
+  di_try_h:"Essayez d'abord vous-même",
+  di_try_ph:"Écrivez comment vous répondriez. Deux ou trois phrases suffisent.",
+  di_try_cta:"Voir si elle tient debout",
+  di_try_skip:"Je préfère voir un exemple",
+  di_try_short:"Écrivez un peu plus : en dessous de 15 mots, il n'y a rien à regarder.",
+  di_res_h:"Votre réponse, en trois signaux",
+  di_res_note:"Vérification rapide ici même dans votre navigateur — ce n'est pas l'IA et rien n'est enregistré. La vraie évaluation est dans la salle d'entretien.",
+  di_res_cta:"Répéter l'entretien complet",
+  di_ck_num_ok:"Il y a un fait concret. C'est ce dont on se souvient.",
+  di_ck_num_no:"Pas un seul chiffre. Un résultat mesurable vaut mieux que trois adjectifs.",
+  di_ck_cli_ok:"Aucune formule toute faite. Bien.",
+  di_ck_cli_no:"Un cliché apparaît : « {w} ». Tout le monde dit ça.",
+  di_ck_star_ok:"On comprend ce que vous avez fait et ce qui s'est passé ensuite.",
+  di_ck_star_no:"Il manque la fin : ce que vous avez fait et comment ça s'est terminé.",
   cvdrop_h:"Déposez votre CV ici", cvdrop_s:"PDF ou Word — ou touchez pour le choisir",
   cvdrop_or:"ou collez-le en texte",
   cvdrop_demo:"Pas de CV sous la main ? Essayez avec cet exemple",
@@ -6152,6 +6225,20 @@ pt:{
   cv_pending:"Você tem um CV novo pronto para aplicar.",
   ad_ai_cta_base:"Analisar meu CV base", ad_role_auto:"Detectamos a vaga: {r}. Já ficou selecionada em Entrevista.",
   pay_need_acct_h:"Primeiro, sua conta", pay_need_acct_p:"Crie em 30 segundos e você volta direto ao pagamento. É o que liga a assinatura a você.",
+  di_try_h:"Tente você primeiro",
+  di_try_ph:"Escreva como você responderia. Duas ou três frases bastam.",
+  di_try_cta:"Ver se ela se sustenta",
+  di_try_skip:"Prefiro ver um exemplo",
+  di_try_short:"Escreva um pouco mais: com menos de 15 palavras não há o que olhar.",
+  di_res_h:"Sua resposta, em três sinais",
+  di_res_note:"Checagem rápida aqui no seu navegador — não é a IA e nada fica salvo. A avaliação de verdade está na sala de entrevista.",
+  di_res_cta:"Praticar a entrevista completa",
+  di_ck_num_ok:"Tem um dado concreto. É disso que se lembram.",
+  di_ck_num_no:"Nenhum número. Um resultado mensurável vale mais que três adjetivos.",
+  di_ck_cli_ok:"Sem frases feitas. Bom.",
+  di_ck_cli_no:"Aparece um clichê: “{w}”. Isso todo mundo diz.",
+  di_ck_star_ok:"Dá para entender o que você fez e o que aconteceu depois.",
+  di_ck_star_no:"Falta o final: o que você fez e como terminou.",
   cvdrop_h:"Arraste seu CV aqui", cvdrop_s:"PDF ou Word — ou toque para escolher",
   cvdrop_or:"ou cole como texto",
   cvdrop_demo:"Sem um CV à mão? Experimente com este exemplo",
@@ -7578,6 +7665,46 @@ function adapterCtaSync(){
    Esa fue la razón de esconder la tarjeta el 19/07. */
 var LIFETIME_ON=false;
 
+/* ===== "El cobro con tarjeta no está pudiendo arrancar" =====
+   Paddle no genera la URL de pago hasta que aprueba el dominio. Mientras tanto,
+   el botón de tarjeta ACEPTA el clic, va al backend, falla, y muestra un aviso.
+   Honesto, pero la persona puede tocar tres veces contra la misma pared — y es
+   justo el momento en que decidió pagarte.
+   Así que el primer fracaso se RECUERDA y a partir de ahí el botón dice la
+   verdad de entrada. Se guarda en sessionStorage (esta visita, no para siempre):
+   el día que Paddle apruebe, esto se cura solo sin tocar una línea. */
+var PAY_LINK_DEAD=false;
+try { PAY_LINK_DEAD = sessionStorage.getItem('ma_pay_dead')==='1'; } catch(e){}
+
+function markPayLinkDead(){
+  if(PAY_LINK_DEAD) return;
+  PAY_LINK_DEAD=true;
+  try { sessionStorage.setItem('ma_pay_dead','1'); } catch(e){}
+  /* Se registra para poder MEDIR la intención perdida: cuánta gente quiso pagar
+     y no pudo. Ese número es el que justifica apurar la aprobación. */
+  track('pay_link_unavailable', {});
+  syncLifetimeCard();
+}
+
+/* La tarjeta del plan de por vida deja de invitar a un clic que no lleva a
+   ningún lado, sin desaparecer: el precio sigue a la vista y la intención se
+   puede seguir midiendo. */
+function syncLifetimeCard(){
+  var card=document.getElementById('prLifetime'); if(!card) return;
+  var btn=card.querySelector('button'); if(!btn) return;
+  if(PAY_LINK_DEAD){
+    btn.disabled=true;
+    btn.textContent=t('pay_soon_note');
+    var n=card.querySelector('.pr-soon');
+    if(!n){ n=document.createElement('p'); n.className='pr-note pr-soon'; card.appendChild(n); }
+    n.textContent=t('pay_soon_p');
+  } else {
+    btn.disabled=false;
+    btn.textContent=t('pz_life_cta');
+    var vieja=card.querySelector('.pr-soon'); if(vieja) vieja.remove();
+  }
+}
+
 function buyLifetime(){
   if(!USER){
     notify({ type:'info', title:t('pay_need_acct_h'), text:t('pay_need_acct_p'), duration:7000 });
@@ -7597,10 +7724,14 @@ function buyLifetime(){
     if(r && r.url){ window.location.href=r.url; return; }
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
-  }).catch(function(){
+    markPayLinkDead();                       // no volvemos a invitar al mismo clic
+  }).catch(function(e){
     /* No se toca el plan por un error: el tier lo escribe el webhook y nadie más. */
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
+    /* Solo si el problema es que NO HAY LINK. Un corte de red es otra cosa y no
+       tiene por qué dejar la tarjeta apagada el resto de la visita. */
+    if(e && (e.code==='billing_no_url' || e.code==='billing_disabled')) markPayLinkDead();
   });
 }
 
@@ -10296,7 +10427,61 @@ function setDemoRole(k){
     b.classList.toggle('active', b.dataset.role===k);
   });
   track('demo_interview_role', { role:k });
-  renderDemoInt();
+  renderDemoTry();
+}
+
+/* ═══════════════ Micro-demo: probá tu respuesta antes de ver la buena ═══════
+   Deja de ser un ejemplo para mirar y pasa a ser algo que hacés. Quien escribe
+   su propia respuesta y ve qué le falta ya entendió el producto: el resto del
+   camino se explica solo.
+
+   EL CHEQUEO ES LOCAL Y SE DICE QUE ES LOCAL.
+   Corre acá en el navegador con tres reglas, sin llamar a la IA. Dos motivos:
+   la landing está abierta a cualquiera y una llamada por visitante se paga; y
+   sobre todo, no queremos que alguien crea que ESTO es la evaluación del
+   producto. Es un adelanto honesto — la evaluación de verdad, con feedback y
+   puntaje, vive en la sala de entrevista. El texto se lo dice.
+   Nada de lo que escriba se guarda ni se manda a ningún lado. */
+
+/* Los clichés que un reclutador escuchó mil veces. Son los que se detectan
+   porque son literales; el resto lo juzga la IA de la sala, no un regex. */
+var DI_CLICHES = {
+  es:['perfeccionista','trabajo bien bajo presión','soy muy detallista','me exijo mucho','proactivo','aprendo rápido','soy responsable','trabajo en equipo','soy dedicado','doy el 110'],
+  en:['perfectionist','i work well under pressure','detail-oriented','i am a hard worker','proactive','fast learner','team player','i give 110'],
+  fr:['perfectionniste','je travaille bien sous pression','minutieux','proactif','j\'apprends vite','esprit d\'équipe'],
+  pt:['perfeccionista','trabalho bem sob pressão','detalhista','proativo','aprendo rápido','trabalho em equipe','sou dedicado']
+};
+/* Marcas de que la respuesta CIERRA: dice cómo terminó, no solo qué hizo. */
+var DI_RESULT = {
+  es:['result','logr','consegu','termin','pas[oó] de','redu','mejor','ahora','desde entonces','evit'],
+  en:['result','achiev','ended up','went from','reduc','improv','now','since then','avoid'],
+  fr:['résultat','abouti','fini par','passé de','rédui','amélior','maintenant','depuis'],
+  pt:['resultad','consegu','termin','passou de','reduz','melhor','agora','desde então','evit']
+};
+
+/* Devuelve las TRES señales. No inventa un puntaje con decimales: tres señales
+   claras se entienden de un vistazo y no fingen una precisión que no existe. */
+function diCheck(txt){
+  var s=(txt||'').toLowerCase().trim();
+  var palabras=s.split(/\s+/).filter(Boolean).length;
+
+  /* 1) ¿Hay un dato concreto? Un porcentaje, una cantidad, un plazo. Se excluye
+        un año suelto ("en 2021"), que no es un resultado. */
+  var num = /\d+\s*%/.test(s) || /(?:^|\s)\d{1,3}(?:[.,]\d+)?\s*(?!\d)(?:mil|k|millones|horas?|d[ií]as?|meses|personas|puntos|veces|clientes|usuarios)/i.test(s) || /(?:^|\s)(\d{1,3})(?:\s|$)/.test(s.replace(/\b(19|20)\d{2}\b/g,''));
+
+  /* 2) ¿Aparece un cliché literal? Se devuelve CUÁL, porque "usás un cliché" sin
+        decir cuál no le sirve a nadie. */
+  var lista = DI_CLICHES[lang] || DI_CLICHES.es;
+  var cliche = null;
+  for(var i=0;i<lista.length;i++){ if(s.indexOf(lista[i])>=0){ cliche=lista[i]; break; } }
+
+  /* 3) ¿Cierra? Busca una marca de resultado en la última mitad del texto: un
+        resultado al principio suele ser la pregunta, no la respuesta. */
+  var mitad = s.slice(Math.floor(s.length/2));
+  var res = (DI_RESULT[lang] || DI_RESULT.es);
+  var cierra = res.some(function(r){ return new RegExp(r).test(mitad); });
+
+  return { palabras:palabras, num:num, cliche:cliche, cierra:cierra };
 }
 
 /* Los timers viven fuera de la función para poder MATARLOS: cambiar de puesto o
@@ -10306,12 +10491,67 @@ var _diTimers = [];
 function diClearTimers(){ for(var i=0;i<_diTimers.length;i++) clearTimeout(_diTimers[i]); _diTimers=[]; }
 function diAt(ms, fn){ _diTimers.push(setTimeout(fn, ms)); }
 
-function renderDemoInt(){
+/* Estado INICIAL: la pregunta y un lugar para responderla. El ejemplo pasa a ser
+   una salida opcional para quien no quiere escribir — antes era lo único que
+   había, y mirar un ejemplo no enseña lo mismo que fallar en el tuyo. */
+function renderDemoTry(){
+  var host=document.getElementById('diBody'); if(!host) return;
+  var d=DEMO_INT[DEMO_ROLE]; if(!d) return;
+  diClearTimers();
+  host.innerHTML =
+    '<div class="di-q"><span class="di-q-lbl">'+t('di_q_lbl')+'</span><p>'+t(d.q)+'</p></div>'+
+    '<div class="di-try">'+
+      '<label class="di-try-h" for="diTry">'+t('di_try_h')+'</label>'+
+      '<textarea id="diTry" rows="3" placeholder="'+cvEscape(t('di_try_ph'))+'"></textarea>'+
+      '<div class="di-try-row">'+
+        '<button type="button" class="btn btn-blue hv-btn" onclick="diEvaluate()">'+t('di_try_cta')+'</button>'+
+        '<button type="button" class="di-replay" onclick="renderDemoInt()">'+t('di_try_skip')+'</button>'+
+      '</div>'+
+      '<p class="di-try-msg" id="diTryMsg" role="status" aria-live="polite"></p>'+
+    '</div>';
+}
+
+/* Mira la respuesta y muestra las tres señales; DESPUÉS revela la preparada.
+   El orden importa: primero lo tuyo, después el contraste. Al revés, la persona
+   copia el ejemplo en vez de darse cuenta de lo que le falta. */
+function diEvaluate(){
+  var ta=document.getElementById('diTry'); if(!ta) return;
+  var txt=(ta.value||'').trim();
+  var c=diCheck(txt);
+
+  if(c.palabras<15){
+    var m=document.getElementById('diTryMsg');
+    if(m) m.textContent=t('di_try_short');
+    ta.focus();
+    return;
+  }
+  track('demo_try_answer', { role:DEMO_ROLE, words:c.palabras });
+
+  var fila=function(ok, texto){
+    return '<li class="'+(ok?'ok':'no')+'">'+(ok?ICO.check:'<span class="di-x" aria-hidden="true">✕</span>')+
+           '<span>'+cvEscape(texto)+'</span></li>';
+  };
+  var html=
+    '<div class="di-res">'+
+      '<h3>'+t('di_res_h')+'</h3>'+
+      '<ul>'+
+        fila(c.num,      c.num     ? t('di_ck_num_ok')  : t('di_ck_num_no'))+
+        fila(!c.cliche,  c.cliche  ? tf('di_ck_cli_no',{w:c.cliche}) : t('di_ck_cli_ok'))+
+        fila(c.cierra,   c.cierra  ? t('di_ck_star_ok') : t('di_ck_star_no'))+
+      '</ul>'+
+      '<p class="di-res-note">'+t('di_res_note')+'</p>'+
+    '</div>';
+
+  renderDemoInt(html);
+}
+
+function renderDemoInt(feedbackHTML){
   var host=document.getElementById('diBody'); if(!host) return;
   var d=DEMO_INT[DEMO_ROLE]; if(!d) return;
   diClearTimers();
 
   host.innerHTML =
+    (feedbackHTML||'')+
     '<div class="di-q di-step" data-s="0"><span class="di-q-lbl">'+t('di_q_lbl')+'</span>'+
       '<p>'+t(d.q)+'</p></div>'+
 
@@ -10342,7 +10582,7 @@ function renderDemoInt(){
       '<button class="btn btn-blue hv-btn" onclick="showPage(\'herramientas\'); setTimeout(function(){ switchTab(\'role\'); },260)">'+
         t('di_cta')+'</button>'+
       '<span class="di-cta-note">'+t('di_cta_note')+'</span>'+
-      '<button type="button" class="di-replay" onclick="renderDemoInt()">'+t('di_replay')+'</button>'+
+      '<button type="button" class="di-replay" onclick="renderDemoTry()">'+t('di_replay')+'</button>'+
     '</div>';
 
   var steps=host.querySelectorAll('.di-step');
@@ -10604,6 +10844,7 @@ function applyI18n(){
      este aviso" y se comía el estado dinámico ("Analizar mi CV base"). Acá se
      recalcula con el contenido real del campo. */
   if(typeof adapterCtaSync==='function') adapterCtaSync();
+  if(typeof syncLifetimeCard==='function') syncLifetimeCard();   // su texto tambien se traduce
 }
 /* #1 · los ejemplos "En lugar de X → Y" de la guía se dibujan como tarjetas
    Antes / Después. Se parsea SIEMPRE desde el i18n (no del DOM ya transformado):
@@ -10649,7 +10890,7 @@ function setLang(l){ if(!I18N[l]) return; lang=l; try{ localStorage.setItem('ma_
   applyDemoCv();                   // #1: el CV de ejemplo se traduce con la interfaz
   renderBotMsgs(); renderBotSugg();
   renderReviews();                // el estado vacio de resenas tambien se traduce
-  renderDemoInt();                // el ejemplo de entrevista, en el idioma nuevo
+  renderDemoTry();                // el micro-demo, en el idioma nuevo
   renderRefer();                  // el bloque de referidos
   if(typeof updateAccountUI==='function') updateAccountUI();
   setTimeout(function(){ document.body.classList.remove('lang-swap'); },40); }
@@ -11605,8 +11846,15 @@ function payButtonsHTML(){
   var out='';
   if(m.indexOf('mercadopago')>=0)
     out+='<button class="pro-cta pro-cta-mp" onclick="activatePro(\'mercadopago\')">'+t('pay_mp')+'</button>';
-  if(m.indexOf('paddle')>=0)
-    out+='<button class="pro-cta'+(both?' pro-cta-alt':'')+'" onclick="activatePro(\'paddle\')">'+(both? t('pay_card') : t('up_cta'))+'</button>';
+  if(m.indexOf('paddle')>=0){
+    /* Si ya sabemos que el link de tarjeta no está saliendo, el botón lo dice de
+       entrada en vez de aceptar el clic para fallar después. Mercado Pago no se
+       toca: ese sí cobra, y es el que le sirve a quien está en Argentina. */
+    if(PAY_LINK_DEAD)
+      out+='<button class="pro-cta'+(both?' pro-cta-alt':'')+'" disabled>'+t('pay_soon_note')+'</button>';
+    else
+      out+='<button class="pro-cta'+(both?' pro-cta-alt':'')+'" onclick="activatePro(\'paddle\')">'+(both? t('pay_card') : t('up_cta'))+'</button>';
+  }
   else if(m.indexOf('stripe')>=0)
     out+='<button class="pro-cta" onclick="activatePro(\'stripe\')">'+t('up_cta')+'</button>';
   return out;
@@ -11636,10 +11884,13 @@ function activatePro(method){
   MA_API.checkout(method).then(function(r){
     if(r && r.url){ window.location.href=r.url; return; }   // al checkout del proveedor
     closeModal(); notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
-  }).catch(function(){
+  }).catch(function(e){
     /* 503 u otro error: no se toca el plan, se dice la verdad. */
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     closeModal(); notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
+    /* Si el problema es que Paddle no genera el link, se recuerda: el proximo
+       modal lo dice de entrada en vez de invitar al mismo clic. */
+    if(e && (e.code==='billing_no_url' || e.code==='billing_disabled')) markPayLinkDead();
   });
 }
 function limitModal(){ showModal('<div class="modal-head"><h3>'+t('limit_title')+'</h3><button class="xbtn" onclick="closeModal()">'+I.x+'</button></div><p class="modal-sub">'+t('limit_body')+'</p><button class="btn btn-blue block pro-btn" onclick="openUpgrade()">'+t('go_pro')+'</button>'); }
@@ -12667,13 +12918,14 @@ if(window.MA_API && MA_API.health){ MA_API.health().then(function(h){
   LIFETIME_ON=!!(h&&h.lifetime);
   var card=document.getElementById("prLifetime");
   if(card) card.classList.toggle("gone", !LIFETIME_ON);
+  if(typeof syncLifetimeCard==="function") syncLifetimeCard();
 }).catch(function(){}); }
 if(typeof rvFlush==='function') rvFlush();   // reintenta las reseñas que quedaron pendientes
 refCapture();                                // el ?ref= del link, antes que nada
 oauthReturn();                               // la vuelta de Google/LinkedIn, si venimos de ahi
 captureDemoCv();                             // el CV de ejemplo, antes de que nadie lo toque
 applyDemoCv();                               // #1: el ejemplo, en el idioma activo de arranque
-renderDemoInt();                             // el ejemplo de entrevista
+renderDemoTry();                             // el micro-demo de entrevista
 renderRefer();                               // mi link de invitacion, o la oferta de entrar
 fillJobSelects(); renderChips(); render(); applyI18n(); updateAccountUI();
 if(typeof renderProfStrength==='function') renderProfStrength();   // fuerza del perfil al arrancar

@@ -205,7 +205,11 @@ No anuncies la estructura ("En esta carta voy a…"): entrá directo.
 ## FORMA
 - Primera persona del singular. Voz natural, como escribe una persona real — no una IA.
 - Largo: formal/creativo, 150–220 palabras. Corto, 60–100.
-- Podés abrir con un saludo simple ("Hola," o dirigido al equipo o al rol) o entrar directo al gancho; nunca con un elogio genérico a la empresa.
+- SIEMPRE arrancá con un saludo, en su propio renglón, seguido de una línea en blanco y recién ahí el gancho. Sin saludo la carta parece un fragmento pegado a medias — y la mayoría se manda por mail, donde entrar sin saludar se lee como brusco.
+  · Si el aviso nombra a una persona o un equipo, saludalos a ellos ("Estimada Ana," / "Hola, equipo de Datos,").
+  · Si no, usá una fórmula sobria y humana: "Estimado equipo de selección," o "Hola," a secas si el tono es creativo.
+  · NUNCA "A quien corresponda" ni "Estimados señores": son las dos que gritan plantilla.
+  El saludo no cuenta para el largo de la carta ni reemplaza al gancho: después del salto de línea, la primera oración sigue siendo lo más concreto que tengas.
 - Un solo idioma, el pedido, de forma natural (jamás traducción palabra por palabra).
 - Sin fecha, sin encabezado postal, sin asunto: escribís el cuerpo de la carta.
 
