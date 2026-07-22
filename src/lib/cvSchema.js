@@ -136,6 +136,34 @@ export const isAchievement = (line) => {
   return words >= 4 && (VERB_RX.test(x) || words >= 7);
 };
 
+/**
+ * Reformula aclaraciones informales de nivel a lenguaje profesional. Red de
+ * seguridad determinística (español) SOBRE lo que el prompt ya normaliza: si el
+ * modelo deja un coloquialismo, esto lo limpia igual. Reglas:
+ *   - Solo toca lo que está ENTRE PARÉNTESIS (que es donde vive la aclaración);
+ *     "Cálculo básico" sin paréntesis NO se toca (es el nombre de la materia).
+ *   - NUNCA infla el nivel ni inventa un código CEFR: cambia palabras, no niveles.
+ * El orden importa: lo más específico (curso/facultad, oxidado) va antes que lo
+ * genérico ("básico"), para que no lo pise una regla más amplia.
+ */
+/* SOLO coloquialismos → término profesional. Los niveles que YA son estándar
+   (básico, intermedio, avanzado, nativo, nociones) NO se tocan: son la escala
+   correcta, no un problema. Y ningún reemplazo es fuente de otra regla, así que
+   no hay cascada ("nivel básico" no se vuelve a reescribir). */
+const NIVEL_INFORMAL = [
+  [/\b(?:lo vi en (?:un|una) (?:curso|materia)|visto en (?:la )?facultad|de (?:la )?facultad|en la facu(?:ltad)?|en un curso|de la carrera|vi en la facu)\b/gi, 'formación académica'],
+  [/\b(?:medio |algo )?oxidad[oa]s?\b/gi, 'nivel intermedio'],
+  [/\b(?:muy poc[oa]s?|un poc[oa]|poqu[ií]t[oa]|apenas|casi nada|nivel usuario|principiante)\b/gi, 'nivel básico'],
+];
+export const normalizeLevel = (raw) =>
+  String(raw ?? '').replace(/\(([^)]*)\)/g, (_m, inner) => {
+    let s = inner;
+    for (const [re, rep] of NIVEL_INFORMAL) s = s.replace(re, rep);
+    // "nivel nivel X" (dos reglas encadenadas) y espacios sobrantes
+    s = s.replace(/\bnivel\s+nivel\b/gi, 'nivel').replace(/\s+/g, ' ').trim();
+    return `(${s})`;
+  });
+
 /** Una skill es un término (1–4 palabras), no una oración. */
 export const isSkillTerm = (value) => {
   const x = String(value ?? '').trim();
@@ -213,7 +241,10 @@ export const sanitizeCv = (input) => {
     .slice(0, 10);
 
   // --- HABILIDADES (+ idiomas): términos, sin duplicados ni frases ---
-  const skills = dropSubsumed(dedupe([...cv.skills, ...cv.languages].filter(isSkillTerm))).slice(0, 30);
+  /* normalizeLevel ANTES de isSkillTerm: "Python (lo vi en un curso)" (6 palabras)
+     se reformula a "Python (formación académica)" (3) y recién ahí pasa el filtro
+     de término corto. Al revés, se descartaría por largo y perderíamos la skill. */
+  const skills = dropSubsumed(dedupe([...cv.skills, ...cv.languages].map(normalizeLevel).filter(isSkillTerm))).slice(0, 30);
 
   // --- INTERESES: ni fechas, ni empresas, ni logros ---
   const interests = dedupe(

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { contactLine, dateRange, sanitizeCv } from '../src/lib/cvSchema.js';
+import { contactLine, dateRange, normalizeLevel, sanitizeCv } from '../src/lib/cvSchema.js';
 
 /** Salida "sucia" típica de un modelo distraído: datos cruzados entre secciones. */
 const dirty = {
@@ -86,4 +86,45 @@ test('rango de fechas', () => {
   assert.equal(dateRange('2021', '2025'), '2021 – 2025');
   assert.equal(dateRange('2024', 'present'), '2024 – Present');
   assert.equal(dateRange('', ''), '');
+});
+
+test('normalizeLevel: aclaraciones informales entre paréntesis se profesionalizan', () => {
+  assert.equal(normalizeLevel('Italiano (muy poco)'), 'Italiano (nivel básico)');
+  assert.equal(normalizeLevel('Inglés (un poco)'), 'Inglés (nivel básico)');
+  assert.equal(normalizeLevel('Excel (nivel usuario)'), 'Excel (nivel básico)');
+  assert.equal(normalizeLevel('Python (lo vi en un curso)'), 'Python (formación académica)');
+  assert.equal(normalizeLevel('Alemán (visto en la facultad)'), 'Alemán (formación académica)');
+  assert.equal(normalizeLevel('Inglés (medio oxidado)'), 'Inglés (nivel intermedio)');
+});
+
+test('normalizeLevel: NUNCA fabrica un código CEFR que el CV no escribió', () => {
+  for (const s of ['Inglés (básico)', 'Italiano (muy poco)', 'Francés (un poco)']) {
+    assert.ok(!/\b[ABC][12]\b/.test(normalizeLevel(s)), `no debería inventar CEFR en "${s}"`);
+  }
+});
+
+test('normalizeLevel: no infla ni duplica "nivel", y respeta lo ya profesional', () => {
+  assert.equal(normalizeLevel('Inglés (nivel básico)'), 'Inglés (nivel básico)');   // sin "nivel nivel"
+  assert.equal(normalizeLevel('Excel (básico)'), 'Excel (básico)');                 // ya es estándar: intacto
+  assert.equal(normalizeLevel('Inglés (avanzado)'), 'Inglés (avanzado)');           // idem: no se toca
+  assert.equal(normalizeLevel('Español (nativo)'), 'Español (nativo)');              // nativo se deja
+});
+
+test('normalizeLevel: fuera de paréntesis NO toca nada (no es una aclaración)', () => {
+  assert.equal(normalizeLevel('Cálculo básico'), 'Cálculo básico');                 // nombre de materia, intacto
+  assert.equal(normalizeLevel('Marketing avanzado'), 'Marketing avanzado');
+});
+
+test('sanitizeCv: normaliza niveles informales y una skill larga sobrevive al filtro', () => {
+  const cv = sanitizeCv({
+    ...dirty,
+    skills: ['SEO', 'Python (lo vi en un curso)'],
+    languages: ['Italiano (muy poco)', 'Inglés (medio oxidado)'],
+  });
+  // "Python (lo vi en un curso)" (6 palabras) se acorta a 3 y pasa el filtro
+  assert.ok(cv.skills.includes('Python (formación académica)'), JSON.stringify(cv.skills));
+  assert.ok(cv.skills.includes('Italiano (nivel básico)'), JSON.stringify(cv.skills));
+  assert.ok(cv.skills.includes('Inglés (nivel intermedio)'), JSON.stringify(cv.skills));
+  // y jamás un CEFR inventado
+  assert.ok(!cv.skills.some((s) => /\b[ABC][12]\b/.test(s)));
 });

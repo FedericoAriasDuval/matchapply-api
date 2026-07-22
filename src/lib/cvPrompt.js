@@ -40,6 +40,13 @@ export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums
 - Fechas: normalizá el formato a "AAAA" o "MM/AAAA" y usá "" cuando falte. Podés traducir "actualidad/presente" al valor "present" en el campo end.
 - Podés corregir mayúsculas/minúsculas y espacios sobrantes.
 - Podés separar en bullets una oración larga que claramente enumera varios logros, sin agregar palabras.
+- Aclaraciones informales de nivel (idiomas y skills): si una habilidad o idioma trae un comentario coloquial, autodespectivo o de posesión limitada —entre paréntesis o al lado— reformulalo a lenguaje profesional del MISMO idioma del CV, sin inflar el nivel real:
+  · "muy poco", "un poco", "poquito", "apenas", "casi nada", "nivel usuario", "principiante" → "nivel básico".
+  · "lo vi en un curso", "visto en la facultad", "de la carrera", "en la facu" → "formación académica".
+  · "medio oxidado", "algo oxidado", "oxidado" → "nivel intermedio" (implica competencia previa).
+  · Los niveles que YA son estándar se DEJAN tal cual: básico, intermedio, avanzado, nativo, fluido, nociones básicas. No los toques: son la escala correcta.
+  PROHIBIDO fabricar un código CEFR (A1, A2, B1, B2, C1, C2) que el CV NO escribió: si la persona no puso "B2", vos tampoco lo pongas. Nunca subas el nivel: normalizar es cambiar las PALABRAS coloquiales, no el nivel. Jamás dejes un comentario coloquial en la salida.
+- Nivel muy incipiente: si un idioma o skill está en un nivel tan bajo que no aporta (ej. "nivel básico" de algo secundario), NO lo borres por tu cuenta; podés sugerir en "warnings" evaluar si conviene mantenerlo o reforzarlo.
 - NO reescribas, NO adornes, NO agregues verbos de impacto que no estén, NO conviertas responsabilidades en logros con métricas inventadas.
 
 ## REGLA 5 — SALIDA
