@@ -12,7 +12,7 @@ import { cerrarOrdenado } from './lib/shutdown.js';
 import { llmHealth } from './lib/llm.js';
 import { cvCache } from './lib/cache.js';
 import { authRouter } from './routes/auth.js';
-import { billingRouter, billingWebhook, availableMethods, lifetimeAvailable } from './routes/billing.js';
+import { billingRouter, billingWebhook, availableMethods, lifetimeAvailable, lifetimeMethods } from './routes/billing.js';
 import { adminRouter } from './routes/admin.js';
 import { cvRouter } from './routes/cv.js';
 import { reviewsRouter } from './routes/reviews.js';
@@ -64,6 +64,7 @@ app.get('/health', async (_req, res) => {
       billing: config.billing.enabled,   // ¿los pagos están activos? el front no dibuja un botón que miente
       billingMethods: availableMethods(),// qué métodos ofrecer: ['mercadopago','paddle']
       lifetime: lifetimeAvailable(),     // ¿se puede vender el pago único? el front no dibuja lo que no se puede comprar
+      lifetimeMethods: lifetimeMethods(),// con QUÉ se cobra el de por vida: ['mercadopago','paddle']
       encrypted: encryptionEnabled(),
       queue: cvQueue.snapshot(),
       breaker: llmHealth().breaker,

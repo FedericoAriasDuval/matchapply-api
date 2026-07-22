@@ -98,6 +98,9 @@ export const config = {
     // Mercado Pago — Argentina, ARS. Access token del panel de MP + precio en pesos.
     mpAccessToken: process.env.MP_ACCESS_TOKEN,
     mpPriceArs: Number(process.env.MP_PRICE_ARS ?? 0),
+    // Pago ÚNICO de por vida por Mercado Pago (ARS). Sin este monto no se ofrece
+    // MP para el Lifetime (no inventamos un precio). Federico lo fija en Render.
+    mpLifetimeArs: Number(process.env.MP_LIFETIME_ARS ?? 0),
     mpEnabled: Boolean(process.env.MP_ACCESS_TOKEN && Number(process.env.MP_PRICE_ARS ?? 0) > 0),
     // ¿hay ALGÚN método disponible? (lo usa el front para saber si mostrar el botón)
     enabled: Boolean(

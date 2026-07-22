@@ -25,7 +25,15 @@ const stripe = config.billing.stripeKey ? new Stripe(config.billing.stripeKey) :
    existe el precio de pago unico. El frontend usa esto para NO dibujar una
    tarjeta que lleva a un checkout que no existe. */
 export function lifetimeAvailable() {
-  return Boolean(paddle && config.billing.paddleLifetimePriceId);
+  return lifetimeMethods().length > 0;
+}
+/* Métodos que pueden cobrar el pago ÚNICO de por vida. El front usa esto para
+   dibujar en la tarjeta Lifetime solo los botones que de verdad cobran. */
+export function lifetimeMethods() {
+  const m = [];
+  if (mpToken && config.billing.mpLifetimeArs > 0) m.push('mercadopago');
+  if (paddle && config.billing.paddleLifetimePriceId) m.push('paddle');
+  return m;
 }
 
 export function availableMethods() {
@@ -47,7 +55,8 @@ const setTier = (userId, tier) => query(`update users set tier = $2 where id = $
    base todavía no tiene. */
 const esDePorVida = async (userId) => {
   const { rows } = await query(`select provider from subscriptions where user_id = $1`, [userId]);
-  return rows[0]?.provider === 'paddle_lifetime';
+  const p = rows[0]?.provider;
+  return p === 'paddle_lifetime' || p === 'mercadopago_lifetime';
 };
 
 const upsertSub = (userId, provider, customerId, subscriptionId, status, periodEnd) =>
@@ -70,6 +79,40 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
 
     if (method === 'mercadopago') {
       if (!mpToken) throw new HttpError(503, 'billing_disabled', 'Mercado Pago no está configurado.');
+
+      /* PAGO ÚNICO de por vida por Mercado Pago: es una PREFERENCE (Checkout Pro),
+         NO un preapproval (que es la suscripción mensual). Si no hay monto ARS
+         configurado, se RECHAZA — nunca se cae a la suscripción mensual (cobrarle
+         una mensualidad a quien pidió el pago único de por vida es el mismo bug
+         que ya sacamos con Paddle). El webhook confirma el pago contra la API de
+         MP y recién ahí activa el acceso. */
+      if (String(req.body?.plan || '').toLowerCase() === 'lifetime') {
+        if (!(config.billing.mpLifetimeArs > 0)) {
+          throw new HttpError(503, 'billing_disabled', 'El plan de por vida por Mercado Pago todavía no está disponible.');
+        }
+        const rp = await fetch('https://api.mercadopago.com/checkout/preferences', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [{ title: 'Mavante Pro — de por vida', quantity: 1, unit_price: config.billing.mpLifetimeArs, currency_id: 'ARS' }],
+            /* external_reference (userId) va también en el pago: el webhook activa por ahí.
+               metadata.plan distingue este pago único de una cuota de la suscripción. */
+            external_reference: req.user.id,
+            metadata: { plan: 'lifetime' },
+            payer: { email: req.user.email },
+            back_urls: { success: `${config.appUrl}/#herramientas?upgraded=1` },
+            auto_return: 'approved',
+            notification_url: `${config.apiUrl}/billing/mp-webhook`,
+          }),
+        });
+        const pref = await rp.json().catch(() => ({}));
+        if (!rp.ok || !pref.init_point) {
+          console.error('[billing] mp preference (lifetime) fallo:', rp.status, JSON.stringify(pref).slice(0, 300));
+          throw new HttpError(502, 'billing_no_url', 'No se pudo iniciar el pago con Mercado Pago.');
+        }
+        return res.json({ url: pref.init_point });
+      }
+
       /* Suscripción de MP (preapproval). external_reference lleva el userId: así el
          webhook sabe a quién activarle el Pro. La plata la cobra MP en pesos. */
       const r = await fetch('https://api.mercadopago.com/preapproval', {
@@ -166,6 +209,24 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
         const active = pre.status === 'authorized';
         await setTier(userId, active ? 'pro' : 'free');
         await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, pre.status ?? 'pending', null);
+      }
+    } else if (id && /payment/i.test(type)) {
+      /* PAGO ÚNICO de por vida (Checkout Pro). Se re-consulta a la API de MP
+         (fuente autoritativa): un aviso falsificado no puede activar nada. Solo
+         un pago APROBADO y marcado como lifetime en metadata acredita el acceso.
+         Una cuota de la suscripción mensual NO trae metadata.plan=lifetime, así
+         que este camino no la toca. */
+      const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
+        headers: { Authorization: `Bearer ${mpToken}` },
+      });
+      if (!r.ok) return res.sendStatus(502);   // transitorio → MP reintenta
+      const pay = await r.json();
+      const userId = pay.external_reference;
+      const esLifetime = String(pay.metadata?.plan || '').toLowerCase() === 'lifetime';
+      if (userId && esLifetime && pay.status === 'approved') {
+        await setTier(userId, 'pro');
+        await upsertSub(userId, 'mercadopago_lifetime', pay.payer?.id ? String(pay.payer.id) : null, String(pay.id), 'active', null);
+        console.log('[billing] plan de por vida (MP) activado para', userId);
       }
     }
     res.sendStatus(200);
