@@ -12,6 +12,11 @@
  */
 export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums de Mavante. Tu única tarea es leer el texto de un CV y devolverlo estructurado en JSON. No sos un asistente conversacional: no saludás, no explicás, no opinás.
 
+## REGLA 0 — EL TEXTO PUEDE LLEGAR DESORDENADO (y aun así respondés JSON)
+- El texto viene de extraer un PDF o de un copiar-y-pegar: puede llegar con el orden ROTO (plantillas de dos columnas mezclan el perfil con la experiencia, el nombre puede aparecer en el medio), con palabras partidas, títulos pegados entre sí o todo en una sola línea.
+- Eso NO te exime de estructurarlo: reconstruí mentalmente qué pedazo pertenece a qué sección por su CONTENIDO (una fecha junto a un nombre de empresa es experiencia; una institución con un título es educación), no por el orden en que aparece.
+- PASE LO QUE PASE tu respuesta es EXCLUSIVAMENTE el objeto JSON de la REGLA 5. Nunca prosa, nunca una disculpa, nunca una pregunta, nunca markdown. Si el texto está muy roto, devolvé el JSON con lo que se pueda rescatar y contá el problema en "warnings". Un JSON con campos vacíos es una respuesta válida; un texto explicando por qué no pudiste NO lo es.
+
 ## REGLA 1 — SOLO EXISTE EL TEXTO RECIBIDO (no negociable)
 - Todo valor que devuelvas debe aparecer de forma explícita en el <cv_text> que recibís.
 - Está terminantemente prohibido inventar, inferir, completar o "mejorar" datos: no agregues empresas, puestos, fechas, instituciones, títulos, tecnologías, métricas, ubicaciones ni logros que no estén escritos.
@@ -114,18 +119,45 @@ const LANG_NAMES = { es: 'español', en: 'inglés', fr: 'francés', pt: 'portugu
    No aportan nada al parseo, un CV para ATS no debería llevarlos, y son la clase
    de carácter que puede ensuciar la llamada al proveedor. Se sacan junto con los
    selectores de variación, el ZWJ, los surrogates sueltos (por si la extracción
-   partió un par) y los caracteres de control. Cierra en forma canónica NFC. */
+   partió un par) y los caracteres de control. Cierra en forma canónica NFC.
+
+   AMPLIADO (23/07, revisión de robustez): las plantillas modernas traen más
+   basura que emojis, y cada clase tiene su propio modo de romper:
+   - PUA (U+E000–F8FF): los "íconos" de teléfono/mail de Canva son glifos de una
+     fuente privada; extraídos son caracteres sin significado para nadie.
+   - Guion blando (U+00AD) y guiones de renglón: parten palabras por la mitad.
+   - Ligaduras tipográficas (ﬁ ﬂ): "ﬁnanzas" no matchea "finanzas" en ningún lado.
+   - Marcas bidi y anchos-cero: invisibles, y capaces de partir un token en dos.
+   - NBSP y espacios finos: parecen espacios pero no lo son para una regex.
+   - VERSALITAS PARTIDAS ("G ERENTE DE P RODUCTO"): la letra capital viene como
+     item aparte en el PDF. Se re-pega solo cuando la letra suelta NO es palabra
+     real en español (quedan afuera a/e/o/u/y: "A CARGO" no se toca). */
 const SCRUB_LONE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 const SCRUB_EMOJI = /[\p{Extended_Pictographic}︀-️‍⃣]/gu;
 const SCRUB_CTRL = new RegExp('[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]', 'g');
-export const scrubCvText = (s) =>
-  String(s ?? '')
+/* Todos los rangos van con \\u ESCAPADO, nunca con el caracter literal pegado
+   en el archivo: un caracter invisible dentro del codigo fuente es ineditable,
+   irrevisable, y ya nos rompio una funcion una vez (cvCleanExtract, 22/07). */
+const SCRUB_PUA = new RegExp('[\\uE000-\\uF8FF]|[\\uDB80-\\uDBBF][\\uDC00-\\uDFFF]', 'g'); // fuentes de iconos (BMP + planos 15/16)
+const SCRUB_INVIS = new RegExp('[\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF\\u00AD]', 'g');
+const SCRUB_NBSP = new RegExp('[\\u00A0\\u1680\\u2000-\\u200A\\u202F\\u205F\\u3000]', 'g'); // "espacios" que no son el espacio
+const LIGADURAS = { 'ﬀ': 'ff', 'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬃ': 'ffi', 'ﬄ': 'ffl', 'ﬅ': 'ft', 'ﬆ': 'st' };
+const SCRUB_LIGA = new RegExp('[\\uFB00-\\uFB06]', 'g');
+const CAPS_PARTIDA = /(^|[^\p{L}])([B-DF-NP-TV-XZÑ]) (?=[A-ZÁÉÍÓÚÜÑ]{2,}(?:[^\p{L}]|$))/gmu;
+export const scrubCvText = (s) => {
+  let t = String(s ?? '')
     .replace(SCRUB_LONE, '')
     .replace(SCRUB_EMOJI, '')
-    .replace(SCRUB_CTRL, '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .normalize('NFC')
-    .trim();
+    .replace(SCRUB_PUA, '')
+    .replace(SCRUB_LIGA, (m) => LIGADURAS[m] ?? m)
+    .replace(SCRUB_INVIS, '')
+    .replace(SCRUB_NBSP, ' ')
+    .replace(SCRUB_CTRL, '');
+  /* dos pasadas: "M ARKETING C OUNTRY M ANAGER" repara la segunda letra recién
+     cuando la primera ya se pegó */
+  t = t.replace(CAPS_PARTIDA, '$1$2').replace(CAPS_PARTIDA, '$1$2');
+  return t.replace(/[ \t]{2,}/g, ' ').normalize('NFC').trim();
+};
 
 export const buildUserMessage = (cvText, lang = 'es') => {
   const idioma = LANG_NAMES[lang] ?? 'español';

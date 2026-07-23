@@ -19,6 +19,7 @@
  *   SEMIABIERTO  → pasado el enfriamiento, deja pasar UNA llamada de prueba.
  *                  Si sale bien, cierra. Si falla, vuelve a abrir.
  */
+import { HttpError } from '../middleware/errors.js';
 
 export class CircuitBreaker {
   constructor({ threshold = 5, cooldownMs = 30_000, name = 'llm' } = {}) {
@@ -77,10 +78,13 @@ export class CircuitBreaker {
     if (this.isOpen) {
       this.stats.shortCircuited++;
       if (fallback) return fallback();
-      const e = new Error('El servicio de IA está temporalmente fuera de servicio.');
-      e.code = 'llm_circuit_open';
-      e.status = 503;
-      throw e;
+      /* HttpError, NO un Error pelado: normalize() en middleware/errors.js solo
+         reconoce HttpError y unos pocos tipos conocidos; cualquier otra cosa cae
+         al 500 "algo se rompió de nuestro lado". O sea que durante TODA la
+         ventana de circuito abierto —justo cuando más gente choca— el copy
+         humano de llm_circuit_open era inalcanzable y la persona leía un error
+         interno en vez de "volvé a intentar en un minuto". */
+      throw new HttpError(503, 'llm_circuit_open', 'El servicio de IA está temporalmente fuera de servicio.');
     }
     try {
       const out = await fn();

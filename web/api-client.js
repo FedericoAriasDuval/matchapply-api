@@ -170,10 +170,20 @@
       return request('/auth/logout', { method: 'POST' });
     },
 
-    /** Sesión activa al cargar la página. Devuelve null si no hay. */
+    /** Sesion activa al cargar la pagina. Devuelve null si NO HAY SESION.
+        Ojo con la diferencia: null significa "el servidor CONTESTO que no estas
+        logueado" (401/403 o user:null). Si el servidor NO contesto —la API
+        reiniciandose en un deploy de Render, un corte de red, un timeout— esto
+        RECHAZA en vez de devolver null. Antes devolvia null en los dos casos y
+        el arranque deslogueaba a gente con sesion valida cada vez que la API
+        parpadeaba: el "me desaparecio el diagnostico" recurrente. De un servidor
+        que no contesta no se puede concluir "no estas logueado". */
     me: function () {
       return request('/auth/me').then(function (r) { return (r && r.user) || null; })
-                               .catch(function () { return null; });
+        .catch(function (e) {
+          if (e && (e.status === 401 || e.status === 403)) return null;
+          throw e;
+        });
     },
 
     /* ------------------------------------------------------------------- CV */
@@ -266,9 +276,10 @@
 
     /* ---------------------------------------------------------------- billing */
     /* method: 'mercadopago' | 'paddle'. Sin method, el backend usa el primero disponible. */
-    /* plan: 'lifetime' pide el precio de PAGO UNICO. Sin el, el backend usa el
-       mensual — y jamas cae de uno al otro por su cuenta: si se pide el de por
-       vida y no esta configurado, contesta 503 en vez de cobrar otra cosa. */
+    /* plan: 'lifetime' (de por vida) o 'week' (pase de 7 dias) piden un precio de
+       PAGO UNICO. Sin el, el backend usa el mensual — y jamas cae de uno al otro
+       por su cuenta: si se pide un pago unico que no esta configurado, contesta
+       503 en vez de cobrar otra cosa. */
     checkout: function (method, plan) {
       var body = {};
       if (method) body.method = method;
@@ -277,6 +288,13 @@
         method: 'POST',
         body: Object.keys(body).length ? body : undefined
       });
+    },
+
+    /* Canje de una licencia institucional (una universidad o un trabajo ya pago
+       por N personas). Devuelve { organization, until } para poder decirle a la
+       persona quien le cubre el acceso y hasta cuando. */
+    redeem: function (code) {
+      return request('/billing/redeem', { method: 'POST', body: { code: String(code || '') } });
     }
   };
 

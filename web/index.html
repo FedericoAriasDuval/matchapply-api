@@ -397,12 +397,13 @@
   .combo-item b { color:var(--blue); font-weight:700; }
   .combo-empty { padding:11px; font-size:13.5px; color:var(--ink-3); line-height:1.45; }
   textarea { width:100%; border:1px solid var(--border); border-radius:14px; padding:14px; font-family:inherit; font-size:15px; color:var(--ink);
-    resize:vertical; min-height:96px; line-height:1.55; background:var(--surface); transition:border-color .15s,box-shadow .15s; letter-spacing:-0.01em; }
+    resize:vertical; min-height:96px; line-height:1.55; background:var(--surface); transition:border-color .15s,box-shadow .15s; letter-spacing:-0.01em;
+    scrollbar-gutter:stable; }   /* el scroll deja su hueco y no se encima con el texto ni con el borde redondeado */
   textarea:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 4px rgba(0,113,227,.12); }
   .cv-status { font-size:13px; color:var(--ink-2); margin-top:10px; display:none; align-items:center; gap:7px; }
   .cv-status.show { display:flex; }
   .cv-status.ok { color:var(--green); }
-  .chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:13px; align-items:center; }
+  .chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:18px; align-items:center; }   /* más aire: "Detectamos:" no queda pegado al textarea */
   .chips-label { font-size:12px; font-weight:600; color:var(--ink-3); text-transform:uppercase; letter-spacing:.03em; margin-right:2px; }
   .chip { font-size:13px; font-weight:500; color:var(--ink); background:var(--panel); padding:4px 11px; border-radius:8px; }
 
@@ -527,6 +528,12 @@
   .reader-guide[open] summary::after { transform:rotate(180deg); }
   .reader-guide .rg-body { padding:10px 2px 2px; display:grid; gap:8px; color:var(--ink-2); line-height:1.55; max-width:640px; }
   .reader-guide .rg-tip { color:var(--ink); font-weight:600; }
+  /* Badge estático que reemplaza al selector de evaluador: comunica que el
+     diagnóstico está optimizado para ATS, sin pedirle nada al usuario. */
+  .ats-badge { display:inline-flex; align-items:center; gap:8px; margin-bottom:20px;
+    padding:8px 13px; border-radius:980px; background:var(--panel); color:var(--ink-2);
+    font-size:12.5px; font-weight:600; letter-spacing:-0.005em; }
+  .ats-badge svg { flex-shrink:0; color:var(--blue); }
   .sw-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
   .sw-box { border-radius:16px; padding:20px; } .sw-box.str { background:var(--green-soft); } .sw-box.wea { background:var(--amber-soft); }
   .sw-box h5 { font-size:15px; font-weight:700; margin-bottom:12px; } .sw-box.str h5 { color:var(--green); } .sw-box.wea h5 { color:var(--amber); }
@@ -574,6 +581,68 @@
   .modal-done .tick { width:50px; height:50px; border-radius:50%; background:var(--green-soft); color:var(--green); display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
   .modal-done p { font-size:17px; font-weight:600; margin-bottom:5px; }
   .modal-done span.note { font-size:14px; color:var(--ink-2); display:block; margin-bottom:18px; line-height:1.5; }
+
+  /* ====== Creador de CV desde cero (wizard) ====== */
+  /* Entrada: tercer camino junto a subir/pegar. Se esconde con .gone cuando ya hay CV. */
+  .cvw-entry { display:flex; align-items:center; gap:10px; width:100%; margin:12px 0 2px; padding:13px 15px;
+    border:1.5px dashed var(--border-2); border-radius:14px; background:var(--surface); cursor:pointer;
+    font-family:inherit; font-size:14px; font-weight:600; color:var(--ink); text-align:left;
+    transition:border-color .18s ease, background .18s ease, transform .18s ease; }
+  .cvw-entry:hover { border-color:var(--blue); background:#f7fbff; transform:translateY(-1px); }
+  .cvw-entry:active { transform:scale(.99); }
+  .cvw-entry.gone { display:none; }
+  .cvw-entry-ic { display:flex; flex:0 0 30px; width:30px; height:30px; border-radius:9px; align-items:center; justify-content:center; background:var(--panel); color:var(--blue); }
+  /* El modal del wizard es un poco más ancho para que entre la grilla de 2 columnas. */
+  .modal:has(#cvwBody) { max-width:560px; }
+  .cvw-count { font-size:12px; font-weight:600; color:var(--blue); text-transform:uppercase; letter-spacing:.04em; }
+  .cvw h3 { font-size:19px; font-weight:600; letter-spacing:-0.02em; margin-top:2px; line-height:1.25; }
+  .cvw-steps { display:flex; gap:6px; margin:14px 0 4px; }
+  .cvw-steps span { flex:1; height:5px; border-radius:99px; background:var(--panel); transition:background .2s ease; }
+  .cvw-steps span.on { background:var(--blue); }
+  .cvw-tip { display:flex; gap:8px; align-items:flex-start; font-size:12.5px; color:var(--ink-2); line-height:1.45;
+    background:var(--panel); border-radius:10px; padding:9px 11px; margin:12px 0 16px; }
+  .cvw-tip svg { flex:0 0 auto; margin-top:1px; color:var(--blue); }
+  .cvw-field { margin-bottom:12px; }
+  .cvw-field > label { display:block; font-size:12.5px; font-weight:600; color:var(--ink-2); margin-bottom:5px; }
+  .cvw-field input, .cvw-field textarea, .cvw-field select {
+    width:100%; font-family:inherit; font-size:14px; color:var(--ink); background:var(--surface);
+    border:1.5px solid var(--border-2); border-radius:11px; padding:10px 12px;
+    transition:border-color .15s ease, box-shadow .15s ease; }
+  .cvw-field textarea { resize:vertical; min-height:78px; line-height:1.5; }
+  .cvw-field input:focus, .cvw-field textarea:focus, .cvw-field select:focus {
+    outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(11,95,255,.14); }
+  .cvw-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cvw-card { border:1px solid var(--border-2); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .cvw-card-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .cvw-card-h b { font-size:12.5px; color:var(--ink-3); font-weight:600; }
+  .cvw-remove { border:none; background:none; cursor:pointer; color:var(--ink-3); font-size:12.5px; font-weight:600; padding:2px 4px; font-family:inherit; }
+  .cvw-remove:hover { color:#c0392b; }
+  .cvw-add { display:inline-flex; align-items:center; gap:7px; border:1.5px solid var(--border-2); background:var(--surface);
+    border-radius:11px; padding:9px 13px; cursor:pointer; font-family:inherit; font-size:13.5px; font-weight:600; color:var(--blue);
+    transition:border-color .15s ease, background .15s ease; }
+  .cvw-add:hover { border-color:var(--blue); background:#f7fbff; }
+  .cvw-check { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); cursor:pointer; margin:2px 0 10px; }
+  .cvw-check input { width:16px; height:16px; accent-color:var(--blue); }
+  .cvw-noexp-hint { font-size:12.5px; color:var(--ink-2); line-height:1.45; background:var(--panel); border-radius:10px; padding:9px 11px; margin-bottom:12px; }
+  /* Acordeón "esto también cuenta como experiencia": inspiración para juniors. */
+  .cvw-help { border:1px solid var(--border-2); border-radius:12px; margin-bottom:12px; overflow:hidden; background:var(--surface); }
+  .cvw-help summary { display:flex; align-items:center; gap:8px; cursor:pointer; padding:11px 13px; font-size:13.5px; font-weight:600; color:var(--blue); list-style:none; }
+  .cvw-help summary::-webkit-details-marker { display:none; }
+  .cvw-help summary svg { flex:0 0 auto; }
+  .cvw-help[open] summary { border-bottom:1px solid var(--border-2); }
+  .cvw-help-lead { font-size:12.5px; color:var(--ink-2); line-height:1.45; padding:11px 13px 2px; margin:0; }
+  .cvw-help ul { margin:0; padding:4px 14px 12px 30px; }
+  .cvw-help li { font-size:12.5px; color:var(--ink-2); line-height:1.5; margin-bottom:6px; }
+  .cvw-valid { display:flex; align-items:flex-start; gap:7px; font-size:12.5px; color:var(--ink-2); line-height:1.45; margin-top:10px; }
+  .cvw-valid svg { flex:0 0 auto; margin-top:1px; color:var(--green); }
+  .cvw-gen { display:inline-flex; align-items:center; gap:7px; border:1.5px solid var(--blue); background:#f7fbff; color:var(--blue);
+    border-radius:11px; padding:9px 13px; cursor:pointer; font-family:inherit; font-size:13.5px; font-weight:600; margin-bottom:6px;
+    transition:background .15s ease, transform .15s ease; }
+  .cvw-gen:hover { background:#eef5ff; transform:translateY(-1px); }
+  .cvw-gen-hint { font-size:12px; color:var(--ink-3); margin-bottom:12px; line-height:1.45; }
+  .cvw-foot { display:flex; gap:10px; margin-top:18px; }
+  .cvw-foot .btn { flex:1; }
+  @media (max-width:560px){ .cvw-grid { grid-template-columns:1fr; } }
   .btn.block { width:100%; }
   .filling-note { font-size:14px; text-align:center; color:var(--ink-2); display:flex; align-items:center; justify-content:center; gap:8px; }
   .spin { animation:spin 1s linear infinite; } @keyframes spin { to{transform:rotate(360deg);} }
@@ -3633,39 +3702,6 @@
   .app-error p { font-family:var(--font-sf); font-size:13.5px; line-height:1.5; color:var(--ink); }
   .app-error button { margin-left:auto; background:none; border:none; color:var(--ink-3); cursor:pointer; padding:2px; }
 
-  /* ---- onboarding: foco de luz + tooltip, sin pop-ups ---- */
-  .tour { position:fixed; inset:0; z-index:300; pointer-events:none; }
-  .tour::before { content:""; position:absolute; inset:0; background:rgba(10,20,40,.42);
-    animation:tourFade .5s ease-out both; }
-  @keyframes tourFade { from{opacity:0} to{opacity:1} }
-  .tour-spot {
-    position:fixed; border-radius:18px; pointer-events:none;
-    box-shadow:0 0 0 9999px rgba(10,20,40,.42), 0 0 0 1.5px rgba(255,255,255,.9), 0 22px 60px -20px rgba(0,0,0,.5);
-    background:transparent;
-    transition:top .55s cubic-bezier(.16,1,.3,1), left .55s cubic-bezier(.16,1,.3,1),
-               width .55s cubic-bezier(.16,1,.3,1), height .55s cubic-bezier(.16,1,.3,1);
-  }
-  .tour::before { display:none; }                 /* el velo lo hace el propio spot */
-  .tour-tip {
-    position:fixed; z-index:301; pointer-events:auto; opacity:0; transform:translateY(8px);
-    background:#fff; border-radius:16px; padding:18px 18px 14px;
-    box-shadow:0 30px 70px -24px rgba(15,32,60,.45), 0 4px 12px -6px rgba(15,32,60,.2);
-    transition:opacity .38s ease-out, transform .5s cubic-bezier(.16,1,.3,1);
-  }
-  .tour-tip.show { opacity:1; transform:none; }
-  .tour-step { font-family:var(--font-display); font-size:13px; font-weight:600; letter-spacing:-0.01em;
-    color:var(--blue); margin-bottom:8px; }
-  .tour-tip p { font-family:var(--font-sf); font-size:14.5px; line-height:1.55; color:var(--ink); letter-spacing:-0.012em; }
-  .tour-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; }
-  .tour-skip { background:none; border:none; cursor:pointer; font-family:var(--font-sf); font-size:13px;
-    font-weight:500; color:var(--ink-3); padding:6px 2px; transition:color .25s ease-out; }
-  .tour-skip:hover { color:var(--ink); }
-  .tour-next { background:#0b5fff; color:#fff; border:none; border-radius:10px; cursor:pointer;
-    font-family:var(--font-sf); font-size:13.5px; font-weight:600; letter-spacing:-0.01em; padding:9px 16px;
-    box-shadow:0 8px 18px -8px rgba(11,95,255,.6);
-    transition:transform .18s cubic-bezier(.2,.8,.4,1), box-shadow .3s ease-out, background-color .3s ease-out; }
-  .tour-next:hover { background:#1668ff; transform:translateY(-1px); box-shadow:0 14px 26px -10px rgba(11,95,255,.7); }
-  .tour-next:active { transform:scale(.96); }
 
   /* ---- accesibilidad: foco visible sin romper la estética ---- */
   :focus-visible { outline:2px solid #0b5fff; outline-offset:3px; border-radius:6px; }
@@ -3679,9 +3715,12 @@
   /* ============================================================
      (3) Toasts premium — flotantes, con blur iOS
      ============================================================ */
-  .toasts { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:420;
-    display:flex; flex-direction:column; gap:10px; align-items:center; pointer-events:none;
-    width:min(420px, calc(100vw - 28px)); }
+  /* Arriba a la derecha, fuera del formulario: antes vivían abajo-centro y en la
+     pantalla del CV base tapaban el textarea y su scroll. Auto-dismiss ya lo hace
+     notify() (4s, se pausa al pasar el mouse). */
+  .toasts { position:fixed; top:70px; right:16px; z-index:420;
+    display:flex; flex-direction:column; gap:10px; align-items:flex-end; pointer-events:none;
+    width:min(400px, calc(100vw - 28px)); }
   .toast {
     display:flex; align-items:flex-start; gap:11px; width:100%; pointer-events:auto;
     padding:13px 15px; border-radius:16px;
@@ -3689,11 +3728,11 @@
     backdrop-filter:saturate(1.8) blur(20px); -webkit-backdrop-filter:saturate(1.8) blur(20px);
     box-shadow:0 20px 50px -20px rgba(15,32,60,.35), 0 2px 8px -4px rgba(15,32,60,.18),
                inset 0 0 0 1px rgba(255,255,255,.6);
-    opacity:0; transform:translateY(14px) scale(.97);
+    opacity:0; transform:translateX(18px) scale(.98);
     transition:opacity .35s ease-out, transform .5s cubic-bezier(.16,1,.3,1);
   }
   .toast.show { opacity:1; transform:none; }
-  .toast.hide { opacity:0; transform:translateY(8px) scale(.98); }
+  .toast.hide { opacity:0; transform:translateX(18px) scale(.98); }
   .toast .t-ic { flex-shrink:0; width:26px; height:26px; border-radius:9px; display:flex; align-items:center;
     justify-content:center; background:rgba(15,32,60,.06); color:var(--navy); }
   .toast .t-ic .ico { width:14px; height:14px; }
@@ -3715,7 +3754,19 @@
   /* ============================================================
      (1) Paywall — vitrina, no muro
      ============================================================ */
-  .modal.pro { position:relative; overflow:hidden; border-radius:24px; padding:0; max-width:480px; }
+  /* overflow:hidden es lo que recorta el degradé de la cabecera contra las
+     esquinas redondeadas — pero también cortaba el CONTENIDO: el modal mide
+     88vh y adentro hay más, así que la mitad de abajo (la lista de beneficios,
+     el "seguir gratis") quedaba fuera de alcance y sin scroll. Se arregla
+     apilando: la cabecera queda fija y el cuerpo scrollea SOLO, adentro de las
+     esquinas redondeadas. */
+  .modal.pro { position:relative; overflow:hidden; border-radius:24px; padding:0; max-width:480px;
+    display:flex; flex-direction:column; }
+  .modal.pro .pro-head { flex:0 0 auto; }
+  .modal.pro .pro-body { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+  .modal.pro .pro-body::-webkit-scrollbar { width:6px; }
+  .modal.pro .pro-body::-webkit-scrollbar-thumb { background:rgba(15,32,60,.18); border-radius:99px; }
+  .modal.pro .pro-body::-webkit-scrollbar-track { background:transparent; }
   .pro-head {
     position:relative; padding:34px 30px 26px; text-align:center; color:#fff; overflow:hidden;
     background:linear-gradient(150deg, #15294d 0%, #0b5fff 68%, #4f8bff 100%);
@@ -3748,6 +3799,56 @@
   .pro-list b { display:block; font-family:var(--font-sf); font-size:14.5px; font-weight:600; letter-spacing:-0.018em;
     color:var(--navy); margin-bottom:1px; }
   .pro-list span { font-size:12.8px; line-height:1.45; color:#6b7382; }
+  /* Selector de plan: dos tarjetas comparativas (Mensual vs De por vida). */
+  .plan-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+  .plan-card { position:relative; border:1.5px solid var(--border-2); border-radius:16px; padding:16px 15px 15px; background:var(--surface); display:flex; flex-direction:column; }
+  .plan-card.plan-best { border-color:var(--blue); box-shadow:0 14px 34px -18px rgba(11,95,255,.5); }
+  .plan-ribbon { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--blue); color:#fff;
+    font-family:var(--font-sf); font-size:11px; font-weight:700; letter-spacing:.03em; padding:3px 10px; border-radius:980px; white-space:nowrap; }
+  .plan-h b { display:block; font-family:var(--font-sf); font-size:14px; font-weight:600; color:var(--ink-2); letter-spacing:-0.01em; }
+  .plan-price { display:flex; align-items:baseline; gap:5px; margin:4px 0 8px; }
+  .plan-price .pp-num { font-family:var(--font-sf); font-size:27px; font-weight:700; letter-spacing:-0.04em; color:var(--navy); }
+  .plan-price .pp-per { font-size:12.5px; color:var(--ink-3); }
+  .plan-note { font-size:12px; line-height:1.45; color:var(--ink-2); margin-bottom:12px; flex:1; }
+  .plan-card .pro-cta { margin-top:0; }
+  .plan-card .pro-cta + .pro-cta { margin-top:7px; }
+  @media (max-width:520px){ .plan-grid { grid-template-columns:1fr; } .plan-card.plan-best { order:-1; } }
+  /* Pase semanal: tira discreta bajo los dos planes. Deliberadamente más chica
+     que las tarjetas — es la salida de menor compromiso, no la oferta principal. */
+  /* Los dos botones de pago no entran al lado del texto en un modal de 470px, así
+     que la tira apila: texto arriba, botones en UNA fila abajo. Sin esto los
+     botones se apilaban uno sobre otro y la "tira" terminaba tan alta como una
+     tarjeta, que es justo lo que no queremos. */
+  .plan-week { display:flex; flex-direction:column; gap:10px;
+    border:1.5px dashed var(--border-2); border-radius:14px; padding:13px 14px; margin-bottom:18px; }
+  .plan-week .pw-txt { flex:1; min-width:200px; }
+  .plan-week .pw-txt b { display:block; font-family:var(--font-sf); font-size:13.5px; font-weight:600; color:var(--ink-2); letter-spacing:-0.01em; }
+  .plan-week .pw-price { display:flex; align-items:baseline; gap:5px; margin:2px 0 4px; }
+  .plan-week .pw-num { font-family:var(--font-sf); font-size:20px; font-weight:700; letter-spacing:-0.03em; color:var(--navy); }
+  .plan-week .pw-per { font-size:12px; color:var(--ink-3); }
+  .plan-week .pw-txt p { font-size:11.5px; line-height:1.45; color:var(--ink-3); margin:0; }
+  .plan-week .pw-cta { display:flex; gap:8px; }
+  .plan-week .pw-cta .pro-cta { flex:1; margin-top:0; padding:9px 12px; font-size:12.5px; }
+  @media (max-width:400px){ .plan-week .pw-cta { flex-direction:column; } }
+  /* Canje de licencia institucional: un renglón al pie, del tamaño de una nota.
+     Para casi todos es ruido; para quien tiene el código es lo que vino a buscar. */
+  /* "Tu plan actual": no es un botón apagado por un error nuestro, es un estado.
+     Se ve como una etiqueta —sin sombra ni azul— para que nadie intente apretarlo. */
+  .pro-cta.pro-cta-owned, .btn.btn-owned { background:var(--panel); color:var(--ink-2); box-shadow:none;
+    border:1.5px solid var(--border-2); cursor:default; opacity:1; }
+  .btn.btn-owned:hover { transform:none; box-shadow:none; }
+  .lic-row { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap;
+    margin-top:10px; font-size:12px; color:var(--ink-3); text-align:center; }
+  .lic-link { background:none; border:none; padding:0; font:inherit; font-weight:600;
+    color:var(--blue); cursor:pointer; text-decoration:underline; }
+  .lic-form { display:flex; gap:8px; width:100%; }
+  .lic-form input { flex:1; min-width:0; border:1.5px solid var(--border-2); border-radius:10px;
+    padding:9px 11px; font:inherit; font-size:13px; color:var(--ink); background:var(--surface);
+    text-transform:uppercase; letter-spacing:.04em; }
+  .lic-form input:focus { outline:none; border-color:var(--blue); }
+  .lic-go { border:none; border-radius:10px; padding:9px 15px; font-family:var(--font-sf);
+    font-size:13px; font-weight:600; color:#fff; background:var(--navy); cursor:pointer; }
+  .lic-go[disabled] { opacity:.6; cursor:default; }
   .pro-price { display:flex; align-items:baseline; justify-content:center; gap:6px; margin-bottom:14px; }
   .pro-price b { font-family:var(--font-sf); font-size:34px; font-weight:700; letter-spacing:-0.04em; color:var(--navy); }
   .pro-price span { font-size:14px; color:var(--ink-3); }
@@ -3829,6 +3930,12 @@
   .cv-lang-hint { display:flex; align-items:flex-start; gap:7px; margin:10px 2px 0;
     font-size:12.5px; line-height:1.45; color:var(--ink-3); }
   .cv-lang-hint svg { flex-shrink:0; margin-top:2px; color:var(--ink-3); }
+  /* cuando el CV está en otro idioma: se resalta y ofrece la acción */
+  .cv-lang-hint.mismatch { color:var(--ink-2); }
+  .cv-lang-hint.mismatch svg { color:var(--blue); }
+  .cvlang-btn { border:none; background:none; padding:0; margin:0; cursor:pointer; font-family:inherit;
+    font-size:12.5px; font-weight:600; color:var(--blue); text-decoration:underline; text-underline-offset:2px; }
+  .cvlang-btn:hover { color:var(--navy); }
 
   /* ===== #8 Carta de presentación ===== */
   .cover-job { margin:4px 0 14px; }
@@ -3942,7 +4049,13 @@
 <link rel="preconnect" href="https://api.mavante.com" crossorigin>
 <link rel="dns-prefetch" href="https://api.mavante.com">
 <script>window.MA_API_BASE="https://api.mavante.com";</script>
-<script src="api-client.js"></script>
+<!-- Ruta ABSOLUTA a propósito: Cloudflare Pages sirve la app en CUALQUIER ruta
+     (SPA fallback con 200), así que entrar por una URL con subcarpeta —ej.
+     mavante.com/collections/…— hacía que el navegador buscara este script en
+     esa subcarpeta, recibiera el index.html (text/html) y lo rechazara por MIME.
+     Sin api-client, MA_API queda indefinido y TODO análisis falla con el cartel
+     rojo. Con "/" carga desde la raíz sin importar la ruta de entrada. -->
+<script src="/api-client.js"></script>
 <!-- PostHog · analitica de producto. Vacio = APAGADO: no carga nada ni molesta.
      Para prenderlo: crear cuenta gratis en posthog.com y pegar el Project API Key abajo. -->
 <script>
@@ -4145,7 +4258,7 @@
           <li><span class="pr-ck"></span><span data-i18n="pz_p5">Tus CVs adaptados, guardados</span></li>
           <li><span class="pr-ck"></span><span data-i18n="pz_p6">Prioridad en la fila cuando hay mucha gente</span></li>
         </ul>
-        <button class="btn btn-blue block hv-btn" onclick="openUpgrade()" data-i18n="pz_pro_cta">Pasar a Pro</button>
+        <button id="pzProCta" class="btn btn-blue block hv-btn" onclick="openUpgrade()" data-i18n="pz_pro_cta">Pasar a Pro</button>
       </div>
 
       <!-- LIFETIME — FUERA DE VENTA (19/07/2026). NO reactivar sin leer esto.
@@ -4446,8 +4559,10 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4H8M2 14h2M20 14h2M9 13v2M15 13v2"/></svg>
         <p><b data-i18n="src_h">Así lee tu archivo un filtro automático.</b> <span data-i18n="src_p">Si algo se perdió, corregilo acá mismo.</span> <a href="#" id="cvAiNudge" class="gone" onclick="openAuth('register');return false" data-i18n="src_ai">Con una cuenta gratis, la IA lo arma sección por sección.</a></p>
       </div>
-      <!-- #6 (16/07): el idioma del CV lo maneja el selector de idioma de arriba -->
-      <div class="cv-lang-hint">
+      <!-- #6 (16/07): el idioma del CV lo maneja el selector de idioma de arriba.
+           renderCvLangHint() lo vuelve CONTEXTUAL: si detecta que el CV está en
+           un idioma distinto al de la app, avisa y ofrece verlo en ese idioma. -->
+      <div class="cv-lang-hint" id="cvLangHint">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
         <span data-i18n="cvlang_hint">Si querés cambiar el idioma de tu CV, cambiá el idioma arriba y nosotros nos encargamos.</span>
       </div>
@@ -4466,6 +4581,13 @@
         <span class="cvd-h" data-i18n="cvdrop_h">Arrastrá tu CV acá</span>
         <span class="cvd-s" data-i18n="cvdrop_s">PDF o Word — o tocá para elegirlo</span>
       </div>
+      <!-- Tercera vía para quien NO tiene CV: armarlo de cero en un asistente. El
+           enlace del ejemplo de abajo resuelve "quiero VER algo"; esto resuelve
+           "quiero TENER el mío". Se esconde (cvDropSync) cuando ya hay texto. -->
+      <button type="button" class="cvw-entry" id="cvwEntry" onclick="cvwOpen()">
+        <span class="cvw-entry-ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+        <span data-i18n="cvw_entry">¿No tenés CV? Armalo paso a paso</span>
+      </button>
       <div class="cv-or"><span data-i18n="cvdrop_or">o pegalo como texto</span></div>
       <textarea id="profile" rows="4" data-i18n-ph="prof_ph"></textarea>
       <button type="button" class="cv-demo-link" id="cvDemoLink" onclick="useDemoCv()" data-i18n="cvdrop_demo">¿No tenés un CV a mano? Probá con este ejemplo</button>
@@ -4518,34 +4640,14 @@
 
     <section data-step id="tab-analysis" class="hidden mview-diag">
       <div class="panel-head"><h2 data-num="04" data-i18n="an_h">Diagnóstico de tu CV</h2><p data-i18n="an_p">Un mismo CV no se lee igual si lo evalúa un cazatalentos, un área de RRHH o un sistema automático. Elegí el evaluador y ajustamos las recomendaciones. También generamos una versión mejorada.</p></div>
-      <div class="eyebrow" id="readerLegend" style="margin-bottom:10px" data-i18n="reader_pick">¿Quién va a leer tu CV?</div>
-      <div class="reader-cards" id="readerToggle" role="radiogroup" aria-labelledby="readerLegend">
-        <button type="button" class="reader-card active" role="radio" aria-checked="true" tabindex="0" data-reader="hh" onclick="setReader('hh')" onmouseenter="readerPreview('hh')" onmouseleave="readerPreviewEnd()" onfocus="readerPreview('hh')" onblur="readerPreviewEnd()" onkeydown="readerKey(event)">
-          <span class="rc-dot"></span>
-          <span class="rc-top"><span class="rc-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span><h5 data-i18n="reader_hh">Cazatalentos</h5></span>
-          <p data-i18n="reader_hh_d">Escanea en segundos: busca seniority y encaje con su cliente.</p>
-        </button>
-        <button type="button" class="reader-card" role="radio" aria-checked="false" tabindex="0" data-reader="hr" onclick="setReader('hr')" onmouseenter="readerPreview('hr')" onmouseleave="readerPreviewEnd()" onfocus="readerPreview('hr')" onblur="readerPreviewEnd()" onkeydown="readerKey(event)">
-          <span class="rc-dot"></span>
-          <span class="rc-top"><span class="rc-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><h5 data-i18n="reader_hr">RRHH interno</h5></span>
-          <p data-i18n="reader_hr_d">Chequea requisitos del aviso y períodos sin explicar.</p>
-        </button>
-        <button type="button" class="reader-card" role="radio" aria-checked="false" tabindex="0" data-reader="bot" onclick="setReader('bot')" onmouseenter="readerPreview('bot')" onmouseleave="readerPreviewEnd()" onfocus="readerPreview('bot')" onblur="readerPreviewEnd()" onkeydown="readerKey(event)">
-          <span class="rc-dot"></span>
-          <span class="rc-top"><span class="rc-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4H8M2 14h2M20 14h2M9 13v2M15 13v2"/></svg></span><h5 data-i18n="reader_bot">Sistema ATS</h5></span>
-          <p data-i18n="reader_bot_d">Su lectura se limita a texto plano: las columnas, tablas o imágenes desestructuran la información y el sistema termina ignorándola.</p>
-        </button>
+      <!-- El selector "¿Quién va a leer tu CV?" (3 tarjetas) se removió: agregaba
+           fricción y la mayoría no sabe quién lo revisa. El diagnóstico asume por
+           defecto el SISTEMA ATS (el filtro automático por el que pasa casi toda
+           postulación). Un badge estático lo comunica, sin pedir nada. -->
+      <div class="ats-badge">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4H8M2 14h2M20 14h2M9 13v2M15 13v2"/></svg>
+        <span data-i18n="ats_badge">Optimizado para filtros ATS y reclutadores</span>
       </div>
-      <!-- 16/07: guia para quien no tiene idea de quien lo revisa (la mayoria). -->
-      <details class="reader-guide">
-        <summary data-i18n="rg_h">¿No sabés quién te va a leer?</summary>
-        <div class="rg-body">
-          <p data-i18n="rg_p1">Si postulás por un portal con formulario (LinkedIn Easy Apply, Workday, Greenhouse), casi seguro te lee primero un sistema automático.</p>
-          <p data-i18n="rg_p2">Si te escribió un reclutador que no trabaja en la empresa que contrata, es un cazatalentos.</p>
-          <p data-i18n="rg_p3">Si mandaste el CV a un mail de la empresa o te contactó alguien que trabaja ahí, lo lee RRHH.</p>
-          <p class="rg-tip" data-i18n="rg_tip">Ante la duda: empresa grande y postulación por portal = sistema automático primero, casi siempre.</p>
-        </div>
-      </details>
 
       <!-- 16/07: el adaptador SUBE, antes del resultado. Elegis evaluador,
            decis a que te postulas, y recien ahi el diagnostico. -->
@@ -4831,8 +4933,57 @@ es:{
   tab_auto:"Postulación automática", tab_matches:"Ofertas", tab_adapter:"CV a medida", tab_analysis:"Diagnóstico", tab_role:"Entrevista",
   prof_label:"Tu perfil / CV base", prof_upload:"Subir CV (PDF/DOCX)",
   prof_demo:"Desarrollador/a Full Stack con 3 años de experiencia. Stack principal: React, JavaScript, Node.js y PostgreSQL. Manejo básico de Python y algo de diseño en Figma. Experiencia armando APIs REST, interfaces responsivas y trabajando en equipos ágiles. Inglés nivel B2.",
+  cvw_entry:"¿No tenés CV? Armalo paso a paso",
+  cvw_kick:"Crear CV", cvw_stepof:"Paso {n} de {m}",
+  cvw_back:"Atrás", cvw_next:"Siguiente", cvw_finish:"Crear mi CV",
+  cvw_s1_t:"Datos personales y contacto",
+  cvw_s1_tip:"Con esto arriba, quien te lee sabe a quién tiene enfrente y cómo contactarte.",
+  cvw_s2_t:"Experiencia (o proyectos)",
+  cvw_s2_tip:"Sumá un logro con número. “Bajé el tiempo de carga un 30%” pesa más que “responsable de”.",
+  cvw_s3_t:"Educación y formación",
+  cvw_s3_tip:"Incluí cursos y certificaciones, no solo títulos. Si estás en curso, decilo.",
+  cvw_s4_t:"Habilidades y herramientas",
+  cvw_s4_tip:"Separá con comas. Poné primero lo que más usás y lo que pide el puesto que buscás.",
+  cvw_s5_t:"Tu resumen profesional",
+  cvw_s5_tip:"Dos o tres líneas con lo que sabés hacer y lo que buscás. Es opcional: si lo dejás vacío, lo armamos con tus datos.",
+  cvw_s5_tip_jr:"¿Buscás tu primer trabajo? Enfocate en tu objetivo, tus fortalezas y tus proyectos de estudio. Es opcional: si lo dejás vacío, lo armamos con tus datos.",
+  cvw_s5_valid:"Destacar tu formación, tus proyectos y tus intereses ya es un perfil válido.",
+  cvw_f_name:"Nombre completo", cvw_f_email:"Email", cvw_f_phone:"Teléfono",
+  cvw_f_loc:"Ciudad y país", cvw_ph_loc:"Buenos Aires, Argentina",
+  cvw_f_links:"LinkedIn o portafolio (opcional)", cvw_ph_links:"linkedin.com/in/tunombre",
+  cvw_f_role:"Puesto o rol", cvw_f_company:"Empresa o proyecto",
+  cvw_f_start:"Desde", cvw_f_end:"Hasta", cvw_ph_start:"Ene 2022", cvw_ph_end:"Dic 2023",
+  cvw_f_current:"Sigo acá", cvw_f_desc:"Responsabilidades y logros",
+  cvw_ph_desc:"Qué hacías y qué lograste. Sumá un número si podés.",
+  cvw_add_exp:"Añadir otra experiencia",
+  cvw_noexp:"No tengo experiencia laboral previa",
+  cvw_noexp_hint:"Sin problema. Contá proyectos personales, voluntariados o trabajos de la facultad: también muestran lo que sabés hacer.",
+  cvw_exh:"¿No sabés qué poner? Esto también cuenta",
+  cvw_exlead:"Sin un trabajo formal también se arma un buen CV. Todo esto suma:",
+  cvw_ex1:"Proyectos de estudio o propios — un trabajo práctico, un proyecto personal, tu código en GitHub.",
+  cvw_ex2:"Voluntariados y clubes — una ONG, un evento, un equipo, el centro de estudiantes.",
+  cvw_ex3:"Trabajos informales o changas — clases particulares, el negocio familiar, ayudar en un local.",
+  cvw_ex4:"Logros y liderazgo — ser capitán, ganar un premio, organizar algo.",
+  cvw_remove:"Quitar",
+  cvw_f_degree:"Título o carrera", cvw_f_inst:"Institución",
+  cvw_f_status:"Estado", cvw_f_year:"Año",
+  cvw_st_progress:"En curso", cvw_st_grad:"Graduado/a", cvw_st_incomplete:"Incompleto",
+  cvw_add_edu:"Añadir otro estudio",
+  cvw_f_hard:"Habilidades técnicas", cvw_ph_hard:"Excel, Python, SAP…",
+  cvw_f_soft:"Habilidades blandas", cvw_ph_soft:"Trabajo en equipo, comunicación…",
+  cvw_f_langs:"Idiomas", cvw_ph_langs:"Español (nativo), Inglés (B2)…",
+  cvw_f_summary:"Tu resumen", cvw_ph_summary:"Ej: Estudiante de Economía con manejo de Excel y SAP. Busco mi primera experiencia en análisis de datos.",
+  cvw_draft:"Escribime un borrador", cvw_draft_empty:"Cargá tu carrera o tus habilidades primero y volvé: con eso te escribo el borrador.",
+  cvw_h_summary:"RESUMEN", cvw_h_exp:"EXPERIENCIA", cvw_h_projects:"PROYECTOS Y ACTIVIDADES",
+  cvw_h_edu:"EDUCACIÓN", cvw_h_skills:"HABILIDADES", cvw_h_langs:"IDIOMAS",
+  cvw_lbl_hard:"Técnicas", cvw_lbl_soft:"Blandas", cvw_present:"Actualidad",
+  cvw_gen_student:"Estudiante de {x}", cvw_gen_skills:"Manejo de", cvw_gen_langs:"Idiomas:",
+  cvw_need_name:"Cargá al menos tu nombre o algún dato para armar el CV.",
+  cvw_done_toast:"Listo: tu CV base quedó cargado.",
   meta_priv:"Privado y lo borrás cuando quieras.", meta_ai:"La IA puede errar: revisá los datos. Nunca mientas en tu CV.",
-  src_h:"Así lee tu archivo un filtro automático.", src_p:"Si algo se perdió, corregilo acá mismo.", src_ai:"Con una cuenta gratis, la IA lo arma sección por sección.", cv_ai_fail:"La IA no pudo leer tu CV ahora. Usamos el motor rápido; podés reintentarlo subiéndolo de nuevo.", cv_ai_quota:"Usaste tus análisis con IA de hoy. El diagnóstico rápido sigue andando; los análisis se renuevan mañana.", cv_ai_quota_h:"Volvé mañana", gate_h:"Creá una cuenta gratis para ver el diagnóstico completo", gate_p:"Ya subiste tu CV. Con una cuenta gratis, la IA lo lee entero: qué falla, por qué te descartan y una versión mejorada, línea por línea.", gate_btn:"Crear cuenta gratis", gate_note:"Gratis, sin tarjeta. El diagnóstico rápido de arriba es sin cuenta.", ai_loading:"Analizando la estructura de tu CV…", cvlang_hint:"Si querés cambiar el idioma de tu CV, cambiá el idioma arriba y nosotros nos encargamos.", tab_cover:"Carta de presentación", cover_h:"Carta de presentación", cover_p:"A partir de tu CV y del puesto, te escribimos una carta que suena a vos — no a plantilla. Elegí el tono y ajustala.", cover_job_label:"Pegá el aviso o describí el puesto (opcional):", cover_job_ph:"Pegá acá la descripción de la vacante para que la carta apunte a ese puesto…", cover_tone:"Tono:", tone_formal:"Formal", tone_creativo:"Creativo", tone_corto:"Corto", cover_gen:"Generar carta", cover_need_cv_h:"Primero, tu CV", cover_need_cv_p:"Analizá tu CV en Diagnóstico (con tu cuenta) y después te escribimos la carta a partir de él.", cover_need_cv_cta:"Ir al diagnóstico", cover_lock_h:"Desbloqueá tu carta de presentación con Mavante Pro", cover_lock_p:"Una carta escrita a partir de tu CV real, en el tono que elijas, lista para copiar y enviar.", cover_lock_cta:"Pasar a Pro", cover_sample:"Estimados,\\n\\nDurante los últimos tres años lideré el rediseño de la arquitectura de datos de una fintech y reduje a la mitad el tiempo de los reportes críticos. Es exactamente el tipo de problema que describe su búsqueda.\\n\\nMi experiencia combina un backend sólido con la costumbre de medir el impacto de cada decisión, y me entusiasma llevar eso a un equipo que…", cover_hint:"Elegí el tono y (opcional) pegá el aviso. Después tocá «Generar carta».", cover_edit_hint:"Podés editar la carta acá mismo antes de copiarla o descargarla.", cover_edit_ph:"Tu carta aparece acá…", cover_edit_aria:"Carta de presentación, editable", cover_generating:"Escribiendo tu carta…", cover_copy:"Copiar texto", cover_dl_txt:"Descargar TXT", cover_dl_pdf:"Descargar PDF", cover_regen:"Regenerar", cover_copied:"Carta copiada", cover_fail:"No pudimos generar la carta. Probá de nuevo.", cover_filename:"Carta_Mavante",
+  src_h:"Así lee tu archivo un filtro automático.", src_p:"Si algo se perdió, corregilo acá mismo.", src_ai:"Con una cuenta gratis, la IA lo arma sección por sección.", cv_ai_fail:"La IA no pudo leer tu CV ahora. Usamos el motor rápido; podés reintentarlo subiéndolo de nuevo.", cv_ai_quota:"Usaste tus análisis con IA de hoy. El diagnóstico rápido sigue andando; los análisis se renuevan mañana.", cv_ai_quota_h:"Volvé mañana", gate_h:"Creá una cuenta gratis para ver el diagnóstico completo", gate_p:"Ya subiste tu CV. Con una cuenta gratis, la IA lo lee entero: qué falla, por qué te descartan y una versión mejorada, línea por línea.", gate_btn:"Crear cuenta gratis", gate_note:"Gratis, sin tarjeta. El diagnóstico rápido de arriba es sin cuenta.", ai_loading:"Analizando la estructura de tu CV…", cvlang_hint:"Si querés cambiar el idioma de tu CV, cambiá el idioma arriba y nosotros nos encargamos.",
+  ln_es:"español", ln_en:"inglés", ln_fr:"francés", ln_pt:"portugués",
+  cvlang_detected:"Detectamos que tu CV está en {det}.", cvlang_switch:"Verlo en {det} →", tab_cover:"Carta de presentación", cover_h:"Carta de presentación", cover_p:"A partir de tu CV y del puesto, te escribimos una carta que suena a vos — no a plantilla. Elegí el tono y ajustala.", cover_job_label:"Pegá el aviso o describí el puesto (opcional):", cover_job_ph:"Pegá acá la descripción de la vacante para que la carta apunte a ese puesto…", cover_tone:"Tono:", tone_formal:"Formal", tone_creativo:"Creativo", tone_corto:"Corto", cover_gen:"Generar carta", cover_need_cv_h:"Primero, tu CV", cover_need_cv_p:"Analizá tu CV en Diagnóstico (con tu cuenta) y después te escribimos la carta a partir de él.", cover_need_cv_cta:"Ir al diagnóstico", cover_lock_h:"Desbloqueá tu carta de presentación con Mavante Pro", cover_lock_p:"Una carta escrita a partir de tu CV real, en el tono que elijas, lista para copiar y enviar.", cover_lock_cta:"Pasar a Pro", cover_sample:"Estimados,\\n\\nDurante los últimos tres años lideré el rediseño de la arquitectura de datos de una fintech y reduje a la mitad el tiempo de los reportes críticos. Es exactamente el tipo de problema que describe su búsqueda.\\n\\nMi experiencia combina un backend sólido con la costumbre de medir el impacto de cada decisión, y me entusiasma llevar eso a un equipo que…", cover_hint:"Elegí el tono y (opcional) pegá el aviso. Después tocá «Generar carta».", cover_edit_hint:"Podés editar la carta acá mismo antes de copiarla o descargarla.", cover_edit_ph:"Tu carta aparece acá…", cover_edit_aria:"Carta de presentación, editable", cover_generating:"Escribiendo tu carta…", cover_copy:"Copiar texto", cover_dl_txt:"Descargar TXT", cover_dl_pdf:"Descargar PDF", cover_regen:"Regenerar", cover_copied:"Carta copiada", cover_fail:"No pudimos generar la carta. Probá de nuevo.", cover_filename:"Carta_Mavante",
   cover_own_h:"¿Ya tenés una carta?", cover_own_p:"Pegala o subila: queda guardada acá y podés copiarla, descargarla o pedirle a la IA que la mejore sin perder tu voz.", cover_own_ph:"Pegá tu carta acá…", cover_own_upload:"Subir carta (PDF/DOCX)", cover_own_use:"Usar esta carta", cover_own_tape:"Tu carta", cover_improve:"Mejorala con IA", cover_improving:"Mejorando tu carta…", cover_file_fail:"No pudimos leer el archivo. Pegá el texto directamente.", cover_own_saved:"Carta guardada.", ad_ai_label:"¿Tenés el aviso? Pegalo y lo adaptamos a medida:", ad_ai_job_ph:"Pegá acá la descripción del puesto…", ad_ai_cta:"Adaptar mi CV a este aviso", ad_pro_badge:"PRO", ad_ai_needjob:"Pegá el aviso (al menos unas líneas) para adaptar.", ad_ai_loading:"Adaptando tu CV al aviso…", ad_ai_score:"Compatibilidad con el aviso", ad_ai_sumtitle:"Resumen adaptado", ad_ai_fail:"No pudimos adaptarlo. Probá de nuevo.", ai_error_h:"No pudimos analizarlo", ai_error_p:"Fue un problema nuestro, no tuyo. Probá de nuevo en un momento.", ai_retry:"Reintentar",
   rg_h:"¿No sabés quién te va a leer?", rg_p1:"Si postulás por un portal con formulario (LinkedIn Easy Apply, Workday, Greenhouse), casi seguro te lee primero un sistema automático.", rg_p2:"Si te escribió un reclutador que no trabaja en la empresa que contrata, es un cazatalentos.", rg_p3:"Si mandaste el CV a un mail de la empresa o te contactó alguien que trabaja ahí, lo lee RRHH.", rg_tip:"Ante la duda: empresa grande y postulación por portal = sistema automático primero, casi siempre.",
   au_r_bot_chars:"Tu archivo trae caracteres rotos (tildes sueltas, letras separadas). Un sistema automático lee texto plano y eso lo confunde: regenerá el PDF o pegá el texto directamente.", au_r_bot_sections:"No se detectan las secciones estándar (Experiencia, Habilidades). El sistema automático las necesita para ubicar tus datos: usá esos títulos, tal cual.", au_r_hh_top:"Tu primer logro no tiene números. Un cazatalentos decide en los primeros renglones: subí ahí tu logro más medible.", au_r_hh_long:"Más de 600 palabras: para un cazatalentos, eso es más de una página. Recortá lo que no defiende tu candidatura.", au_r_hr_dates:"Hay experiencias sin fechas. RRHH lo lee como un período sin explicar.",
@@ -4910,7 +5061,8 @@ es:{
   ad_for:"Adaptar para:", ad_has:"Ya presentes en tu CV", ad_add:"Conviene incorporar", ad_all:"Ya las incluís todas",
   ad_tape:"Resumen a medida · ", ad_sumtitle:"Resumen profesional", ad_basenote:"Tu CV base no se modifica: esta es una capa independiente que se genera por cada búsqueda.",
   ad_sum1:"Profesional con orientación a {role} y experiencia en {skills}.", ad_sum2:" Perfil ajustado para esta búsqueda, incorporando {add} como palabras clave que el aviso prioriza.", ad_sum3:" Con foco en generar impacto medible desde el primer día.", ad_yourarea:"tu área",
-  an_h:"Diagnóstico de tu CV", an_p:"El mismo CV no se lee igual si lo mira un cazatalentos apurado, alguien de RRHH o un filtro automático. Decinos quién lo va a leer y ajustamos las sugerencias — y de paso te devolvemos una versión prolija, lista para presentar.",
+  an_h:"Diagnóstico de tu CV", an_p:"El sistema ATS —el filtro automático por el que pasa casi toda postulación— solo lee texto plano. Te mostramos cómo te ve y te devolvemos una versión prolija, lista para presentar.",
+  ats_badge:"Optimizado para filtros ATS y reclutadores",
   reader_hh:"Cazatalentos", reader_hr:"RRHH interno", reader_bot:"Sistema ATS",
   au_intro:"Leímos tu CV como lo haría un {reader}: mirando qué se entiende en los primeros veinte segundos y qué se cae al segundo vistazo. Esto es lo que encontramos.",
   au_m_exp:"experiencias", au_m_bullets:"logros", au_m_metrics:"con números", au_m_skills:"habilidades",
@@ -4935,18 +5087,12 @@ es:{
   seo_about_t:"Quiénes somos", seo_about_d:"Nuestra obsesión es una sola: que postularte se sienta distinto. Herramientas que respetan tu tiempo y tu perfil real.",
   seo_guide_t:"Antes de postularte", seo_guide_d:"Cómo armar un CV que pase los filtros automáticos, qué depende de vos y qué es un ATS. Corto y al grano.",
   seo_tools_t:"Tus herramientas", seo_tools_d:"Postulación automática, ofertas por compatibilidad, CV a medida, diagnóstico y preparación de entrevista.",
-  tour_1:"Acá vive tu CV base. Pegalo o subilo una sola vez: todo lo demás —el puntaje, la adaptación, la entrevista— sale de acá.",
-  tour_2:"Estas son tus cinco herramientas. Empezá por Diagnóstico si querés saber cómo te lee un reclutador antes de mandar nada.",
-  tour_3:"Y si algo no se entiende, preguntame. Estoy acá abajo, siempre.",
-  tour_next:"Siguiente", tour_done:"Empezar", tour_skip:"Ahora no",
-  tour_end:"Listo. Cargá tu CV y arrancamos.",
   up_sub:"Todo lo que ya usás, sin techo. Y las herramientas que hoy están bajo llave.",
   pro_f1_t:"Editá tu CV a mano", pro_f1_d:"Tocá cualquier línea del documento y ajustala como quieras antes de exportar.",
   pro_f2_t:"Descarga en Word editable", pro_f2_d:"El mismo CV en DOCX, listo para retocar donde quieras.",
   pro_f3_t:"Carta de presentación", pro_f3_d:"Escrita a partir de tu perfil real y de lo que hace la empresa.",
   pro_f4_t:"Simulador de entrevista", pro_f4_d:"Las cinco preguntas que probablemente te hagan, según tu CV.",
   pro_f5_t:"10 adaptaciones por día", pro_f5_d:"Más del triple que el plan de entrada, más historial ilimitado.",
-  up_done_sub:"Ya podés editar tu CV a mano y descargarlo en Word.",
   ap_noprofile_help:"Pegá tu CV o subí el archivo en el bloque de arriba y volvemos a intentarlo.",
   draft_restored:"Recuperamos tu progreso para que no pierdas nada",
   draft_when:"Estabas trabajando en tu CV hace {n} minutos.", draft_now:"Tal cual lo dejaste.",
@@ -5057,6 +5203,11 @@ es:{
   diff_why_nonum:"No tiene ningún número, y es lo único que un reclutador puede verificar.",
   diff_why_ok:"Verbo de acción y un dato medible. Así se escribe.",
   diff_ask:"Este es el único cambio que no podemos hacer por vos: el número no está en tu CV y no lo vamos a inventar. ¿Cuánto mejoró? ¿Para cuántas personas? ¿En cuánto tiempo?",
+  diff_ask_improve:"¿Cuánto mejoró, y en cuánto tiempo?",
+  diff_ask_money:"¿Cuánta plata movías acá? ¿Cuánto creció?",
+  diff_ask_people:"¿A cuántas personas?",
+  diff_ask_volume:"¿Cuántos? Un número acá cambia todo.",
+  diff_ask_generic:"¿Cuánto? ¿Cuántos? ¿En cuánto tiempo?",
   diff_foot:"Las líneas marcadas como «falta un dato» las tenés que completar vos. Podríamos poner un número cualquiera y quedaría lindo — pero sería mentira, y eso no lo hacemos.",
   diff_why_passive_manual:"Arranca en pasiva («responsable de…»), pero no podemos ponerle el verbo sin adivinar qué hiciste exactamente. Empezala con un verbo tuyo: gestioné, coordiné, resolví.",
   sil_pristine_eye:"Tu CV está listo", sil_pristine:"No tenemos nada para corregirte. Tu CV ya está listo para postular.",
@@ -5156,12 +5307,21 @@ es:{
   otp_wrong:"Código incorrecto. Te quedan {n} intentos.", otp_expired:"El código expiró. Pedí uno nuevo.",
   otp_toomany:"Demasiados intentos. Volvé a empezar.", otp_ok:"¡Cuenta verificada!", otp_ok_sub:"Listo. Tus herramientas te están esperando.",
   otp_demo:"Demo sin servidor de correo: en producción este código llega a tu casilla y nunca se muestra en pantalla.",
-  auth_consent:"Permitir que empresas aliadas vean mi perfil optimizado para oportunidades laborales.",
-  auth_demo:"Demo: la autenticación real se conecta con el backend. Tus datos quedan solo en este navegador.", auth_go:"Continuar",
+  auth_consent:"Permitir que empresas aliadas vean mi perfil optimizado para oportunidades laborales.", auth_go:"Continuar",
   auth_creating:"Creando tu cuenta", otp_wrong_generic:"Código incorrecto.", auth_signing:"Entrando", auth_welcome:"¡Bienvenido!", auth_err_email:"Revisá el email: parece que le falta algo.", auth_err_pass:"Escribí tu contraseña para continuar.", auth_err_generic:"No pudimos iniciar sesión. Probá de nuevo en un momento.",
   up_title:"Pasá a Mavante Pro", up_price:"USD 7,99", up_permonth:"/mes",
+  up_pick_h:"Elegí tu plan", up_best:"Mejor valor", up_life_price:"USD 99",
+  up_life_note:"Pago único. Acceso para siempre, sin renovaciones ni cobros automáticos.",
+  up_life_cta:"Obtener acceso de por vida", up_free:"Seguir con la versión gratuita",
+  up_week_h:"¿Solo por unos días?", up_week_price:"USD 4,99", up_week_per:"7 días de Pro",
+  up_week_note:"Para una búsqueda puntual. Se apaga solo a los 7 días: no se renueva ni te cobra de nuevo.",
+  up_week_cta:"Comprar el pase semanal",
+  lic_have:"¿Tu universidad o tu trabajo te dio un código?", lic_open:"Canjearlo",
+  lic_ph:"Escribí el código", lic_cta:"Canjear", lic_sending:"Canjeando…",
+  lic_ok_h:"Listo: ya tenés Pro", lic_ok_p:"Tu acceso lo cubre {org} hasta el {fecha}.",
+  lic_err_h:"No pudimos canjear ese código", plan_current:"Tu plan actual",
   up_b1:"Hasta 10 adaptaciones de CV por día", up_b2:"Descargas en PDF y DOCX editable", up_b3:"Carta de presentación con IA", up_b4:"Simulador de entrevista", up_b5:"Historial ilimitado de postulaciones",
-  up_cta:"Suscribirme por USD 7,99/mes", up_opening:"Abriendo el pago…", pay_mp:"Pagar con Mercado Pago", pay_card:"Pagar con tarjeta", up_later:"Ahora no", up_note:"Cancelás cuando quieras.", pay_notify:"Avisame cuando pueda pagar", pay_soon_h:"Los pagos llegan pronto", pay_soon_p:"Estamos activando el cobro. Todavía no se puede pagar — te avisamos apenas esté listo.", pay_soon_note:"Todavía no activamos el cobro.", up_done:"¡Listo! Activaste Pro (demo).",
+  up_cta:"Suscribirme por USD 7,99/mes", up_opening:"Abriendo el pago…", pay_mp:"Pagar con Mercado Pago", pay_card:"Pagar con tarjeta", up_later:"Ahora no", up_note:"Cancelás cuando quieras.", pay_notify:"Avisame cuando pueda pagar", pay_soon_h:"Los pagos llegan pronto", pay_soon_p:"Estamos activando el cobro. Todavía no se puede pagar — te avisamos apenas esté listo.", pay_soon_note:"Todavía no activamos el cobro.",
   limit_title:"Llegaste a tu límite diario", limit_body:"Usaste tus adaptaciones de hoy. Pasá a Pro para 10 por día.", need_login:"Iniciá sesión para usar esta función.",
   gen_opt:"Generar versión optimizada", dl_pdf:"Descargar PDF", dl_docx:"Descargar DOCX", gen_cover:"Carta de presentación", sim_btn:"Simulador de entrevista",
   sim_room_t:"Sala de entrevista", sim_iv_name:"Reclutador IA", sim_you:"Vos", sim_typing:"escribiendo…",
@@ -5198,11 +5358,11 @@ es:{
   mnav_diag:"Diagnóstico", mnav_cv:"Editar CV",
   ps_title:"Fuerza de tu perfil", ps_t_cv:"subí tu propio CV", ps_t_diag:"analizalo con tu cuenta",
   ps_t_metrics:"sumá números a tus logros", ps_t_adapt:"adaptá tu CV a un aviso", ps_t_cover:"dejá lista tu carta",
-  cover_title:"Carta de presentación", cover_note:"Demo: en producción, el backend busca datos reales de la empresa en la web e integra lo relevante, sin inventar.",
+  cover_title:"Carta de presentación",
   sim_title:"Simulador de entrevista", sim_note:"5 preguntas probables para este puesto, según tu CV. En producción las genera un modelo de lenguaje.",
   load_a:"Analizando requisitos…", load_b:"Extrayendo palabras clave…", load_c:"Investigando la empresa…", load_d:"Escribiendo con honestidad…", load_e:"Puliendo el resultado…",
   hist_title:"Historial de postulaciones", hist_empty:"Todavía no te postulaste a nada.", hist_del:"Borrar", hist_note_free:"Plan Gratis: se muestran las últimas 3. Pasá a Pro para el historial completo.",
-  ats_label:"Compatibilidad ATS", link_ph:"O pegá el link del aviso (LinkedIn, portal…)", link_note:"Demo: en producción el backend hace el scraping del link.", pro_only:"Función Pro" },
+  ats_label:"Compatibilidad ATS", link_ph:"O pegá el link del aviso (LinkedIn, portal…)", pro_only:"Función Pro" },
 
 en:{
   nav_guide:"Before you apply",
@@ -5295,8 +5455,57 @@ en:{
   tab_auto:"Auto-apply", tab_matches:"Jobs", tab_adapter:"Tailored CV", tab_analysis:"CV review", tab_role:"Interview",
   prof_label:"Your profile / base CV", prof_upload:"Upload CV (PDF/DOCX)",
   prof_demo:"Full Stack Developer with 3 years of experience. Core stack: React, JavaScript, Node.js and PostgreSQL. Basic Python and some Figma design. Experience building REST APIs, responsive interfaces and working in agile teams. English level B2.",
+  cvw_entry:"No CV yet? Build it step by step",
+  cvw_kick:"Create CV", cvw_stepof:"Step {n} of {m}",
+  cvw_back:"Back", cvw_next:"Next", cvw_finish:"Create my CV",
+  cvw_s1_t:"Personal details and contact",
+  cvw_s1_tip:"With this up top, whoever reads you knows who you are and how to reach you.",
+  cvw_s2_t:"Experience (or projects)",
+  cvw_s2_tip:"Add an achievement with a number. “Cut load time by 30%” beats “responsible for”.",
+  cvw_s3_t:"Education and training",
+  cvw_s3_tip:"Include courses and certifications, not just degrees. If you're still studying, say so.",
+  cvw_s4_t:"Skills and tools",
+  cvw_s4_tip:"Separate with commas. Put what you use most — and what the job asks for — first.",
+  cvw_s5_t:"Your professional summary",
+  cvw_s5_tip:"Two or three lines on what you can do and what you're after. Optional: leave it blank and we'll build it from your details.",
+  cvw_s5_tip_jr:"Looking for your first job? Focus on your goal, your strengths and your study projects. Optional: leave it blank and we'll build it from your details.",
+  cvw_s5_valid:"Highlighting your education, projects and interests already makes a valid profile.",
+  cvw_f_name:"Full name", cvw_f_email:"Email", cvw_f_phone:"Phone",
+  cvw_f_loc:"City and country", cvw_ph_loc:"Buenos Aires, Argentina",
+  cvw_f_links:"LinkedIn or portfolio (optional)", cvw_ph_links:"linkedin.com/in/yourname",
+  cvw_f_role:"Job or role", cvw_f_company:"Company or project",
+  cvw_f_start:"From", cvw_f_end:"To", cvw_ph_start:"Jan 2022", cvw_ph_end:"Dec 2023",
+  cvw_f_current:"I'm still here", cvw_f_desc:"Responsibilities and achievements",
+  cvw_ph_desc:"What you did and what you achieved. Add a number if you can.",
+  cvw_add_exp:"Add another experience",
+  cvw_noexp:"I have no prior work experience",
+  cvw_noexp_hint:"No problem. Tell us about personal projects, volunteering or coursework — they show what you can do too.",
+  cvw_exh:"Not sure what to put? This counts too",
+  cvw_exlead:"You can build a strong CV without a formal job. All of this adds up:",
+  cvw_ex1:"Study or personal projects — a class assignment, a personal project, your code on GitHub.",
+  cvw_ex2:"Volunteering and clubs — an NGO, an event, a team, the student council.",
+  cvw_ex3:"Informal or odd jobs — private tutoring, the family business, helping at a shop.",
+  cvw_ex4:"Achievements and leadership — being a team captain, winning an award, organising something.",
+  cvw_remove:"Remove",
+  cvw_f_degree:"Degree or program", cvw_f_inst:"Institution",
+  cvw_f_status:"Status", cvw_f_year:"Year",
+  cvw_st_progress:"In progress", cvw_st_grad:"Graduated", cvw_st_incomplete:"Incomplete",
+  cvw_add_edu:"Add another study",
+  cvw_f_hard:"Technical skills", cvw_ph_hard:"Excel, Python, SAP…",
+  cvw_f_soft:"Soft skills", cvw_ph_soft:"Teamwork, communication…",
+  cvw_f_langs:"Languages", cvw_ph_langs:"Spanish (native), English (B2)…",
+  cvw_f_summary:"Your summary", cvw_ph_summary:"E.g.: Economics student skilled in Excel and SAP. Looking for my first role in data analysis.",
+  cvw_draft:"Write me a draft", cvw_draft_empty:"Add your studies or skills first, then come back — that's what I'll draft from.",
+  cvw_h_summary:"SUMMARY", cvw_h_exp:"EXPERIENCE", cvw_h_projects:"PROJECTS AND ACTIVITIES",
+  cvw_h_edu:"EDUCATION", cvw_h_skills:"SKILLS", cvw_h_langs:"LANGUAGES",
+  cvw_lbl_hard:"Technical", cvw_lbl_soft:"Soft", cvw_present:"Present",
+  cvw_gen_student:"{x} student", cvw_gen_skills:"Skilled in", cvw_gen_langs:"Languages:",
+  cvw_need_name:"Add at least your name or some detail to build the CV.",
+  cvw_done_toast:"Done: your base CV is loaded.",
   meta_priv:"Private, and you delete it whenever you want.", meta_ai:"AI can make mistakes: check the details. Never lie on your CV.",
-  src_h:"This is how an automated filter reads your file.", src_p:"If anything got lost, fix it right here.", src_ai:"With a free account, AI structures it section by section.", cv_ai_fail:"AI couldn't read your CV right now. We used the quick engine; upload it again to retry.", cv_ai_quota:"You've used today's AI analyses. The quick review still works; they renew tomorrow.", cv_ai_quota_h:"Come back tomorrow", gate_h:"Create a free account to see the full diagnosis", gate_p:"You've uploaded your CV. With a free account, AI reads all of it: what's off, why you get filtered out, and an improved version, line by line.", gate_btn:"Create free account", gate_note:"Free, no card. The quick diagnosis above needs no account.", ai_loading:"Analyzing your CV's structure…", cvlang_hint:"Want your CV in another language? Switch the language up top and we'll handle it.", tab_cover:"Cover letter", cover_h:"Cover letter", cover_p:"From your CV and the role, we write a letter that sounds like you — not like a template. Pick the tone and tweak it.", cover_job_label:"Paste the posting or describe the role (optional):", cover_job_ph:"Paste the job description here so the letter targets that role…", cover_tone:"Tone:", tone_formal:"Formal", tone_creativo:"Creative", tone_corto:"Short", cover_gen:"Generate letter", cover_need_cv_h:"Your CV first", cover_need_cv_p:"Analyze your CV under CV review (with your account) and we'll write the letter from it.", cover_need_cv_cta:"Go to CV review", cover_lock_h:"Unlock your Cover Letter with Mavante PRO", cover_lock_p:"A letter written from your real CV, in the tone you choose, ready to copy and send.", cover_lock_cta:"Go Pro", cover_sample:"Hello,\\n\\nOver the past three years I led the redesign of a fintech's data architecture and cut the time of critical reports in half. It's exactly the kind of problem your posting describes.\\n\\nMy background pairs solid backend work with a habit of measuring the impact of every decision, and I'd be glad to bring that to a team that…", cover_hint:"Pick the tone and (optionally) paste the posting. Then hit ‘Generate letter’.", cover_edit_hint:"You can edit the letter right here before copying or downloading it.", cover_edit_ph:"Your letter appears here…", cover_edit_aria:"Cover letter, editable", cover_generating:"Writing your letter…", cover_copy:"Copy text", cover_dl_txt:"Download TXT", cover_dl_pdf:"Download PDF", cover_regen:"Regenerate", cover_copied:"Letter copied", cover_fail:"We couldn't generate the letter. Try again.", cover_filename:"Cover_Letter_Mavante",
+  src_h:"This is how an automated filter reads your file.", src_p:"If anything got lost, fix it right here.", src_ai:"With a free account, AI structures it section by section.", cv_ai_fail:"AI couldn't read your CV right now. We used the quick engine; upload it again to retry.", cv_ai_quota:"You've used today's AI analyses. The quick review still works; they renew tomorrow.", cv_ai_quota_h:"Come back tomorrow", gate_h:"Create a free account to see the full diagnosis", gate_p:"You've uploaded your CV. With a free account, AI reads all of it: what's off, why you get filtered out, and an improved version, line by line.", gate_btn:"Create free account", gate_note:"Free, no card. The quick diagnosis above needs no account.", ai_loading:"Analyzing your CV's structure…", cvlang_hint:"Want your CV in another language? Switch the language up top and we'll handle it.",
+  ln_es:"Spanish", ln_en:"English", ln_fr:"French", ln_pt:"Portuguese",
+  cvlang_detected:"We detected your CV is in {det}.", cvlang_switch:"See it in {det} →", tab_cover:"Cover letter", cover_h:"Cover letter", cover_p:"From your CV and the role, we write a letter that sounds like you — not like a template. Pick the tone and tweak it.", cover_job_label:"Paste the posting or describe the role (optional):", cover_job_ph:"Paste the job description here so the letter targets that role…", cover_tone:"Tone:", tone_formal:"Formal", tone_creativo:"Creative", tone_corto:"Short", cover_gen:"Generate letter", cover_need_cv_h:"Your CV first", cover_need_cv_p:"Analyze your CV under CV review (with your account) and we'll write the letter from it.", cover_need_cv_cta:"Go to CV review", cover_lock_h:"Unlock your Cover Letter with Mavante PRO", cover_lock_p:"A letter written from your real CV, in the tone you choose, ready to copy and send.", cover_lock_cta:"Go Pro", cover_sample:"Hello,\\n\\nOver the past three years I led the redesign of a fintech's data architecture and cut the time of critical reports in half. It's exactly the kind of problem your posting describes.\\n\\nMy background pairs solid backend work with a habit of measuring the impact of every decision, and I'd be glad to bring that to a team that…", cover_hint:"Pick the tone and (optionally) paste the posting. Then hit ‘Generate letter’.", cover_edit_hint:"You can edit the letter right here before copying or downloading it.", cover_edit_ph:"Your letter appears here…", cover_edit_aria:"Cover letter, editable", cover_generating:"Writing your letter…", cover_copy:"Copy text", cover_dl_txt:"Download TXT", cover_dl_pdf:"Download PDF", cover_regen:"Regenerate", cover_copied:"Letter copied", cover_fail:"We couldn't generate the letter. Try again.", cover_filename:"Cover_Letter_Mavante",
   cover_own_h:"Already have a letter?", cover_own_p:"Paste it or upload it: it's saved here and you can copy it, download it, or have the AI improve it without losing your voice.", cover_own_ph:"Paste your letter here…", cover_own_upload:"Upload letter (PDF/DOCX)", cover_own_use:"Use this letter", cover_own_tape:"Your letter", cover_improve:"Improve it with AI", cover_improving:"Improving your letter…", cover_file_fail:"We couldn't read the file. Paste the text directly.", cover_own_saved:"Letter saved.", ad_ai_label:"Got the posting? Paste it and we tailor your CV to it:", ad_ai_job_ph:"Paste the job description here…", ad_ai_cta:"Tailor my CV to this posting", ad_pro_badge:"PRO", ad_ai_needjob:"Paste the posting (a few lines) to tailor.", ad_ai_loading:"Tailoring your CV to the posting…", ad_ai_score:"Match with the posting", ad_ai_sumtitle:"Tailored summary", ad_ai_fail:"We couldn't tailor it. Try again.", ai_error_h:"We couldn't analyze it", ai_error_p:"That was on us, not you. Try again in a moment.", ai_retry:"Try again",
   rg_h:"Not sure who's reading it?", rg_p1:"If you apply through a portal with a form (LinkedIn Easy Apply, Workday, Greenhouse), an automated system almost certainly reads it first.", rg_p2:"If a recruiter who doesn't work at the hiring company wrote to you, that's a headhunter.", rg_p3:"If you sent the CV to a company email or someone who works there contacted you, HR reads it.", rg_tip:"When in doubt: big company plus portal application = automated system first, almost always.",
   au_r_bot_chars:"Your file contains broken characters (stray accents, split letters). An automated system reads plain text and that confuses it: regenerate the PDF or paste the text directly.", au_r_bot_sections:"Standard sections (Experience, Skills) aren't detected. The automated system needs those headings to place your data: use them, verbatim.", au_r_hh_top:"Your first achievement has no numbers. A headhunter decides in the first few lines: move your most measurable achievement up there.", au_r_hh_long:"Over 600 words: to a headhunter, that's more than one page. Cut what doesn't defend your candidacy.", au_r_hr_dates:"Some roles have no dates. HR reads that as an unexplained gap.",
@@ -5373,7 +5582,8 @@ en:{
   ad_for:"Tailor for:", ad_has:"Already in your CV", ad_add:"Worth adding", ad_all:"You already include them all",
   ad_tape:"Tailored summary · ", ad_sumtitle:"Professional summary", ad_basenote:"Your base CV isn't modified: this is a separate layer generated for each search.",
   ad_sum1:"Professional focused on {role} with experience in {skills}.", ad_sum2:" Profile adjusted for this search, adding {add} as keywords the posting prioritizes.", ad_sum3:" Focused on delivering measurable impact from day one.", ad_yourarea:"your field",
-  an_h:"CV review", an_p:"The same CV doesn't read the same to a rushed headhunter, an HR team or an automated filter. Tell us who's reading and we'll tune the advice — and hand you back a polished version, ready to send.",
+  an_h:"CV review", an_p:"The ATS —the automated filter almost every application goes through— only reads plain text. We show you how it sees you and hand back a polished version, ready to send.",
+  ats_badge:"Optimized for ATS filters and recruiters",
   reader_hh:"Headhunter", reader_hr:"In-house HR", reader_bot:"ATS system",
   au_intro:"We read your CV the way a {reader} would: what lands in the first twenty seconds, and what falls apart on second glance. Here's what we found.",
   au_m_exp:"roles", au_m_bullets:"achievements", au_m_metrics:"with numbers", au_m_skills:"skills",
@@ -5398,18 +5608,12 @@ en:{
   seo_about_t:"About us", seo_about_d:"We're obsessed with one thing: making applying feel different. Tools that respect your time and your real profile.",
   seo_guide_t:"Before you apply", seo_guide_d:"How to build a CV that clears the automated filters, what depends on you, and what an ATS really is. Short and to the point.",
   seo_tools_t:"Your tools", seo_tools_d:"Auto-apply, jobs ranked by fit, tailored CV, CV review and interview preparation.",
-  tour_1:"This is where your base CV lives. Paste it or upload it once: everything else — the score, the tailoring, the interview prep — comes from here.",
-  tour_2:"These are your five tools. Start with CV review if you want to know how a recruiter reads you before sending anything.",
-  tour_3:"And if something isn't clear, just ask me. I'm down here, always.",
-  tour_next:"Next", tour_done:"Start", tour_skip:"Not now",
-  tour_end:"All set. Load your CV and let's go.",
   up_sub:"Everything you already use, without a ceiling. Plus the tools that are locked today.",
   pro_f1_t:"Edit your CV by hand", pro_f1_d:"Click any line of the document and tune it before exporting.",
   pro_f2_t:"Editable Word download", pro_f2_d:"The same CV as DOCX, ready to touch up anywhere.",
   pro_f3_t:"Cover letter", pro_f3_d:"Written from your real profile and what the company actually does.",
   pro_f4_t:"Interview simulator", pro_f4_d:"The five questions you'll likely face, based on your CV.",
   pro_f5_t:"10 adaptations a day", pro_f5_d:"More than triple the entry plan, plus unlimited history.",
-  up_done_sub:"You can now edit your CV by hand and download it as Word.",
   ap_noprofile_help:"Paste your CV or upload the file in the block above and we'll try again.",
   draft_restored:"We brought your progress back so you don't lose anything",
   draft_when:"You were working on your CV {n} minutes ago.", draft_now:"Exactly as you left it.",
@@ -5520,6 +5724,11 @@ en:{
   diff_why_nonum:"It has no number, and that's the only thing a recruiter can verify.",
   diff_why_ok:"Action verb and a measurable fact. That's how it's done.",
   diff_ask:"This is the one change we can't make for you: the number isn't in your CV and we won't invent it. How much did it improve? For how many people? In how long?",
+  diff_ask_improve:"By how much, and in how long?",
+  diff_ask_money:"How much money moved through here? How much did it grow?",
+  diff_ask_people:"For how many people?",
+  diff_ask_volume:"How many? One number here changes everything.",
+  diff_ask_generic:"How much? How many? In how long?",
   diff_foot:"The lines marked “missing a number” are yours to complete. We could drop in any figure and it would look great — but it would be a lie, and we don't do that.",
   diff_why_passive_manual:"It starts in the passive («responsible for…»), but we can't add the verb without guessing what you actually did. Start it with your own verb: managed, coordinated, solved.",
   sil_pristine_eye:"Your CV is ready", sil_pristine:"We have nothing to fix. Your CV is ready to send.",
@@ -5619,12 +5828,21 @@ en:{
   otp_wrong:"Wrong code. {n} attempts left.", otp_expired:"The code expired. Request a new one.",
   otp_toomany:"Too many attempts. Start again.", otp_ok:"Account verified!", otp_ok_sub:"You're in. Your tools are waiting.",
   otp_demo:"Demo with no mail server: in production this code lands in your inbox and is never shown on screen.",
-  auth_consent:"Allow partner companies to see my optimized profile for job opportunities.",
-  auth_demo:"Demo: real authentication connects to the backend. Your data stays only in this browser.", auth_go:"Continue",
+  auth_consent:"Allow partner companies to see my optimized profile for job opportunities.", auth_go:"Continue",
   auth_creating:"Creating your account", otp_wrong_generic:"Wrong code.", auth_signing:"Signing in", auth_welcome:"Welcome!", auth_err_email:"Check the email: something looks off.", auth_err_pass:"Type your password to continue.", auth_err_generic:"We couldn't sign you in. Try again in a moment.",
   up_title:"Go Mavante Pro", up_price:"USD 7.99", up_permonth:"/mo",
+  up_pick_h:"Choose your plan", up_best:"Best value", up_life_price:"USD 99",
+  up_life_note:"One-time payment. Access forever — no renewals, no automatic charges.",
+  up_life_cta:"Get lifetime access", up_free:"Continue with the free version",
+  up_week_h:"Just need a few days?", up_week_price:"USD 4.99", up_week_per:"7 days of Pro",
+  up_week_note:"For one specific job hunt. It switches off on its own after 7 days — no renewal, no second charge.",
+  up_week_cta:"Buy the weekly pass",
+  lic_have:"Did your university or employer give you a code?", lic_open:"Redeem it",
+  lic_ph:"Enter the code", lic_cta:"Redeem", lic_sending:"Redeeming…",
+  lic_ok_h:"Done — you have Pro", lic_ok_p:"{org} covers your access until {fecha}.",
+  lic_err_h:"We couldn't redeem that code", plan_current:"Your current plan",
   up_b1:"Up to 10 CV adaptations per day", up_b2:"PDF and editable DOCX downloads", up_b3:"AI cover letter", up_b4:"Interview simulator", up_b5:"Unlimited application history",
-  up_cta:"Subscribe for USD 7.99/mo", up_opening:"Opening checkout…", pay_mp:"Pay with Mercado Pago", pay_card:"Pay with card", up_later:"Not now", up_note:"Cancel anytime.", pay_notify:"Notify me when I can pay", pay_soon_h:"Payments are coming soon", pay_soon_p:"We're turning on billing. You can't pay yet — we'll let you know the moment it's ready.", pay_soon_note:"Billing isn't live yet.", up_done:"Done! You activated Pro (demo).",
+  up_cta:"Subscribe for USD 7.99/mo", up_opening:"Opening checkout…", pay_mp:"Pay with Mercado Pago", pay_card:"Pay with card", up_later:"Not now", up_note:"Cancel anytime.", pay_notify:"Notify me when I can pay", pay_soon_h:"Payments are coming soon", pay_soon_p:"We're turning on billing. You can't pay yet — we'll let you know the moment it's ready.", pay_soon_note:"Billing isn't live yet.",
   limit_title:"You've hit your daily limit", limit_body:"You used today's adaptations. Go Pro for 10 per day.", need_login:"Sign in to use this feature.",
   gen_opt:"Generate optimized version", dl_pdf:"Download PDF", dl_docx:"Download DOCX", gen_cover:"Cover letter", sim_btn:"Interview simulator",
   sim_room_t:"Interview room", sim_iv_name:"AI recruiter", sim_you:"You", sim_typing:"typing…",
@@ -5661,11 +5879,11 @@ en:{
   mnav_diag:"Review", mnav_cv:"Edit CV",
   ps_title:"Profile strength", ps_t_cv:"upload your own CV", ps_t_diag:"analyze it with your account",
   ps_t_metrics:"add numbers to your achievements", ps_t_adapt:"tailor your CV to a posting", ps_t_cover:"get your letter ready",
-  cover_title:"Cover letter", cover_note:"Demo: in production the backend fetches real company data from the web and weaves in what's relevant, without inventing.",
+  cover_title:"Cover letter",
   sim_title:"Interview simulator", sim_note:"5 likely questions for this role, based on your CV. In production a language model generates them.",
   load_a:"Analyzing requirements…", load_b:"Extracting keywords…", load_c:"Researching the company…", load_d:"Writing honestly…", load_e:"Polishing the result…",
   hist_title:"Application history", hist_empty:"You haven't applied to anything yet.", hist_del:"Delete", hist_note_free:"Free plan: showing the last 3. Go Pro for the full history.",
-  ats_label:"ATS compatibility", link_ph:"Or paste the job link (LinkedIn, board…)", link_note:"Demo: in production the backend scrapes the link.", pro_only:"Pro feature" },
+  ats_label:"ATS compatibility", link_ph:"Or paste the job link (LinkedIn, board…)", pro_only:"Pro feature" },
 
 fr:{
   nav_guide:"Avant de postuler",
@@ -5758,8 +5976,57 @@ fr:{
   tab_auto:"Candidature auto", tab_matches:"Offres", tab_adapter:"CV sur mesure", tab_analysis:"Diagnostic", tab_role:"Entretien",
   prof_label:"Votre profil / CV de base", prof_upload:"Importer le CV (PDF/DOCX)",
   prof_demo:"Développeur/euse Full Stack avec 3 ans d'expérience. Stack principale : React, JavaScript, Node.js et PostgreSQL. Notions de Python et un peu de design sur Figma. Expérience en création d'API REST, d'interfaces responsives et en travail d'équipe agile. Anglais niveau B2.",
+  cvw_entry:"Pas de CV ? Créez-le étape par étape",
+  cvw_kick:"Créer un CV", cvw_stepof:"Étape {n} sur {m}",
+  cvw_back:"Retour", cvw_next:"Suivant", cvw_finish:"Créer mon CV",
+  cvw_s1_t:"Coordonnées et contact",
+  cvw_s1_tip:"Avec ça en haut, celui qui vous lit sait qui vous êtes et comment vous joindre.",
+  cvw_s2_t:"Expérience (ou projets)",
+  cvw_s2_tip:"Ajoutez un résultat chiffré. « Temps de chargement réduit de 30 % » vaut mieux que « responsable de ».",
+  cvw_s3_t:"Formation et études",
+  cvw_s3_tip:"Incluez les cours et certifications, pas seulement les diplômes. Si c'est en cours, dites-le.",
+  cvw_s4_t:"Compétences et outils",
+  cvw_s4_tip:"Séparez par des virgules. Mettez d'abord ce que vous utilisez le plus et ce que le poste demande.",
+  cvw_s5_t:"Votre résumé professionnel",
+  cvw_s5_tip:"Deux ou trois lignes sur ce que vous savez faire et ce que vous cherchez. Facultatif : laissez vide et nous le rédigeons à partir de vos infos.",
+  cvw_s5_tip_jr:"Vous cherchez votre premier emploi ? Misez sur votre objectif, vos points forts et vos projets d'études. Facultatif : laissez vide et nous le rédigeons à partir de vos infos.",
+  cvw_s5_valid:"Mettre en avant votre formation, vos projets et vos centres d'intérêt suffit à faire un profil valable.",
+  cvw_f_name:"Nom complet", cvw_f_email:"E-mail", cvw_f_phone:"Téléphone",
+  cvw_f_loc:"Ville et pays", cvw_ph_loc:"Paris, France",
+  cvw_f_links:"LinkedIn ou portfolio (facultatif)", cvw_ph_links:"linkedin.com/in/votrenom",
+  cvw_f_role:"Poste ou rôle", cvw_f_company:"Entreprise ou projet",
+  cvw_f_start:"De", cvw_f_end:"À", cvw_ph_start:"Janv. 2022", cvw_ph_end:"Déc. 2023",
+  cvw_f_current:"J'y suis encore", cvw_f_desc:"Responsabilités et résultats",
+  cvw_ph_desc:"Ce que vous faisiez et ce que vous avez accompli. Ajoutez un chiffre si possible.",
+  cvw_add_exp:"Ajouter une autre expérience",
+  cvw_noexp:"Je n'ai pas d'expérience professionnelle",
+  cvw_noexp_hint:"Pas de souci. Parlez de projets personnels, de bénévolat ou de travaux d'études : ils montrent aussi ce que vous savez faire.",
+  cvw_exh:"Vous ne savez pas quoi mettre ? Ça compte aussi",
+  cvw_exlead:"On peut faire un bon CV sans emploi formel. Tout ceci compte :",
+  cvw_ex1:"Projets d'études ou personnels — un travail de cours, un projet perso, votre code sur GitHub.",
+  cvw_ex2:"Bénévolat et clubs — une ONG, un événement, une équipe, le bureau des étudiants.",
+  cvw_ex3:"Petits boulots ou informel — cours particuliers, l'entreprise familiale, un coup de main dans un commerce.",
+  cvw_ex4:"Réussites et leadership — capitaine d'équipe, un prix, organiser quelque chose.",
+  cvw_remove:"Retirer",
+  cvw_f_degree:"Diplôme ou filière", cvw_f_inst:"Établissement",
+  cvw_f_status:"Statut", cvw_f_year:"Année",
+  cvw_st_progress:"En cours", cvw_st_grad:"Diplômé(e)", cvw_st_incomplete:"Non terminé",
+  cvw_add_edu:"Ajouter une autre formation",
+  cvw_f_hard:"Compétences techniques", cvw_ph_hard:"Excel, Python, SAP…",
+  cvw_f_soft:"Compétences humaines", cvw_ph_soft:"Travail d'équipe, communication…",
+  cvw_f_langs:"Langues", cvw_ph_langs:"Espagnol (natif), Anglais (B2)…",
+  cvw_f_summary:"Votre résumé", cvw_ph_summary:"Ex. : Étudiant en économie maîtrisant Excel et SAP. Je cherche ma première expérience en analyse de données.",
+  cvw_draft:"Rédige-moi un brouillon", cvw_draft_empty:"Ajoutez d'abord vos études ou compétences, puis revenez : c'est à partir de là que je rédige.",
+  cvw_h_summary:"RÉSUMÉ", cvw_h_exp:"EXPÉRIENCE", cvw_h_projects:"PROJETS ET ACTIVITÉS",
+  cvw_h_edu:"FORMATION", cvw_h_skills:"COMPÉTENCES", cvw_h_langs:"LANGUES",
+  cvw_lbl_hard:"Techniques", cvw_lbl_soft:"Humaines", cvw_present:"Aujourd'hui",
+  cvw_gen_student:"Étudiant(e) en {x}", cvw_gen_skills:"Maîtrise de", cvw_gen_langs:"Langues :",
+  cvw_need_name:"Ajoutez au moins votre nom ou une info pour créer le CV.",
+  cvw_done_toast:"C'est fait : votre CV de base est chargé.",
   meta_priv:"Privé, et vous le supprimez quand vous voulez.", meta_ai:"L'IA peut se tromper : vérifiez les données. Ne mentez jamais sur votre CV.",
-  src_h:"Voilà comment un filtre automatique lit votre fichier.", src_p:"S'il manque quelque chose, corrigez-le ici.", src_ai:"Avec un compte gratuit, l'IA le structure section par section.", cv_ai_fail:"L'IA n'a pas pu lire votre CV. Moteur rapide utilisé ; renvoyez le fichier pour réessayer.", cv_ai_quota:"Vous avez utilisé vos analyses IA du jour. Le diagnostic rapide fonctionne toujours ; elles se renouvellent demain.", cv_ai_quota_h:"Revenez demain", gate_h:"Créez un compte gratuit pour voir le diagnostic complet", gate_p:"Vous avez importé votre CV. Avec un compte gratuit, l'IA le lit en entier : ce qui cloche, pourquoi vous êtes écarté, et une version améliorée, ligne par ligne.", gate_btn:"Créer un compte gratuit", gate_note:"Gratuit, sans carte. Le diagnostic rapide ci-dessus ne demande pas de compte.", ai_loading:"Analyse de la structure de votre CV…", cvlang_hint:"Vous voulez votre CV dans une autre langue ? Changez la langue en haut et on s'en occupe.", tab_cover:"Lettre de motivation", cover_h:"Lettre de motivation", cover_p:"À partir de votre CV et du poste, nous écrivons une lettre qui vous ressemble — pas un modèle. Choisissez le ton et ajustez-la.", cover_job_label:"Collez l'offre ou décrivez le poste (facultatif) :", cover_job_ph:"Collez ici la description du poste pour que la lettre le cible…", cover_tone:"Ton :", tone_formal:"Formel", tone_creativo:"Créatif", tone_corto:"Court", cover_gen:"Générer la lettre", cover_need_cv_h:"D'abord votre CV", cover_need_cv_p:"Analysez votre CV dans Diagnostic (avec votre compte), puis nous écrivons la lettre à partir de celui-ci.", cover_need_cv_cta:"Aller au diagnostic", cover_lock_h:"Débloquez votre Lettre de motivation avec Mavante PRO", cover_lock_p:"Une lettre écrite à partir de votre vrai CV, dans le ton que vous choisissez, prête à copier et envoyer.", cover_lock_cta:"Passer à Pro", cover_sample:"Bonjour,\\n\\nCes trois dernières années, j'ai dirigé la refonte de l'architecture de données d'une fintech et réduit de moitié le temps des rapports critiques. C'est exactement le type de problème que décrit votre offre.\\n\\nMon profil allie un backend solide à l'habitude de mesurer l'impact de chaque décision, et j'aimerais l'apporter à une équipe qui…", cover_hint:"Choisissez le ton et (facultatif) collez l'offre. Puis cliquez sur « Générer la lettre ».", cover_edit_hint:"Vous pouvez modifier la lettre ici même avant de la copier ou la télécharger.", cover_edit_ph:"Votre lettre apparaît ici…", cover_edit_aria:"Lettre de motivation, modifiable", cover_generating:"Rédaction de votre lettre…", cover_copy:"Copier le texte", cover_dl_txt:"Télécharger TXT", cover_dl_pdf:"Télécharger PDF", cover_regen:"Régénérer", cover_copied:"Lettre copiée", cover_fail:"Nous n'avons pas pu générer la lettre. Réessayez.", cover_filename:"Lettre_Mavante",
+  src_h:"Voilà comment un filtre automatique lit votre fichier.", src_p:"S'il manque quelque chose, corrigez-le ici.", src_ai:"Avec un compte gratuit, l'IA le structure section par section.", cv_ai_fail:"L'IA n'a pas pu lire votre CV. Moteur rapide utilisé ; renvoyez le fichier pour réessayer.", cv_ai_quota:"Vous avez utilisé vos analyses IA du jour. Le diagnostic rapide fonctionne toujours ; elles se renouvellent demain.", cv_ai_quota_h:"Revenez demain", gate_h:"Créez un compte gratuit pour voir le diagnostic complet", gate_p:"Vous avez importé votre CV. Avec un compte gratuit, l'IA le lit en entier : ce qui cloche, pourquoi vous êtes écarté, et une version améliorée, ligne par ligne.", gate_btn:"Créer un compte gratuit", gate_note:"Gratuit, sans carte. Le diagnostic rapide ci-dessus ne demande pas de compte.", ai_loading:"Analyse de la structure de votre CV…", cvlang_hint:"Vous voulez votre CV dans une autre langue ? Changez la langue en haut et on s'en occupe.",
+  ln_es:"espagnol", ln_en:"anglais", ln_fr:"français", ln_pt:"portugais",
+  cvlang_detected:"Votre CV est en {det}.", cvlang_switch:"Le voir en {det} →", tab_cover:"Lettre de motivation", cover_h:"Lettre de motivation", cover_p:"À partir de votre CV et du poste, nous écrivons une lettre qui vous ressemble — pas un modèle. Choisissez le ton et ajustez-la.", cover_job_label:"Collez l'offre ou décrivez le poste (facultatif) :", cover_job_ph:"Collez ici la description du poste pour que la lettre le cible…", cover_tone:"Ton :", tone_formal:"Formel", tone_creativo:"Créatif", tone_corto:"Court", cover_gen:"Générer la lettre", cover_need_cv_h:"D'abord votre CV", cover_need_cv_p:"Analysez votre CV dans Diagnostic (avec votre compte), puis nous écrivons la lettre à partir de celui-ci.", cover_need_cv_cta:"Aller au diagnostic", cover_lock_h:"Débloquez votre Lettre de motivation avec Mavante PRO", cover_lock_p:"Une lettre écrite à partir de votre vrai CV, dans le ton que vous choisissez, prête à copier et envoyer.", cover_lock_cta:"Passer à Pro", cover_sample:"Bonjour,\\n\\nCes trois dernières années, j'ai dirigé la refonte de l'architecture de données d'une fintech et réduit de moitié le temps des rapports critiques. C'est exactement le type de problème que décrit votre offre.\\n\\nMon profil allie un backend solide à l'habitude de mesurer l'impact de chaque décision, et j'aimerais l'apporter à une équipe qui…", cover_hint:"Choisissez le ton et (facultatif) collez l'offre. Puis cliquez sur « Générer la lettre ».", cover_edit_hint:"Vous pouvez modifier la lettre ici même avant de la copier ou la télécharger.", cover_edit_ph:"Votre lettre apparaît ici…", cover_edit_aria:"Lettre de motivation, modifiable", cover_generating:"Rédaction de votre lettre…", cover_copy:"Copier le texte", cover_dl_txt:"Télécharger TXT", cover_dl_pdf:"Télécharger PDF", cover_regen:"Régénérer", cover_copied:"Lettre copiée", cover_fail:"Nous n'avons pas pu générer la lettre. Réessayez.", cover_filename:"Lettre_Mavante",
   cover_own_h:"Vous avez déjà une lettre ?", cover_own_p:"Collez-la ou importez-la : elle est enregistrée ici et vous pouvez la copier, la télécharger ou laisser l'IA l'améliorer sans perdre votre voix.", cover_own_ph:"Collez votre lettre ici…", cover_own_upload:"Importer la lettre (PDF/DOCX)", cover_own_use:"Utiliser cette lettre", cover_own_tape:"Votre lettre", cover_improve:"Améliorer avec l'IA", cover_improving:"Amélioration de votre lettre…", cover_file_fail:"Nous n'avons pas pu lire le fichier. Collez le texte directement.", cover_own_saved:"Lettre enregistrée.", ad_ai_label:"Vous avez l'offre ? Collez-la et on adapte votre CV :", ad_ai_job_ph:"Collez ici la description du poste…", ad_ai_cta:"Adapter mon CV à cette offre", ad_pro_badge:"PRO", ad_ai_needjob:"Collez l'offre (quelques lignes) pour adapter.", ad_ai_loading:"Adaptation de votre CV à l'offre…", ad_ai_score:"Correspondance avec l'offre", ad_ai_sumtitle:"Résumé adapté", ad_ai_fail:"Nous n'avons pas pu adapter. Réessayez.", ai_error_h:"Nous n'avons pas pu l'analyser", ai_error_p:"C'était de notre côté, pas du vôtre. Réessayez dans un instant.", ai_retry:"Réessayer",
   rg_h:"Vous ne savez pas qui va vous lire ?", rg_p1:"Si vous postulez via un portail avec formulaire (LinkedIn Easy Apply, Workday, Greenhouse), un système automatisé vous lit presque certainement en premier.", rg_p2:"Si un recruteur qui ne travaille pas dans l'entreprise vous a écrit, c'est un chasseur de têtes.", rg_p3:"Si vous avez envoyé le CV à une adresse de l'entreprise ou si quelqu'un qui y travaille vous a contacté, ce sont les RH.", rg_tip:"Dans le doute : grande entreprise et candidature par portail = système automatisé d'abord, presque toujours.",
   au_r_bot_chars:"Votre fichier contient des caractères cassés (accents isolés, lettres séparées). Un système automatisé lit du texte brut et cela le perturbe : régénérez le PDF ou collez le texte directement.", au_r_bot_sections:"Les sections standard (Expérience, Compétences) ne sont pas détectées. Le système automatisé en a besoin pour situer vos données : utilisez ces titres, tels quels.", au_r_hh_top:"Votre première réalisation n'a pas de chiffres. Un chasseur de têtes décide dès les premières lignes : placez-y votre résultat le plus mesurable.", au_r_hh_long:"Plus de 600 mots : pour un chasseur de têtes, c'est plus d'une page. Coupez ce qui ne défend pas votre candidature.", au_r_hr_dates:"Des expériences sans dates. Les RH lisent cela comme une période inexpliquée.",
@@ -5836,7 +6103,8 @@ fr:{
   ad_for:"Adapter pour :", ad_has:"Déjà dans votre CV", ad_add:"À ajouter", ad_all:"Vous les incluez déjà toutes",
   ad_tape:"Résumé sur mesure · ", ad_sumtitle:"Résumé professionnel", ad_basenote:"Votre CV de base n'est pas modifié : c'est une couche séparée générée pour chaque offre.",
   ad_sum1:"Profil orienté {role}, avec de l'expérience en {skills}.", ad_sum2:" Profil ajusté pour cette recherche, en ajoutant {add} comme mots-clés prioritaires de l'offre.", ad_sum3:" Axé sur un impact mesurable dès le premier jour.", ad_yourarea:"votre domaine",
-  an_h:"Diagnostic de votre CV", an_p:"Un même CV ne se lit pas pareil selon qu'il passe entre les mains d'un chasseur de têtes pressé, d'un service RH ou d'un filtre automatique. Dites-nous qui va le lire : on ajuste les conseils et on vous rend une version soignée, prête à envoyer.",
+  an_h:"Diagnostic de votre CV", an_p:"L'ATS —le filtre automatique par lequel passe presque chaque candidature— ne lit que du texte brut. On vous montre comment il vous voit et on vous rend une version soignée, prête à envoyer.",
+  ats_badge:"Optimisé pour les filtres ATS et les recruteurs",
   reader_hh:"Chasseur de têtes", reader_hr:"RH interne", reader_bot:"Système ATS",
   au_intro:"Nous avons lu votre CV comme le ferait un {reader} : ce qui passe dans les vingt premières secondes, et ce qui s'effondre au second regard. Voici ce que nous avons trouvé.",
   au_m_exp:"expériences", au_m_bullets:"réalisations", au_m_metrics:"avec chiffres", au_m_skills:"compétences",
@@ -5861,18 +6129,12 @@ fr:{
   seo_about_t:"Qui sommes-nous", seo_about_d:"Une seule obsession : que postuler se vive autrement. Des outils qui respectent votre temps et votre profil réel.",
   seo_guide_t:"Avant de postuler", seo_guide_d:"Comment faire un CV qui passe les filtres automatiques, ce qui dépend de vous, et ce qu'est vraiment un ATS.",
   seo_tools_t:"Vos outils", seo_tools_d:"Candidature automatique, offres classées par compatibilité, CV sur mesure, diagnostic et préparation d'entretien.",
-  tour_1:"C'est ici que vit votre CV de base. Collez-le ou importez-le une fois : tout le reste en découle.",
-  tour_2:"Voici vos cinq outils. Commencez par le Diagnostic pour savoir comment un recruteur vous lit.",
-  tour_3:"Et si quelque chose n'est pas clair, demandez-moi. Je suis là, en bas.",
-  tour_next:"Suivant", tour_done:"Commencer", tour_skip:"Plus tard",
-  tour_end:"C'est parti. Chargez votre CV.",
   up_sub:"Tout ce que vous utilisez déjà, sans plafond. Et les outils aujourd'hui verrouillés.",
   pro_f1_t:"Modifiez votre CV à la main", pro_f1_d:"Cliquez sur n'importe quelle ligne et ajustez-la avant d'exporter.",
   pro_f2_t:"Export Word modifiable", pro_f2_d:"Le même CV en DOCX, prêt à retoucher.",
   pro_f3_t:"Lettre de motivation", pro_f3_d:"Écrite à partir de votre profil réel et de l'entreprise visée.",
   pro_f4_t:"Simulateur d'entretien", pro_f4_d:"Les cinq questions les plus probables, selon votre CV.",
   pro_f5_t:"10 adaptations par jour", pro_f5_d:"Plus du triple de la formule d'entrée, historique illimité.",
-  up_done_sub:"Vous pouvez maintenant modifier votre CV et le télécharger en Word.",
   ap_noprofile_help:"Collez votre CV ou importez le fichier dans le bloc du haut et on réessaie.",
   draft_restored:"Nous avons récupéré votre progression : rien n'est perdu",
   draft_when:"Vous travailliez sur votre CV il y a {n} minutes.", draft_now:"Exactement comme vous l'aviez laissé.",
@@ -5983,6 +6245,11 @@ fr:{
   diff_why_nonum:"Aucun chiffre, et c'est la seule chose qu'un recruteur peut vérifier.",
   diff_why_ok:"Verbe d'action et donnée mesurable. C'est ainsi qu'on écrit.",
   diff_ask:"C'est le seul changement que nous ne pouvons pas faire à votre place : le chiffre n'est pas dans votre CV et nous ne l'inventerons pas. De combien ? Pour combien de personnes ? En combien de temps ?",
+  diff_ask_improve:"De combien, et en combien de temps ?",
+  diff_ask_money:"Quel montant passait par là ? De combien a-t-il augmenté ?",
+  diff_ask_people:"Pour combien de personnes ?",
+  diff_ask_volume:"Combien ? Un chiffre ici change tout.",
+  diff_ask_generic:"Combien ? Pour combien ? En combien de temps ?",
   diff_foot:"Les lignes marquées « il manque un chiffre », c'est à vous de les compléter. Nous pourrions y mettre n'importe quel nombre et ce serait joli — mais ce serait un mensonge, et nous ne faisons pas ça.",
   diff_why_passive_manual:"Elle commence au passif (« responsable de… »), mais nous ne pouvons pas mettre le verbe sans deviner ce que vous avez fait. Commencez par votre propre verbe : géré, coordonné, résolu.",
   sil_pristine_eye:"Votre CV est prêt", sil_pristine:"Nous n'avons rien à corriger. Votre CV est prêt à être envoyé.",
@@ -6082,12 +6349,21 @@ fr:{
   otp_wrong:"Code incorrect. Il reste {n} tentatives.", otp_expired:"Le code a expiré. Demandez-en un nouveau.",
   otp_toomany:"Trop de tentatives. Recommencez.", otp_ok:"Compte vérifié !", otp_ok_sub:"C'est bon. Vos outils vous attendent.",
   otp_demo:"Démo sans serveur mail : en production ce code arrive dans votre boîte et n'apparaît jamais à l'écran.",
-  auth_consent:"Autoriser les entreprises partenaires à voir mon profil optimisé pour des opportunités d'emploi.",
-  auth_demo:"Démo : l'authentification réelle se connecte au backend. Vos données restent dans ce navigateur.", auth_go:"Continuer",
+  auth_consent:"Autoriser les entreprises partenaires à voir mon profil optimisé pour des opportunités d'emploi.", auth_go:"Continuer",
   auth_creating:"Création de votre compte", otp_wrong_generic:"Code incorrect.", auth_signing:"Connexion", auth_welcome:"Bienvenue !", auth_err_email:"Vérifiez l'e-mail : il semble incomplet.", auth_err_pass:"Saisissez votre mot de passe pour continuer.", auth_err_generic:"Connexion impossible. Réessayez dans un instant.",
   up_title:"Passez à Mavante Pro", up_price:"USD 7,99", up_permonth:"/mois",
+  up_pick_h:"Choisissez votre formule", up_best:"Meilleur rapport", up_life_price:"99 USD",
+  up_life_note:"Paiement unique. Accès à vie — sans renouvellement ni prélèvement automatique.",
+  up_life_cta:"Obtenir l'accès à vie", up_free:"Continuer avec la version gratuite",
+  up_week_h:"Juste quelques jours ?", up_week_price:"4,99 USD", up_week_per:"7 jours de Pro",
+  up_week_note:"Pour une recherche ponctuelle. L'accès s'arrête tout seul au bout de 7 jours : aucun renouvellement, aucun second prélèvement.",
+  up_week_cta:"Acheter le pass hebdomadaire",
+  lic_have:"Votre université ou votre employeur vous a donné un code ?", lic_open:"L'utiliser",
+  lic_ph:"Saisissez le code", lic_cta:"Valider", lic_sending:"Validation…",
+  lic_ok_h:"C'est fait : vous avez Pro", lic_ok_p:"{org} prend en charge votre accès jusqu'au {fecha}.",
+  lic_err_h:"Ce code n'a pas pu être validé", plan_current:"Votre formule actuelle",
   up_b1:"Jusqu'à 10 adaptations de CV par jour", up_b2:"Téléchargements PDF et DOCX éditable", up_b3:"Lettre de motivation IA", up_b4:"Simulateur d'entretien", up_b5:"Historique de candidatures illimité",
-  up_cta:"S'abonner pour 7,99 USD/mois", up_opening:"Ouverture du paiement…", pay_mp:"Payer avec Mercado Pago", pay_card:"Payer par carte", up_later:"Plus tard", up_note:"Annulez quand vous voulez.", pay_notify:"Prévenez-moi quand je pourrai payer", pay_soon_h:"Les paiements arrivent bientôt", pay_soon_p:"Nous activons le paiement. Vous ne pouvez pas encore payer — nous vous préviendrons dès que ce sera prêt.", pay_soon_note:"Le paiement n'est pas encore actif.", up_done:"C'est fait ! Vous avez activé Pro (démo).",
+  up_cta:"S'abonner pour 7,99 USD/mois", up_opening:"Ouverture du paiement…", pay_mp:"Payer avec Mercado Pago", pay_card:"Payer par carte", up_later:"Plus tard", up_note:"Annulez quand vous voulez.", pay_notify:"Prévenez-moi quand je pourrai payer", pay_soon_h:"Les paiements arrivent bientôt", pay_soon_p:"Nous activons le paiement. Vous ne pouvez pas encore payer — nous vous préviendrons dès que ce sera prêt.", pay_soon_note:"Le paiement n'est pas encore actif.",
   limit_title:"Vous avez atteint votre limite quotidienne", limit_body:"Vous avez utilisé vos adaptations du jour. Passez à Pro pour 10 par jour.", need_login:"Connectez-vous pour utiliser cette fonction.",
   gen_opt:"Générer la version optimisée", dl_pdf:"Télécharger PDF", dl_docx:"Télécharger DOCX", gen_cover:"Lettre de motivation", sim_btn:"Simulateur d'entretien",
   sim_room_t:"Salle d'entretien", sim_iv_name:"Recruteur IA", sim_you:"Vous", sim_typing:"écrit…",
@@ -6124,11 +6400,11 @@ fr:{
   mnav_diag:"Diagnostic", mnav_cv:"Modifier le CV",
   ps_title:"Force de votre profil", ps_t_cv:"importez votre propre CV", ps_t_diag:"analysez-le avec votre compte",
   ps_t_metrics:"ajoutez des chiffres à vos réussites", ps_t_adapt:"adaptez votre CV à une offre", ps_t_cover:"préparez votre lettre",
-  cover_title:"Lettre de motivation", cover_note:"Démo : en production, le backend récupère de vraies données de l'entreprise et intègre l'essentiel, sans inventer.",
+  cover_title:"Lettre de motivation",
   sim_title:"Simulateur d'entretien", sim_note:"5 questions probables pour ce poste, selon votre CV. En production, un modèle de langage les génère.",
   load_a:"Analyse des exigences…", load_b:"Extraction des mots-clés…", load_c:"Recherche sur l'entreprise…", load_d:"Rédaction honnête…", load_e:"Peaufinage du résultat…",
   hist_title:"Historique des candidatures", hist_empty:"Vous n'avez encore postulé à rien.", hist_del:"Supprimer", hist_note_free:"Plan Free : les 3 dernières. Passez à Pro pour l'historique complet.",
-  ats_label:"Compatibilité ATS", link_ph:"Ou collez le lien de l'offre (LinkedIn, portail…)", link_note:"Démo : en production, le backend scrape le lien.", pro_only:"Fonction Pro" },
+  ats_label:"Compatibilité ATS", link_ph:"Ou collez le lien de l'offre (LinkedIn, portail…)", pro_only:"Fonction Pro" },
 
 pt:{
   nav_guide:"Antes de se candidatar",
@@ -6219,12 +6495,61 @@ pt:{
   val3_h:"Uma experiência premium", val3_p:"Ferramentas de nível profissional, para que cada candidatura seja diferente da anterior.", ab_btn:"Testar as ferramentas",
   tools_h:"Suas ferramentas", tools_p:"Preencha seu perfil uma única vez e use em todas as ferramentas. Você escolhe por onde começar.",
   tab_auto:"Candidatura automática", tab_matches:"Vagas", tab_adapter:"CV sob medida", tab_analysis:"Diagnóstico", tab_role:"Entrevista",
-  src_h:"É assim que um filtro automático lê o seu arquivo.", src_p:"Se algo se perdeu, corrija aqui mesmo.", src_ai:"Com uma conta grátis, a IA o estrutura seção por seção.", cv_ai_fail:"A IA não conseguiu ler seu CV agora. Usamos o motor rápido; envie de novo para tentar outra vez.", cv_ai_quota:"Você usou as análises com IA de hoje. O diagnóstico rápido continua funcionando; elas se renovam amanhã.", cv_ai_quota_h:"Volte amanhã", gate_h:"Crie uma conta grátis para ver o diagnóstico completo", gate_p:"Você já enviou seu CV. Com uma conta grátis, a IA lê tudo: o que está errado, por que você é descartado e uma versão melhorada, linha por linha.", gate_btn:"Criar conta grátis", gate_note:"Grátis, sem cartão. O diagnóstico rápido acima não exige conta.", ai_loading:"Analisando a estrutura do seu CV…", cvlang_hint:"Quer seu CV em outro idioma? Troque o idioma acima e a gente cuida do resto.", tab_cover:"Carta de apresentação", cover_h:"Carta de apresentação", cover_p:"A partir do seu CV e da vaga, escrevemos uma carta com a sua cara — não um modelo. Escolha o tom e ajuste.", cover_job_label:"Cole o anúncio ou descreva a vaga (opcional):", cover_job_ph:"Cole aqui a descrição da vaga para a carta mirar nesse cargo…", cover_tone:"Tom:", tone_formal:"Formal", tone_creativo:"Criativo", tone_corto:"Curto", cover_gen:"Gerar carta", cover_need_cv_h:"Primeiro, seu CV", cover_need_cv_p:"Analise seu CV no Diagnóstico (com sua conta) e depois escrevemos a carta a partir dele.", cover_need_cv_cta:"Ir ao diagnóstico", cover_lock_h:"Desbloqueie sua Carta de Apresentação com o Mavante PRO", cover_lock_p:"Uma carta escrita a partir do seu CV real, no tom que você escolher, pronta para copiar e enviar.", cover_lock_cta:"Virar Pro", cover_sample:"Olá,\\n\\nNos últimos três anos liderei a reformulação da arquitetura de dados de uma fintech e reduzi pela metade o tempo dos relatórios críticos. É exatamente o tipo de problema que a sua vaga descreve.\\n\\nMinha experiência une um backend sólido ao hábito de medir o impacto de cada decisão, e eu adoraria levar isso a um time que…", cover_hint:"Escolha o tom e (opcional) cole o anúncio. Depois toque em «Gerar carta».", cover_edit_hint:"Você pode editar a carta aqui mesmo antes de copiar ou baixar.", cover_edit_ph:"Sua carta aparece aqui…", cover_edit_aria:"Carta de apresentação, editável", cover_generating:"Escrevendo sua carta…", cover_copy:"Copiar texto", cover_dl_txt:"Baixar TXT", cover_dl_pdf:"Baixar PDF", cover_regen:"Gerar de novo", cover_copied:"Carta copiada", cover_fail:"Não conseguimos gerar a carta. Tente de novo.", cover_filename:"Carta_Mavante",
+  src_h:"É assim que um filtro automático lê o seu arquivo.", src_p:"Se algo se perdeu, corrija aqui mesmo.", src_ai:"Com uma conta grátis, a IA o estrutura seção por seção.", cv_ai_fail:"A IA não conseguiu ler seu CV agora. Usamos o motor rápido; envie de novo para tentar outra vez.", cv_ai_quota:"Você usou as análises com IA de hoje. O diagnóstico rápido continua funcionando; elas se renovam amanhã.", cv_ai_quota_h:"Volte amanhã", gate_h:"Crie uma conta grátis para ver o diagnóstico completo", gate_p:"Você já enviou seu CV. Com uma conta grátis, a IA lê tudo: o que está errado, por que você é descartado e uma versão melhorada, linha por linha.", gate_btn:"Criar conta grátis", gate_note:"Grátis, sem cartão. O diagnóstico rápido acima não exige conta.", ai_loading:"Analisando a estrutura do seu CV…", cvlang_hint:"Quer seu CV em outro idioma? Troque o idioma acima e a gente cuida do resto.",
+  ln_es:"espanhol", ln_en:"inglês", ln_fr:"francês", ln_pt:"português",
+  cvlang_detected:"Detectamos que seu CV está em {det}.", cvlang_switch:"Ver em {det} →", tab_cover:"Carta de apresentação", cover_h:"Carta de apresentação", cover_p:"A partir do seu CV e da vaga, escrevemos uma carta com a sua cara — não um modelo. Escolha o tom e ajuste.", cover_job_label:"Cole o anúncio ou descreva a vaga (opcional):", cover_job_ph:"Cole aqui a descrição da vaga para a carta mirar nesse cargo…", cover_tone:"Tom:", tone_formal:"Formal", tone_creativo:"Criativo", tone_corto:"Curto", cover_gen:"Gerar carta", cover_need_cv_h:"Primeiro, seu CV", cover_need_cv_p:"Analise seu CV no Diagnóstico (com sua conta) e depois escrevemos a carta a partir dele.", cover_need_cv_cta:"Ir ao diagnóstico", cover_lock_h:"Desbloqueie sua Carta de Apresentação com o Mavante PRO", cover_lock_p:"Uma carta escrita a partir do seu CV real, no tom que você escolher, pronta para copiar e enviar.", cover_lock_cta:"Virar Pro", cover_sample:"Olá,\\n\\nNos últimos três anos liderei a reformulação da arquitetura de dados de uma fintech e reduzi pela metade o tempo dos relatórios críticos. É exatamente o tipo de problema que a sua vaga descreve.\\n\\nMinha experiência une um backend sólido ao hábito de medir o impacto de cada decisão, e eu adoraria levar isso a um time que…", cover_hint:"Escolha o tom e (opcional) cole o anúncio. Depois toque em «Gerar carta».", cover_edit_hint:"Você pode editar a carta aqui mesmo antes de copiar ou baixar.", cover_edit_ph:"Sua carta aparece aqui…", cover_edit_aria:"Carta de apresentação, editável", cover_generating:"Escrevendo sua carta…", cover_copy:"Copiar texto", cover_dl_txt:"Baixar TXT", cover_dl_pdf:"Baixar PDF", cover_regen:"Gerar de novo", cover_copied:"Carta copiada", cover_fail:"Não conseguimos gerar a carta. Tente de novo.", cover_filename:"Carta_Mavante",
   cover_own_h:"Já tem uma carta?", cover_own_p:"Cole ou envie: ela fica salva aqui e você pode copiar, baixar ou deixar a IA melhorá-la sem perder a sua voz.", cover_own_ph:"Cole sua carta aqui…", cover_own_upload:"Enviar carta (PDF/DOCX)", cover_own_use:"Usar esta carta", cover_own_tape:"Sua carta", cover_improve:"Melhorar com IA", cover_improving:"Melhorando sua carta…", cover_file_fail:"Não conseguimos ler o arquivo. Cole o texto diretamente.", cover_own_saved:"Carta salva.", ad_ai_label:"Tem o anúncio? Cole e adaptamos seu CV:", ad_ai_job_ph:"Cole aqui a descrição da vaga…", ad_ai_cta:"Adaptar meu CV a esta vaga", ad_pro_badge:"PRO", ad_ai_needjob:"Cole o anúncio (algumas linhas) para adaptar.", ad_ai_loading:"Adaptando seu CV à vaga…", ad_ai_score:"Compatibilidade com a vaga", ad_ai_sumtitle:"Resumo adaptado", ad_ai_fail:"Não conseguimos adaptar. Tente de novo.", ai_error_h:"Não conseguimos analisar", ai_error_p:"O problema foi nosso, não seu. Tente de novo em um instante.", ai_retry:"Tentar de novo",
   rg_h:"Não sabe quem vai ler?", rg_p1:"Se você se candidata por um portal com formulário (LinkedIn Easy Apply, Workday, Greenhouse), quase certamente um sistema automático lê primeiro.", rg_p2:"Se um recruiter que não trabalha na empresa te escreveu, é um headhunter.", rg_p3:"Se você mandou o CV para um e-mail da empresa ou alguém de lá te contatou, quem lê é o RH.", rg_tip:"Na dúvida: empresa grande e candidatura por portal = sistema automático primeiro, quase sempre.",
   au_r_bot_chars:"Seu arquivo traz caracteres quebrados (acentos soltos, letras separadas). Um sistema automático lê texto puro e isso o confunde: gere o PDF de novo ou cole o texto diretamente.", au_r_bot_sections:"As seções padrão (Experiência, Habilidades) não foram detectadas. O sistema automático precisa delas para localizar seus dados: use esses títulos, exatamente assim.", au_r_hh_top:"Sua primeira conquista não tem números. Um headhunter decide nas primeiras linhas: mova para lá a sua conquista mais mensurável.", au_r_hh_long:"Mais de 600 palavras: para um headhunter, é mais de uma página. Corte o que não defende sua candidatura.", au_r_hr_dates:"Há experiências sem datas. O RH lê isso como um período sem explicação.",
   prof_label:"Seu perfil / CV base", prof_upload:"Enviar CV (PDF/DOCX)", prof_ph:"Cole seu perfil ou CV em texto...",
   prof_demo:"Desenvolvedor(a) Full Stack com 3 anos de experiência. Stack principal: React, JavaScript, Node.js e PostgreSQL. Noções de Python e um pouco de design no Figma. Experiência criando APIs REST, interfaces responsivas e trabalhando em equipes ágeis. Inglês nível B2.",
+  cvw_entry:"Sem CV? Monte passo a passo",
+  cvw_kick:"Criar CV", cvw_stepof:"Passo {n} de {m}",
+  cvw_back:"Voltar", cvw_next:"Seguinte", cvw_finish:"Criar meu CV",
+  cvw_s1_t:"Dados pessoais e contato",
+  cvw_s1_tip:"Com isso no topo, quem lê sabe quem você é e como falar com você.",
+  cvw_s2_t:"Experiência (ou projetos)",
+  cvw_s2_tip:"Inclua um resultado com número. “Reduzi o tempo de carga em 30%” vale mais que “responsável por”.",
+  cvw_s3_t:"Educação e formação",
+  cvw_s3_tip:"Inclua cursos e certificações, não só diplomas. Se está em andamento, diga.",
+  cvw_s4_t:"Habilidades e ferramentas",
+  cvw_s4_tip:"Separe por vírgulas. Coloque primeiro o que mais usa e o que a vaga pede.",
+  cvw_s5_t:"Seu resumo profissional",
+  cvw_s5_tip:"Duas ou três linhas sobre o que você sabe fazer e o que busca. Opcional: se deixar em branco, montamos com seus dados.",
+  cvw_s5_tip_jr:"Buscando seu primeiro emprego? Foque no seu objetivo, seus pontos fortes e seus projetos de estudo. Opcional: se deixar em branco, montamos com seus dados.",
+  cvw_s5_valid:"Destacar sua formação, seus projetos e seus interesses já é um perfil válido.",
+  cvw_f_name:"Nome completo", cvw_f_email:"E-mail", cvw_f_phone:"Telefone",
+  cvw_f_loc:"Cidade e país", cvw_ph_loc:"São Paulo, Brasil",
+  cvw_f_links:"LinkedIn ou portfólio (opcional)", cvw_ph_links:"linkedin.com/in/seunome",
+  cvw_f_role:"Cargo ou função", cvw_f_company:"Empresa ou projeto",
+  cvw_f_start:"De", cvw_f_end:"Até", cvw_ph_start:"Jan 2022", cvw_ph_end:"Dez 2023",
+  cvw_f_current:"Ainda estou aqui", cvw_f_desc:"Responsabilidades e resultados",
+  cvw_ph_desc:"O que você fazia e o que alcançou. Inclua um número se puder.",
+  cvw_add_exp:"Adicionar outra experiência",
+  cvw_noexp:"Não tenho experiência profissional",
+  cvw_noexp_hint:"Sem problema. Conte projetos pessoais, voluntariado ou trabalhos da faculdade: também mostram o que você sabe fazer.",
+  cvw_exh:"Não sabe o que colocar? Isto também conta",
+  cvw_exlead:"Dá para fazer um bom CV sem emprego formal. Tudo isto soma:",
+  cvw_ex1:"Projetos de estudo ou pessoais — um trabalho da facul, um projeto próprio, seu código no GitHub.",
+  cvw_ex2:"Voluntariado e clubes — uma ONG, um evento, um time, o grêmio estudantil.",
+  cvw_ex3:"Trabalhos informais ou bicos — aulas particulares, o negócio da família, ajudar numa loja.",
+  cvw_ex4:"Conquistas e liderança — ser capitão, ganhar um prêmio, organizar algo.",
+  cvw_remove:"Remover",
+  cvw_f_degree:"Curso ou graduação", cvw_f_inst:"Instituição",
+  cvw_f_status:"Situação", cvw_f_year:"Ano",
+  cvw_st_progress:"Em andamento", cvw_st_grad:"Formado(a)", cvw_st_incomplete:"Incompleto",
+  cvw_add_edu:"Adicionar outra formação",
+  cvw_f_hard:"Habilidades técnicas", cvw_ph_hard:"Excel, Python, SAP…",
+  cvw_f_soft:"Habilidades comportamentais", cvw_ph_soft:"Trabalho em equipe, comunicação…",
+  cvw_f_langs:"Idiomas", cvw_ph_langs:"Português (nativo), Inglês (B2)…",
+  cvw_f_summary:"Seu resumo", cvw_ph_summary:"Ex.: Estudante de Economia com domínio de Excel e SAP. Busco minha primeira experiência em análise de dados.",
+  cvw_draft:"Escreve um rascunho pra mim", cvw_draft_empty:"Adicione seus estudos ou habilidades primeiro e volte: é com isso que eu escrevo o rascunho.",
+  cvw_h_summary:"RESUMO", cvw_h_exp:"EXPERIÊNCIA", cvw_h_projects:"PROJETOS E ATIVIDADES",
+  cvw_h_edu:"EDUCAÇÃO", cvw_h_skills:"HABILIDADES", cvw_h_langs:"IDIOMAS",
+  cvw_lbl_hard:"Técnicas", cvw_lbl_soft:"Comportamentais", cvw_present:"Atualidade",
+  cvw_gen_student:"Estudante de {x}", cvw_gen_skills:"Domínio de", cvw_gen_langs:"Idiomas:",
+  cvw_need_name:"Inclua ao menos seu nome ou algum dado para montar o CV.",
+  cvw_done_toast:"Pronto: seu CV base foi carregado.",
   meta_priv:"Privado, e você apaga quando quiser.", meta_ai:"A IA pode errar: confira os dados. Nunca minta no seu CV.",
   cv_new_detected:"Detectamos um CV novo:", cv_apply:"Atualizar CV", cv_discard:"Descartar",
   cv_updated:"CV atualizado. Recalculamos tudo com a informação nova.",
@@ -6298,7 +6623,8 @@ pt:{
   ad_for:"Adaptar para:", ad_has:"Já presentes no seu CV", ad_add:"Vale incorporar", ad_all:"Você já inclui todas",
   ad_tape:"Resumo sob medida · ", ad_sumtitle:"Resumo profissional", ad_basenote:"Seu CV base não é alterado: esta é uma camada independente gerada para cada busca.",
   ad_sum1:"Profissional com foco em {role} e experiência em {skills}.", ad_sum2:" Perfil ajustado para esta busca, incorporando {add} como palavras-chave que o anúncio prioriza.", ad_sum3:" Com foco em gerar impacto mensurável desde o primeiro dia.", ad_yourarea:"sua área",
-  an_h:"Diagnóstico do seu CV", an_p:"O mesmo CV não é lido do mesmo jeito por um headhunter apressado, por alguém do RH ou por um filtro automático. Conte quem vai ler e ajustamos as sugestões — e ainda devolvemos uma versão caprichada, pronta para enviar.",
+  an_h:"Diagnóstico do seu CV", an_p:"O sistema ATS —o filtro automático pelo qual passa quase toda candidatura— só lê texto puro. Mostramos como ele te vê e devolvemos uma versão caprichada, pronta para enviar.",
+  ats_badge:"Otimizado para filtros ATS e recrutadores",
   reader_hh:"Headhunter", reader_hr:"RH interno", reader_bot:"Sistema ATS",
   au_intro:"Lemos o seu CV como faria um {reader}: o que se entende nos primeiros vinte segundos e o que desmorona na segunda olhada. Foi isto que encontramos.",
   au_m_exp:"experiências", au_m_bullets:"conquistas", au_m_metrics:"com números", au_m_skills:"habilidades",
@@ -6323,18 +6649,12 @@ pt:{
   seo_about_t:"Quem somos", seo_about_d:"Nossa obsessão é uma só: fazer com que candidatar-se seja diferente. Ferramentas que respeitam o seu tempo e o seu perfil real.",
   seo_guide_t:"Antes de se candidatar", seo_guide_d:"Como montar um CV que passa nos filtros automáticos, o que depende de você e o que é um ATS.",
   seo_tools_t:"Suas ferramentas", seo_tools_d:"Candidatura automática, vagas por compatibilidade, CV sob medida, diagnóstico e preparação de entrevista.",
-  tour_1:"Aqui mora o seu CV base. Cole ou envie uma única vez: todo o resto sai daqui.",
-  tour_2:"Estas são as suas cinco ferramentas. Comece pelo Diagnóstico para saber como um recrutador te lê.",
-  tour_3:"E se algo não ficar claro, me pergunte. Estou aqui embaixo, sempre.",
-  tour_next:"Próximo", tour_done:"Começar", tour_skip:"Agora não",
-  tour_end:"Pronto. Carregue seu CV e vamos.",
   up_sub:"Tudo o que você já usa, sem teto. E as ferramentas que hoje estão trancadas.",
   pro_f1_t:"Edite seu CV à mão", pro_f1_d:"Toque em qualquer linha do documento e ajuste antes de exportar.",
   pro_f2_t:"Download em Word editável", pro_f2_d:"O mesmo CV em DOCX, pronto para retocar.",
   pro_f3_t:"Carta de apresentação", pro_f3_d:"Escrita a partir do seu perfil real e do que a empresa faz.",
   pro_f4_t:"Simulador de entrevista", pro_f4_d:"As cinco perguntas mais prováveis, segundo o seu CV.",
   pro_f5_t:"10 adaptações por dia", pro_f5_d:"Mais do que o triplo do plano de entrada, com histórico ilimitado.",
-  up_done_sub:"Agora você pode editar o CV à mão e baixá-lo em Word.",
   ap_noprofile_help:"Cole seu CV ou envie o arquivo no bloco acima e tentamos de novo.",
   draft_restored:"Recuperamos o seu progresso para você não perder nada",
   draft_when:"Você estava trabalhando no seu CV há {n} minutos.", draft_now:"Exatamente como deixou.",
@@ -6443,6 +6763,11 @@ pt:{
   diff_why_nonum:"Não tem nenhum número, e é a única coisa que um recrutador pode verificar.",
   diff_why_ok:"Verbo de ação e um dado mensurável. É assim que se escreve.",
   diff_ask:"Esta é a única mudança que não podemos fazer por você: o número não está no seu CV e não vamos inventá-lo. Quanto melhorou? Para quantas pessoas? Em quanto tempo?",
+  diff_ask_improve:"Quanto melhorou, e em quanto tempo?",
+  diff_ask_money:"Quanto dinheiro passava por aqui? Quanto cresceu?",
+  diff_ask_people:"Para quantas pessoas?",
+  diff_ask_volume:"Quantos? Um número aqui muda tudo.",
+  diff_ask_generic:"Quanto? Quantos? Em quanto tempo?",
   diff_foot:"As linhas marcadas como «falta um número» são suas para completar. Poderíamos colocar qualquer número e ficaria bonito — mas seria mentira, e isso a gente não faz.",
   diff_why_passive_manual:"Começa na passiva («responsável por…»), mas não podemos pôr o verbo sem adivinhar o que você fez. Comece com um verbo seu: gerenciei, coordenei, resolvi.",
   sil_pristine_eye:"Seu CV está pronto", sil_pristine:"Não temos nada para corrigir. Seu CV já está pronto para enviar.",
@@ -6542,12 +6867,21 @@ pt:{
   otp_wrong:"Código incorreto. Restam {n} tentativas.", otp_expired:"O código expirou. Peça um novo.",
   otp_toomany:"Tentativas demais. Comece de novo.", otp_ok:"Conta verificada!", otp_ok_sub:"Pronto. Suas ferramentas estão esperando.",
   otp_demo:"Demo sem servidor de e-mail: em produção este código chega na sua caixa e nunca aparece na tela.",
-  auth_consent:"Permitir que empresas parceiras vejam meu perfil otimizado para oportunidades de emprego.",
-  auth_demo:"Demo: a autenticação real se conecta ao backend. Seus dados ficam só neste navegador.", auth_go:"Continuar",
+  auth_consent:"Permitir que empresas parceiras vejam meu perfil otimizado para oportunidades de emprego.", auth_go:"Continuar",
   auth_creating:"Criando sua conta", otp_wrong_generic:"Código incorreto.", auth_signing:"Entrando", auth_welcome:"Bem-vindo!", auth_err_email:"Confira o e-mail: parece faltar algo.", auth_err_pass:"Escreva sua senha para continuar.", auth_err_generic:"Não conseguimos entrar. Tente de novo em instantes.",
   up_title:"Vire Mavante Pro", up_price:"USD 7,99", up_permonth:"/mês",
+  up_pick_h:"Escolha seu plano", up_best:"Melhor custo", up_life_price:"USD 99",
+  up_life_note:"Pagamento único. Acesso para sempre — sem renovações nem cobranças automáticas.",
+  up_life_cta:"Obter acesso vitalício", up_free:"Continuar com a versão gratuita",
+  up_week_h:"Só por alguns dias?", up_week_price:"USD 4,99", up_week_per:"7 dias de Pro",
+  up_week_note:"Para uma busca pontual. Desliga sozinho depois de 7 dias: não renova nem cobra de novo.",
+  up_week_cta:"Comprar o passe semanal",
+  lic_have:"Sua universidade ou seu trabalho te deu um código?", lic_open:"Resgatar",
+  lic_ph:"Escreva o código", lic_cta:"Resgatar", lic_sending:"Resgatando…",
+  lic_ok_h:"Pronto: você já tem Pro", lic_ok_p:"{org} cobre seu acesso até {fecha}.",
+  lic_err_h:"Não conseguimos resgatar esse código", plan_current:"Seu plano atual",
   up_b1:"Até 10 adaptações de CV por dia", up_b2:"Downloads em PDF e DOCX editável", up_b3:"Carta de apresentação com IA", up_b4:"Simulador de entrevista", up_b5:"Histórico de candidaturas ilimitado",
-  up_cta:"Assinar por USD 7,99/mês", up_opening:"Abrindo o pagamento…", pay_mp:"Pagar com Mercado Pago", pay_card:"Pagar com cartão", up_later:"Agora não", up_note:"Cancele quando quiser.", pay_notify:"Avise-me quando eu puder pagar", pay_soon_h:"Os pagamentos chegam em breve", pay_soon_p:"Estamos ativando a cobrança. Ainda não dá para pagar — avisamos assim que estiver pronto.", pay_soon_note:"A cobrança ainda não está ativa.", up_done:"Pronto! Você ativou o Pro (demo).",
+  up_cta:"Assinar por USD 7,99/mês", up_opening:"Abrindo o pagamento…", pay_mp:"Pagar com Mercado Pago", pay_card:"Pagar com cartão", up_later:"Agora não", up_note:"Cancele quando quiser.", pay_notify:"Avise-me quando eu puder pagar", pay_soon_h:"Os pagamentos chegam em breve", pay_soon_p:"Estamos ativando a cobrança. Ainda não dá para pagar — avisamos assim que estiver pronto.", pay_soon_note:"A cobrança ainda não está ativa.",
   limit_title:"Você atingiu seu limite diário", limit_body:"Você usou as adaptações de hoje. Vire Pro para 10 por dia.", need_login:"Entre para usar esta função.",
   gen_opt:"Gerar versão otimizada", dl_pdf:"Baixar PDF", dl_docx:"Baixar DOCX", gen_cover:"Carta de apresentação", sim_btn:"Simulador de entrevista",
   sim_room_t:"Sala de entrevista", sim_iv_name:"Recrutador IA", sim_you:"Você", sim_typing:"digitando…",
@@ -6584,11 +6918,11 @@ pt:{
   mnav_diag:"Diagnóstico", mnav_cv:"Editar CV",
   ps_title:"Força do seu perfil", ps_t_cv:"envie seu próprio CV", ps_t_diag:"analise com sua conta",
   ps_t_metrics:"adicione números às suas conquistas", ps_t_adapt:"adapte seu CV a uma vaga", ps_t_cover:"deixe sua carta pronta",
-  cover_title:"Carta de apresentação", cover_note:"Demo: em produção, o backend busca dados reais da empresa na web e integra o relevante, sem inventar.",
+  cover_title:"Carta de apresentação",
   sim_title:"Simulador de entrevista", sim_note:"5 perguntas prováveis para esta vaga, segundo seu CV. Em produção, um modelo de linguagem as gera.",
   load_a:"Analisando requisitos…", load_b:"Extraindo palavras-chave…", load_c:"Pesquisando a empresa…", load_d:"Escrevendo com honestidade…", load_e:"Polindo o resultado…",
   hist_title:"Histórico de candidaturas", hist_empty:"Você ainda não se candidatou a nada.", hist_del:"Excluir", hist_note_free:"Plano Free: mostrando as últimas 3. Vire Pro para o histórico completo.",
-  ats_label:"Compatibilidade ATS", link_ph:"Ou cole o link da vaga (LinkedIn, portal…)", link_note:"Demo: em produção o backend faz o scraping do link.", pro_only:"Recurso Pro" }
+  ats_label:"Compatibilidade ATS", link_ph:"Ou cole o link da vaga (LinkedIn, portal…)", pro_only:"Recurso Pro" }
 };
 let lang = 'es';
 try { lang = localStorage.getItem('ma_lang') || 'es'; } catch(e){}
@@ -6777,7 +7111,7 @@ const READER_NAME = { hh:'reader_hh', hr:'reader_hr', bot:'reader_bot' };
 
 /* ============ state ============ */
 const scores = {}; const appliedIds = new Set(); const selectedIds = new Set();
-let analyzed=false, analyzing=false, currentReader='hh', batchJobs=[];
+let analyzed=false, analyzing=false, currentReader='bot', batchJobs=[];   /* ATS por defecto: el selector de evaluador se removió */
 const prefs = { mod:new Set(['remoto']), jor:new Set(['full']) };
 const SOURCES = ["LinkedIn","Greenhouse","Lever","Workday","Indeed","Bumeran"];
 let apTimer=null, apJobs=[], fillTimer=null;
@@ -7013,6 +7347,8 @@ function showPage(name){
   } else { window.scrollTo({top:0,behavior:'smooth'}); }
   if(typeof initReveal==='function') setTimeout(initReveal,40);       // reobserva lo que aparece de nuevo
   if(name==='herramientas') setTimeout(moveSegIndicator,60);
+  /* nadie puede llegar a Herramientas y encontrar las tres secciones ocultas */
+  if(name==='herramientas' && typeof toolsAlive==='function') setTimeout(toolsAlive,230);
   if(typeof setMeta==='function') setMeta(name);
   if(typeof track==='function') track('page_view', { section:name });
   saveRoute();
@@ -7093,7 +7429,13 @@ function switchTab(name){
   tabAnim=setTimeout(function(){
     TABS.forEach(function(x){ var el=document.getElementById('tab-'+x);
       el.classList.add('hidden'); el.classList.remove('tab-out','to-right','from-left'); });
-    renderTab(name);
+    /* ORDEN PELIGROSO A PROPÓSITO DE ESTE TRY: acá arriba se acaban de esconder
+       LAS TRES secciones, y se re-muestran recién después de renderizar. Si el
+       render tira, sin el try la página quedaba sin ninguna herramienta visible
+       — el bug "no me aparece el diagnóstico". El contenido roto se dibuja igual
+       (o queda el anterior), pero la sección SIEMPRE vuelve a verse. */
+    try { renderTab(name); }
+    catch(e){ console.error('[Mavante] render de "'+name+'" falló:', e); track('render_crash', { tab:name, msg:String(e&&e.message||e).slice(0,200) }); }
     inn.classList.remove('hidden'); inn.classList.toggle('from-left',!fwd);
     void inn.offsetWidth;                     // reinicia la animacion de entrada
     inn.style.animation='none'; void inn.offsetWidth; inn.style.animation='';
@@ -7109,10 +7451,34 @@ function setTabDirect(name){
     el.classList.toggle('hidden', x!==name); el.classList.remove('tab-out','to-right','from-left'); });
   document.querySelectorAll('#seg button').forEach(function(b){
     var on=b.dataset.tab===name; b.classList.toggle('active',on); b.setAttribute('aria-selected',on?'true':'false'); });
-  renderTab(name);
+  /* A setTabDirect lo llama el ARRANQUE (restoreRoute). Si el render tira y el
+     error sube, mata todo lo que el arranque tenía pendiente después — la
+     página entera a medio inicializar. El error se registra, no se propaga. */
+  try { renderTab(name); }
+  catch(e){ console.error('[Mavante] render de "'+name+'" falló:', e); track('render_crash', { tab:name, msg:String(e&&e.message||e).slice(0,200) }); }
   moveSegIndicator();
   updateFocusLabel();
   pulseProfile();
+}
+
+/* ===== El vigía: las herramientas no pueden quedar TODAS ocultas =====
+   Las tres secciones arrancan con .hidden en el HTML y solo un render exitoso
+   las destapa. Ya pasó dos veces que un error en el camino dejaba la página en
+   ese estado —tabs arriba, nada abajo, el footer pegado al perfil— y el usuario
+   no tiene ninguna acción para salir. Esto detecta ese estado imposible y lo
+   repara mostrando la pestaña activa. Se llama al final del arranque y al
+   mostrar Herramientas; si nunca hace falta, no hace nada. */
+function toolsAlive(){
+  var pg=document.getElementById('page-herramientas');
+  if(!pg || !pg.classList.contains('active')) return;
+  var algunaVisible=TABS.some(function(x){
+    var el=document.getElementById('tab-'+x);
+    return el && !el.classList.contains('hidden');
+  });
+  if(algunaVisible) return;
+  console.warn('[Mavante] las tres herramientas quedaron ocultas: se repara solo');
+  track('tools_all_hidden', { tab:currentTab });
+  setTabDirect(TABS.indexOf(currentTab)>=0 ? currentTab : TABS[0]);
 }
 /* restaura seccion + subseccion desde la URL (o localStorage) */
 function restoreRoute(smooth){
@@ -7120,7 +7486,13 @@ function restoreRoute(smooth){
   routing=true;
   if(r.page==='herramientas'){
     showPage('herramientas');
-    setTabDirect(r.tab||'auto');
+    /* Sin subseccion en la URL (ej: se entra a #herramientas pelado desde el
+       CTA del home) hay que abrir igual la PRIMERA pestaña (Diagnostico). Antes
+       se pasaba 'auto', que no esta en TABS, y setTabDirect cortaba temprano
+       SIN destapar ninguna pestaña: quedaba el textarea del perfil visible pero
+       el evaluador y "Analizar mi CV base" invisibles (todas las tab con .hidden).
+       El modo enfoque se decide aparte abajo segun si la subseccion era explicita. */
+    setTabDirect(r.tab||TABS[0]);
     if(r.tab) enterFocus(); else exitFocusSilent();
     routing=false; saveRoute();
     if(smooth){ setTimeout(function(){
@@ -7525,7 +7897,7 @@ function ensureCvDoc(){
   if(id) return Promise.resolve(id);
   var profile=((document.getElementById('profile')||{}).value||'').trim();
   if(profile.length<30 || !(window.MA_API && MA_API.parseCv)) return Promise.resolve(null);
-  return Promise.resolve(MA_API.parseCv({text:profile, lang:lang})).then(function(p){
+  return parseCvRetry({text:profile, lang:lang}).then(function(p){
     if(p && p.id){
       /* guardamos el parse para reusarlo (adapter, carta): mismo cache que el análisis */
       if(typeof CV_REMOTE_TEXT!=='undefined'){ if(CV_REMOTE_TEXT!==profile){ CV_REMOTE_TEXT=profile; CV_REMOTE_MAP={}; } CV_REMOTE_MAP[lang]=p; }
@@ -7671,6 +8043,14 @@ function adapterCtaSync(){
    dice "USD 7,99/mes": se le cobraba a la persona algo distinto de lo que pidió.
    Esa fue la razón de esconder la tarjeta el 19/07. */
 var LIFETIME_ON=false;
+var LIFETIME_METHODS=[];   /* con qué se cobra el de por vida (del /health): ['mercadopago','paddle'] */
+
+/* ===== Pase semanal (pago único de 7 días) =====
+   Mismo camino que el de por vida: pago único, el webhook activa. Lo único que
+   cambia es cuánto dura — y eso lo hace cumplir el backend (lib/tier.js), no el
+   cliente. Si el backend no puede cobrarlo, WEEK_METHODS llega vacío y la
+   tarjeta no se dibuja: nunca ofrecemos un pase que no se puede comprar. */
+var WEEK_METHODS=[];
 
 /* ===== "El cobro con tarjeta no está pudiendo arrancar" =====
    Paddle no genera la URL de pago hasta que aprueba el dominio. Mientras tanto,
@@ -7712,22 +8092,54 @@ function syncLifetimeCard(){
   }
 }
 
-function buyLifetime(){
+/* Botones de la tarjeta De por vida, según lo que el backend puede cobrar
+   (LIFETIME_METHODS del /health). Con dos, el usuario elige Mercado Pago (pesos)
+   o tarjeta; con uno, un solo botón. Sin ninguno, lo dice en vez de invitar a un
+   checkout que no existe. */
+function unicoButtonsHTML(plan, metodos, ctaKey){
+  var m = metodos || [];
+  if(!m.length || (typeof PAY_LINK_DEAD!=='undefined' && PAY_LINK_DEAD))
+    return '<button class="pro-cta" disabled>'+t('pay_soon_note')+'</button>';
+  var both = (m.indexOf('mercadopago')>=0 && m.indexOf('paddle')>=0);
+  var out='';
+  if(m.indexOf('mercadopago')>=0)
+    out+='<button class="pro-cta pro-cta-mp" onclick="buyUnico(\''+plan+'\',\'mercadopago\')">'+(both? t('pay_mp') : t(ctaKey))+'</button>';
+  if(m.indexOf('paddle')>=0)
+    out+='<button class="pro-cta'+(both?' pro-cta-alt':'')+'" onclick="buyUnico(\''+plan+'\',\'paddle\')">'+(both? t('pay_card') : t(ctaKey))+'</button>';
+  return out;
+}
+/* El de por vida sigue en pie para un Pro mensual (es una mejora), y se apaga
+   solo cuando ya lo tiene: no hay nada arriba de "para siempre" que venderle. */
+function lifeButtonsHTML(){
+  if(typeof esDePorVidaYa==='function' && esDePorVidaYa()) return planActualHTML();
+  return unicoButtonsHTML('lifetime', LIFETIME_METHODS, 'up_life_cta');
+}
+function weekButtonsHTML(){ return unicoButtonsHTML('week', WEEK_METHODS, 'up_week_cta'); }
+
+function buyLifetime(method){ return buyUnico('lifetime', method); }
+
+/* Compra de un plan de PAGO ÚNICO ('lifetime' | 'week'). El plan viaja al
+   backend y es él quien decide precio y duración: acá no se calcula ni se
+   promete nada que el servidor no vaya a cumplir. */
+function buyUnico(plan, method){
+  var metodos = (plan==='week') ? WEEK_METHODS : LIFETIME_METHODS;
+  var puedo   = (plan==='week') ? (metodos && metodos.length>0) : LIFETIME_ON;
   if(!USER){
     notify({ type:'info', title:t('pay_need_acct_h'), text:t('pay_need_acct_p'), duration:7000 });
     openAuth('register');
     return;
   }
-  if(!LIFETIME_ON || !(window.MA_API && MA_API.checkout)){
+  if(!puedo || !(window.MA_API && MA_API.checkout)){
     notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
     return;
   }
-  track('lifetime_checkout', {});
+  var m = method || (metodos && metodos[0]) || 'paddle';
+  track(plan+'_checkout', { method:m });
   var btn = (typeof event!=='undefined' && event && event.currentTarget) ? event.currentTarget : null;
   var orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent=t('up_opening'); }
 
-  MA_API.checkout('paddle','lifetime').then(function(r){
+  MA_API.checkout(m,plan).then(function(r){
     if(r && r.url){ window.location.href=r.url; return; }
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     notify({ type:'info', title:t('pay_soon_h'), text:t('pay_soon_p') });
@@ -7747,56 +8159,10 @@ function adapterProBadge(){ var b=document.getElementById('adapterAiPro'); if(b)
 
 /* ============ analysis + improved CV ============ */
 /* flechas para moverse entre evaluadores, como manda WAI-ARIA para un radiogroup */
-function readerKey(e){
-  var keys=['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'];
-  if(keys.indexOf(e.key)<0) return;
-  e.preventDefault();
-  var cards=[].slice.call(document.querySelectorAll('#readerToggle [data-reader]'));
-  var i=cards.findIndex(function(c){ return c.dataset.reader===currentReader; });
-  var dir=(e.key==='ArrowRight'||e.key==='ArrowDown') ? 1 : -1;
-  var next=cards[(i+dir+cards.length)%cards.length];
-  if(next){ setReader(next.dataset.reader); next.focus(); }
-}
-/* U-3 · preview del lector: el hover muestra a dónde vas antes de que decidas */
-var READER_REAL=null, readerPrevTimer=null;
-function readerPreview(r){
-  if(!window.matchMedia || !window.matchMedia('(hover:hover) and (pointer:fine)').matches) return;
-  if(typeof currentReader==='undefined' || r===currentReader) return;
-  clearTimeout(readerPrevTimer);
-  readerPrevTimer=setTimeout(function(){
-    if(READER_REAL===null) READER_REAL=currentReader;
-    currentReader=r;
-    var body=document.getElementById('analysisBody');
-    if(body) body.classList.add('is-preview');
-    renderAnalysis();
-  }, 140);                                   /* un respiro: el hover de paso no dispara nada */
-}
-function readerPreviewEnd(){
-  clearTimeout(readerPrevTimer);
-  if(READER_REAL===null) return;
-  currentReader=READER_REAL; READER_REAL=null;
-  var body=document.getElementById('analysisBody');
-  if(body) body.classList.remove('is-preview');
-  renderAnalysis();
-}
-function setReader(r){
-  READER_REAL=null; clearTimeout(readerPrevTimer);
-  var body0=document.getElementById('analysisBody');
-  if(body0) body0.classList.remove('is-preview');
-  if(!READERS[r]) return;
-  track('reader_change', { reader:r });
-  if(typeof Draft!=='undefined') Draft.schedule();
-  var sr=document.getElementById('srStatus'); if(sr) sr.textContent=t(READER_NAME[r]);
-  currentReader=r;
-  document.querySelectorAll('#readerToggle [data-reader]').forEach(function(b){
-    var on=b.dataset.reader===r;
-    b.classList.toggle('active',on);
-    b.setAttribute('aria-checked',on?'true':'false');
-  });
-  renderAnalysis();                       // el diagnostico se regenera con el evaluador elegido
-  var body=document.getElementById('analysisBody');
-  if(body){ body.style.animation='none'; void body.offsetWidth; body.style.animation='tabIn .35s cubic-bezier(.2,.7,.2,1) both'; }
-}
+/* El selector de evaluador se removió: el diagnóstico asume ATS por defecto
+   (currentReader='bot'). setReader/readerPreview/readerKey vivían para esa UI y
+   se fueron con ella. readerTip()/READER_NAME siguen: renderAnalysis los usa para
+   describir la lectura ATS. */
 /* ============================================================
    Auditoría del CV — lectura de reclutador, no checklist genérico.
    Todo lo que se afirma se apoya en algo que EXISTE en el CV: se citan
@@ -7860,7 +8226,13 @@ function cvAudit(){
   var rdr=(typeof currentReader!=='undefined')?currentReader:'hh';
   if(rdr==='bot'){
     if(/\w[´`ˆ¨]|[´`ˆ¨]\s\w/.test(rawTxt)) gap(t('au_r_bot_chars'), 'now');          /* PDF con texto roto */
-    if(!d.experience.length || !d.skills.length) gap(t('au_r_bot_sections'), 'now');
+    /* "No se detectan las secciones estándar" solo si el CV DE VERDAD no las
+       trae. Antes bastaba con que nosotros no hubiéramos podido estructurarlo:
+       le echábamos la culpa de un problema nuestro a alguien que había escrito
+       "Experiencia laboral" con todas las letras. Ahora se mira el texto: si los
+       títulos están, el hallazgo no sale (y si igual no pudimos leerlo, eso es
+       un problema nuestro y se dice en otro lado, no acá). */
+    if((!d.experience.length || !d.skills.length) && !cvTieneSecciones(rawTxt)) gap(t('au_r_bot_sections'), 'now');
   } else if(rdr==='hh'){
     var b0=(d.experience[0]&&d.experience[0].bullets&&d.experience[0].bullets[0])||'';
     if(withMetric.length && b0 && !cvHasMetric(b0)) gap(t('au_r_hh_top'), 'soon');   /* lo medible, arriba */
@@ -8114,9 +8486,14 @@ function renderAnalysis(){
     ? (glance + semaforo + photo + reader + buildImprovedCV(profile) + buildDiff())
     : gatePanel(logged);
 
+  /* SIL_OPEN: la decisión de "quiero ver el diagnóstico" se toma UNA vez por
+     visita. renderAnalysis se re-ejecuta con cada tecla, cambio de idioma o
+     vuelta del parser IA, y cada pasada reconstruye este div DESDE CERO — sin
+     esta marca, el 'shown' se perdía y el diagnóstico ya revelado volvía a
+     opacity:0 delante del usuario. Ese era el "se bugea siempre". */
   document.getElementById('analysisBody').innerHTML=
     silence +
-    '<div class="after-silence" id="afterSilence">'+ after +'</div>';
+    '<div class="after-silence'+(window.SIL_OPEN?' shown':'')+'" id="afterSilence">'+ after +'</div>';
 
   silenceObserve();
   if(typeof mobNavSync==='function') mobNavSync();                     // barra móvil Diagnóstico↔CV
@@ -8177,15 +8554,17 @@ function goToResult(){
 function silenceGo(){
   var el=document.getElementById('afterSilence'); if(!el) return;
   track('silence_open');
+  window.SIL_OPEN=true;                 /* la revelación sobrevive a los re-render */
   el.classList.add('shown');
   var top=el.getBoundingClientRect().top+(window.scrollY||0)-90;
   window.scrollTo({ top:Math.max(0,top), behavior:'smooth' });
 }
 function silenceObserve(){
   var el=document.getElementById('afterSilence'); if(!el) return;
-  if(!('IntersectionObserver' in window)){ el.classList.add('shown'); return; }
+  if(window.SIL_OPEN){ el.classList.add('shown'); return; }
+  if(!('IntersectionObserver' in window)){ window.SIL_OPEN=true; el.classList.add('shown'); return; }
   var io=new IntersectionObserver(function(en){
-    en.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('shown'); io.disconnect(); } });
+    en.forEach(function(e){ if(e.isIntersecting){ window.SIL_OPEN=true; e.target.classList.add('shown'); io.disconnect(); } });
   },{ rootMargin:'-12% 0px -60% 0px' });
   io.observe(el);
 }
@@ -9044,6 +9423,26 @@ function rerenderAnalysis(){
   var ta=document.getElementById('tab-analysis');
   if(ta && !ta.classList.contains('hidden') && typeof renderAnalysis==='function') renderAnalysis();
 }
+/* Un fallo del parseo de IA no siempre es definitivo: un 5xx o un corte de red
+   se cura solo al reintentar. La cuota (429) y los errores del cliente (4xx) NO
+   —reintentarlos es empujar una pared—, así que esos se propagan de una.
+   Un reintento con medio segundo de espera alcanza para el 90% de los baches. */
+function cvErrTransitorio(e){
+  if(!e) return true;                       // rechazo sin dato: tratamos como bache de red
+  var st=e.status;
+  if(st===429 || e.code==='quota_exceeded') return false;   // cuota: no se cura reintentando
+  if(st && st>=400 && st<500) return false;                 // error del cliente: idem
+  return true;                              // 5xx / timeout / red: puede andar al reintentar
+}
+function parseCvRetry(args, reintentos){
+  reintentos = (reintentos==null) ? 1 : reintentos;
+  return Promise.resolve(MA_API.parseCv(args)).catch(function(e){
+    if(reintentos>0 && cvErrTransitorio(e)){
+      return new Promise(function(res){ setTimeout(res, 650); }).then(function(){ return parseCvRetry(args, reintentos-1); });
+    }
+    throw e;
+  });
+}
 /* Un solo manejador para los fallos de IA: cuota agotada se DICE (no es un
    error tecnico, es un limite del plan); el resto avisa. Deja el estado para que
    el diagnostico muestre el panel correcto en vez del amasijo. */
@@ -9082,7 +9481,7 @@ function onAuthReady(){
   if(!(typeof isLogged==='function' && isLogged()) || !window.MA_API || typeof MA_API.parseCv!=='function'){ rerenderAnalysis(); return; }
   CV_AI_STATE='loading'; rerenderAnalysis();
   var want=lang, req=++_cvRelangReq;
-  MA_API.parseCv({ text:txt, lang:want }).then(function(out){
+  parseCvRetry({ text:txt, lang:want }).then(function(out){
     if(req!==_cvRelangReq) return;
     quotaSync(out&&out.quota); CV_AI_STATE=null;
     if(out&&out.cv){ CVM=null; cvRemoteStore(txt, want, out); }
@@ -9120,7 +9519,7 @@ function cvRemoteRefresh(){
   if(cvRemoteModel()){ CV_AI_STATE=null; return; }               // ya hay parse para este texto+idioma
   var req=++_cvRelangReq, want=lang;
   CV_AI_STATE='loading'; rerenderAnalysis();     // mostrar "analizando", NUNCA el amasijo de regex
-  MA_API.parseCv({ text:txt, lang:want }).then(function(out){
+  parseCvRetry({ text:txt, lang:want }).then(function(out){
     if(req!==_cvRelangReq || want!==lang) return;  // llego tarde: hubo otro cambio de idioma
     quotaSync(out && out.quota); CV_AI_STATE=null;
     if(out && out.cv){
@@ -9556,6 +9955,31 @@ function buildDiff(){
   var pend=list.filter(function(x){ return x.fix.kind==='rewrite'||x.fix.kind==='trim'; });
   var needs=list.filter(function(x){ return x.fix.kind==='needs'; });
 
+  /* La MISMA frase larga repetida en cada tarjeta cansa y suena a robot (lo
+     reportó Federico con un CV de 8 puestos: leía el mismo párrafo 6 veces).
+     El POR QUÉ —"el número no está y no lo vamos a inventar"— se dice UNA sola
+     vez, en la primera. Las demás llevan una pregunta corta y pegada a lo que
+     dice ESE logro: preguntar "¿a cuántas personas?" sobre una capacitación es
+     útil; repetir las tres preguntas genéricas, no.
+     Los patrones mezclan los 4 idiomas a propósito: el bullet viene en UNO solo,
+     así que no hay que ramificar por idioma y un falso positivo cruzado es
+     improbable. El orden va de lo más específico a lo más general. */
+  var ASK_CTX=[
+    [/reduj|reduc|optimiz|mejor|improv|aument|increas|increment|ahorr|sav(e|ing)|creci|grow|melhor/i, 'diff_ask_improve'],
+    /* Capacitar gente le gana a "ventas": en "capacitación de la fuerza de ventas"
+       el número que falta es CUÁNTA GENTE, no cuánta plata. Por eso va antes. */
+    [/capacit|entren|train|coach|onboard/i, 'diff_ask_people'],
+    [/factur|ventas|sales|revenue|turnover|p&l|presupuest|budget|ingres|costo|cost|pricing|precio|us\$|usd/i, 'diff_ask_money'],
+    [/equipo|team|equipe|supervis|lider|l[ií]der|led\b|managed|dirig|a cargo|in charge|personas|people|pessoas/i, 'diff_ask_people'],
+    [/producto|product|licencia|licen|marca|brand|portfolio|portafolio|campa[ñn]|campaign|evento|event|congres|proyecto|project|lanzamiento|launch|material/i, 'diff_ask_volume']
+  ];
+  var cvAskFor=function(texto){
+    var s=String(texto||'');
+    for(var i=0;i<ASK_CTX.length;i++){ if(ASK_CTX[i][0].test(s)) return t(ASK_CTX[i][1]); }
+    return t('diff_ask_generic');
+  };
+  var faltaDicha=false;   /* ¿ya explicamos el porqué? (se reinicia en cada render) */
+
   var row=function(x){
     var k=x.fix.kind;
     if(k==='ok'){
@@ -9563,10 +9987,14 @@ function buildDiff(){
         '<p class="dfr-line">'+cvEscape(x.before)+'</p></div>';
     }
     if(k==='needs'){
+      /* la primera explica el porqué; las siguientes, la pregunta que le cabe a
+         ESE logro (ver ASK_CTX arriba) */
+      var ask = faltaDicha ? cvAskFor(x.before) : t('diff_ask');
+      faltaDicha = true;
       return '<div class="dfr needs"><div class="dfr-h"><span class="dfr-tag needs">'+t('diff_needs')+'</span>'+
           '<span class="dfr-why">'+cvEscape(x.fix.why)+'</span></div>'+
         '<p class="dfr-line">'+cvEscape(x.before)+'</p>'+
-        '<p class="dfr-ask">'+t('diff_ask')+'</p></div>';
+        '<p class="dfr-ask">'+ask+'</p></div>';
     }
     /* La transformación en dos actos. El borrador arriba, chico y apagado — ya
        cumplió su función. El resultado abajo, grande e iluminado: es el premio.
@@ -9815,6 +10243,112 @@ function cvDeSpace(t){
   Object.keys(CV_GLUED_HEADS).forEach(function(k){ t=t.split(k).join(CV_GLUED_HEADS[k]); });
   return t;
 }
+/* Limpieza de artefactos de la EXTRACCIÓN de PDF/DOCX (no se aplica a texto
+   pegado, que no los tiene):
+   1) pdf.js a veces emite el acento como glifo suelto, separado de la vocal:
+      "San Andr´ es" en vez de "San Andrés". Se recompone acento↔vocal.
+   2) el PDF corta palabras con guión al final del renglón: "com- mercial" (o con
+      salto de línea). Se vuelven a unir.
+   Cierra en forma canónica NFC. */
+var CV_ACC={ '´':'́','ˊ':'́','`':'̀','ˋ':'̀','^':'̂','ˆ':'̂','~':'̃','˜':'̃','¨':'̈','¯':'̄' };
+var CV_ACC_CLASS='´ˊ`ˋ^ˆ~˜¨¯';
+var CV_VOWEL='aeiouAEIOUnNıİ';   /* incluye la i SIN PUNTO (ı/İ): pdf.js parte "í" como "´ ı" (Ingeniería) */
+function cvVowel(v){ return v==='ı' ? 'i' : (v==='İ' ? 'I' : v); }   /* la i sin punto vuelve a ser i normal antes de acentuar */
+function cvCleanExtract(s){
+  s=String(s||'');
+  // acento suelto ANTES de la vocal (con o sin espacio): "Andr´ es" -> "Andrés"
+  s=s.replace(new RegExp('(['+CV_ACC_CLASS+'])\\s?(['+CV_VOWEL+'])','g'), function(m,a,v){ return (cvVowel(v)+CV_ACC[a]).normalize('NFC'); });
+  // acento suelto DESPUES de la vocal
+  s=s.replace(new RegExp('(['+CV_VOWEL+'])\\s?(['+CV_ACC_CLASS+'])','g'), function(m,v,a){ return (cvVowel(v)+CV_ACC[a]).normalize('NFC'); });
+  // guion de corte de renglon: letra + "-" + espacio/salto + minuscula (NO toca "e-commerce", "part-time")
+  s=s.replace(/([A-Za-z\u00C0-\u017F])-\s+([a-z\u00E0-\u017F])/g, '$1$2');
+  // emojis/pictogramas de vineta, selectores de variacion, ZWJ, caracteres de
+  // control y surrogates sueltos: un CV para ATS no los lleva y ensucian el parseo.
+  s=s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,'');
+  s=s.replace(/[\p{Extended_Pictographic}\uFE00-\uFE0F\u200D\u20E3]/gu,'');
+  s=s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'');
+  // Ampliado 23/07 (revision de robustez). Todo con \u ESCAPADO, jamas el
+  // caracter literal pegado en el fuente: un caracter invisible dentro del
+  // codigo es ineditable e irrevisable, y ya nos rompio esta misma funcion.
+  // 1) "iconos" de plantillas (telefonito, sobrecito): glifos de FUENTE
+  //    PRIVADA (PUA); extraidos del PDF no significan nada para nadie.
+  s=s.replace(new RegExp('[\\uE000-\\uF8FF]|[\\uDB80-\\uDBBF][\\uDC00-\\uDFFF]','g'),'');
+  // 2) ligaduras tipograficas: "finanzas" con ligadura no matchea "finanzas"
+  //    en ninguna regex ni ATS; se expanden a sus letras.
+  s=s.replace(new RegExp('[\\uFB00-\\uFB06]','g'), function(m){ return ['ff','fi','fl','ffi','ffl','ft','st'][m.charCodeAt(0)-0xFB00]||m; });
+  // 3) invisibles (bidi, anchos-cero, guion blando) y "espacios" que no lo son
+  s=s.replace(new RegExp('[\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF\\u00AD]','g'),'');
+  s=s.replace(new RegExp('[\\u00A0\\u1680\\u2000-\\u200A\\u202F\\u205F\\u3000]','g'),' ');
+  // 4) versalitas partidas: la letra capital viene como pedazo aparte del PDF
+  //    y queda "G ERENTE DE P RODUCTO". Se re-pega solo si la letra suelta NO
+  //    es palabra real del espanol (a/e/o/u/y afuera: "A CARGO" no se toca).
+  //    Dos pasadas: "M ARKETING C OUNTRY" repara la 2da recien pegada la 1ra.
+  var caps=new RegExp('(^|[^A-Za-z\\u00C0-\\u017F])([B-DF-NP-TV-XZ\\u00D1]) (?=[A-Z\\u00C1\\u00C9\\u00CD\\u00D3\\u00DA\\u00DC\\u00D1]{2,}(?:[^A-Za-z\\u00C0-\\u017F]|$))','gm');
+  s=s.replace(caps,'$1$2').replace(caps,'$1$2');
+  return s.replace(/[ \t]{2,}/g,' ').normalize('NFC');
+}
+
+/* Detección de idioma del CV por frecuencia de palabras muy comunes. Heurística,
+   no perfecta: alcanza para una SUGERENCIA (con umbral para no adivinar con poco
+   texto). Distingue es/en/fr/pt con palabras que las diferencian (con/com,
+   años/anos, trabajo/trabalho, experiencia/experiência). */
+var CV_LANG_SW={
+  es:[' de ',' la ',' que ',' el ',' en ',' los ',' con ',' para ',' una ',' del ',' por ',' experiencia ',' años ',' trabajo ',' habilidades ',' actualidad '],
+  en:[' the ',' and ',' of ',' to ',' in ',' with ',' for ',' experience ',' years ',' work ',' skills ',' management ',' team ',' present ',' university ',' student '],
+  fr:[' le ',' la ',' les ',' des ',' et ',' en ',' un ',' une ',' pour ',' avec ',' expérience ',' ans ',' travail ',' compétences ',' études ',' entreprise '],
+  pt:[' de ',' da ',' do ',' que ',' em ',' os ',' com ',' para ',' uma ',' experiência ',' anos ',' trabalho ',' habilidades ',' empresa ',' formação ',' atual ']
+};
+function cvDetectLang(text){
+  var t=' '+String(text||'').toLowerCase().replace(/\s+/g,' ')+' ';
+  var best=null, bestScore=0;
+  for(var L in CV_LANG_SW){
+    var sc=0;
+    CV_LANG_SW[L].forEach(function(w){ var i=t.indexOf(w); while(i>=0){ sc++; i=t.indexOf(w,i+1); } });
+    if(sc>bestScore){ bestScore=sc; best=L; }
+  }
+  return bestScore>=3 ? best : null;   // con menos de 3 señales, no arriesgamos
+}
+/* Vuelve contextual el aviso de idioma: si el CV está en un idioma distinto al de
+   la app, lo dice y ofrece verlo en ESE idioma (el parse ya lo traduce al idioma
+   de la app; esto es para quien quiere mantener el original). Si no hay desajuste
+   —o hay poco texto, o es el ejemplo— muestra el aviso genérico de siempre. */
+function renderCvLangHint(){
+  var box=document.getElementById('cvLangHint'); if(!box) return;
+  var globe='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>';
+  var ta=document.getElementById('profile');
+  var txt=((ta&&ta.value)||'').trim();
+  var det=(txt.length>=60 && !(typeof cvIsDemo==='function' && cvIsDemo())) ? cvDetectLang(txt) : null;
+  if(det && det!==lang){
+    box.classList.add('mismatch');
+    box.innerHTML=globe+'<span>'+tf('cvlang_detected',{det:t('ln_'+det)})+
+      ' <button type="button" class="cvlang-btn" onclick="setLang(\''+det+'\')">'+tf('cvlang_switch',{det:t('ln_'+det)})+'</button></span>';
+  } else {
+    box.classList.remove('mismatch');
+    box.innerHTML=globe+'<span>'+t('cvlang_hint')+'</span>';
+  }
+}
+
+/* ===== ¿Este texto trae títulos de sección? =====
+   Es una pregunta sobre el CV DE LA PERSONA, no sobre si nosotros pudimos
+   parsearlo: se usa para no acusarla de que "faltan las secciones estándar"
+   cuando en realidad están y el que falló fue el parser.
+   Se acepta el vocabulario real de los CV en los 4 idiomas del producto y sus
+   variantes ("Experiencia laboral", "Trayectoria profesional", "Formación",
+   "Work Experience", "Parcours"...). Sin tildes obligatorias y sin importar
+   mayúsculas: en un PDF extraído nada de eso es confiable. */
+var CV_SECCIONES = {
+  exp: /\b(experiencia(\s+(laboral|profesional|de\s+trabajo))?|trayectoria(\s+profesional)?|historial\s+laboral|antecedentes\s+laborales|work\s+experience|professional\s+experience|employment(\s+history)?|experience|exp[ée]rience(s)?(\s+professionnelle(s)?)?|parcours(\s+professionnel)?|experi[êe]ncia(\s+profissional)?|hist[óo]rico\s+profissional)\b/i,
+  edu: /\b(educaci[óo]n|formaci[óo]n(\s+(acad[ée]mica|profesional))?|estudios|acad[ée]mic[oa]s?|titulaci[óo]n|education|academic\s+background|qualifications|formation|[ée]tudes|dipl[ôo]mes|educa[çc][ãa]o|forma[çc][ãa]o(\s+acad[êe]mica)?|escolaridade)\b/i,
+  skl: /\b(habilidades|competencias|aptitudes|conocimientos|destrezas|skills|core\s+competencies|technical\s+skills|comp[ée]tences|savoir[- ]faire|habilidades|compet[êe]ncias|conhecimentos)\b/i
+};
+function cvTieneSecciones(txt){
+  var s=String(txt||'');
+  if(s.length<40) return false;
+  var n=0, k;
+  for(k in CV_SECCIONES){ if(CV_SECCIONES[k].test(s)) n++; }
+  /* dos de tres alcanza: hay CV legítimos sin una sección de habilidades */
+  return n>=2;
+}
 
 /* ---- lectura del archivo (PDF / DOCX / TXT) ---- */
 /* "No pudimos leer el archivo" es un callejón sin salida. Detrás de ese mensaje
@@ -9832,6 +10366,114 @@ function cvFileErrorMsg(codigo){
   if(codigo==='pdf_broken')  return { ttl:t('cv_e_broken_t'),  txt:t('cv_e_broken_p')  };
   if(codigo==='unsupported') return { ttl:t('cv_e_type_t'),    txt:t('cv_e_type_p')    };
   return null;
+}
+
+/* ===== Reconstrucción del ORDEN DE LECTURA de una página de PDF =====
+   pdf.js devuelve los pedazos de texto en el orden interno del ARCHIVO, no en el
+   orden en que una persona los lee. En un CV de dos columnas (Canva, plantillas
+   de Word) eso licúa todo: el nombre aparece en el medio, los títulos de sección
+   pegados entre sí, y la página entera queda como UNA sola línea — ni la
+   detección de secciones ni el modelo le encuentran estructura (caso real:
+   CV de dos columnas → 502 determinístico del parser, 23/07/2026).
+   Acá se reconstruye la geometría en tres pasos: items → LÍNEAS (por Y) →
+   COLUMNAS (por X, si hay una canaleta vertical clara) → BANDAS (los renglones
+   a lo ancho, como el nombre o un título, separan bloques; dentro de cada
+   bloque va la columna izquierda entera y después la derecha).
+   Si cualquier cosa sale mal, se cae al comportamiento viejo (unir con
+   espacios): texto licuado es mejor que ningún texto. */
+function cvPageText(items){
+  try{
+    var it=[], i, t;
+    for(i=0;i<items.length;i++){
+      t=items[i];
+      if(!t || !t.str || !t.str.trim() || !t.transform) continue;
+      /* transform[4]=X, transform[5]=Y (origen abajo-izquierda: Y crece hacia
+         ARRIBA, por eso el orden de lectura es Y descendente) */
+      it.push({ s:t.str, x:t.transform[4], y:t.transform[5], w:t.width||0, h:Math.abs(t.transform[3])||10 });
+    }
+    if(!it.length) return '';
+
+    /* Armador de líneas: agrupa items por Y con tolerancia de media altura de
+       letra típica. La tolerancia importa: sub/superíndices y tildes vienen con
+       Y apenas corrida y sin ella cada palabra caería en una "línea" propia. */
+    var hs=it.map(function(o){ return o.h; }).sort(function(a,b){ return a-b; });
+    var tol=Math.max(3,(hs[Math.floor(hs.length/2)]||10)*0.5);
+    var armar=function(grupo){
+      grupo.sort(function(a,b){ return b.y-a.y || a.x-b.x; });
+      var lines=[], cur=null, j;
+      for(j=0;j<grupo.length;j++){
+        if(!cur || (cur.y-grupo[j].y)>tol){ cur={ y:grupo[j].y, seg:[grupo[j]] }; lines.push(cur); }
+        else cur.seg.push(grupo[j]);
+      }
+      lines.forEach(function(L){
+        L.seg.sort(function(a,b){ return a.x-b.x; });
+        L.txt=L.seg.map(function(o){ return o.s; }).join(' ');
+      });
+      return lines;
+    };
+
+    /* CANALETA: ¿hay una franja vertical que parte la página en dos?
+       Se busca sobre los ITEMS, no sobre líneas ya armadas — si primero armás
+       las líneas, un renglón de la izquierda y uno de la derecha con la misma Y
+       quedan pegados en uno solo y la canaleta se vuelve invisible (así seguía
+       mezclado el CV de dos columnas). Un corte vale si deja items de los dos
+       lados y casi ninguno lo cruza; el CV de una sola columna no encuentra
+       corte (todos sus renglones cruzan cualquier candidato) y sigue derecho. */
+    var minX=Infinity, maxX=-Infinity;
+    it.forEach(function(o){ if(o.x<minX)minX=o.x; if(o.x+o.w>maxX)maxX=o.x+o.w; });
+    var ancho=maxX-minX, mejor=null;
+    /* 8 items alcanza: una página de CV real trae decenas, y el piso solo está
+       para no inventar columnas en una página casi vacía (una carátula, un
+       anexo) donde dos palabras sueltas simularían una canaleta. */
+    if(ancho>200 && it.length>=8){
+      for(var g=0.25; g<=0.75; g+=0.02){
+        var gx=minX+ancho*g, izq=0, der=0, cruzan=0;
+        it.forEach(function(o){ if(o.x+o.w<=gx) izq++; else if(o.x>=gx) der++; else cruzan++; });
+        /* El tope de "cruzadores" admite un mínimo ABSOLUTO: en un CV de dos
+           columnas SIEMPRE hay unos pocos renglones a lo ancho (el nombre, el
+           cargo, una banda de sección) y son legítimos — de hecho son los que
+           marcan las bandas. Con un tope solo porcentual, esos pocos alcanzaban
+           para descartar la canaleta en páginas con menos items, y el CV volvía
+           a salir mezclado. Un CV de UNA columna no se cuela igual: ahí cruzan
+           casi todos los renglones, muy por encima de este techo. */
+        if(izq>=it.length*0.15 && der>=it.length*0.15 && cruzan<=Math.max(4, it.length*0.06)){
+          var score=Math.min(izq,der)-cruzan*3;
+          if(!mejor || score>mejor.score) mejor={ gx:gx, score:score };
+        }
+      }
+    }
+    if(!mejor) return armar(it).map(function(L){ return L.txt; }).join('\n');
+
+    /* DOS COLUMNAS: cada item se asigna a su columna y las líneas se arman POR
+       columna. Los items que cruzan la canaleta (el nombre o un título a lo
+       ancho) son separadores de BANDA: cortan la página en franjas horizontales
+       y dentro de cada franja va la columna izquierda entera y después la
+       derecha. Así "Experiencia" queda pegado a sus trabajos y el perfil no se
+       intercala palabra por palabra con la otra columna. */
+    var izqIt=[], derIt=[], fullIt=[];
+    it.forEach(function(o){
+      if(o.x+o.w<=mejor.gx) izqIt.push(o);
+      else if(o.x>=mejor.gx) derIt.push(o);
+      else fullIt.push(o);
+    });
+    var izqL=armar(izqIt), derL=armar(derIt), fullL=armar(fullIt);
+    var cortes=fullL.map(function(L){ return L.y; });   // Y de cada separador, ya en orden desc
+    var out=[], banda, iF=0, li=0, di=0;
+    /* caminamos las bandas de arriba hacia abajo: [tope de página, 1er corte),
+       el corte, [1er corte, 2do corte), ... hasta el fondo */
+    var limite=function(){ return iF<fullL.length ? fullL[iF].y+tol : -Infinity; };
+    while(li<izqL.length || di<derL.length || iF<fullL.length){
+      banda=limite();
+      while(li<izqL.length && izqL[li].y>banda){ out.push(izqL[li].txt); li++; }
+      while(di<derL.length && derL[di].y>banda){ out.push(derL[di].txt); di++; }
+      if(iF<fullL.length){ out.push(fullL[iF].txt); iF++; }
+    }
+    return out.join('\n');
+  }catch(e){
+    /* geometría rara (transform ausente, PDF exótico): el texto licuado de
+       siempre es mejor que romper la subida */
+    try{ return items.map(function(x){ return x.str; }).join(' '); }catch(e2){ return ''; }
+  }
 }
 
 async function readCvFile(file){
@@ -9860,7 +10502,8 @@ async function readCvFile(file){
     for(var p=1;p<=maxPag;p++){
       var page=await pdf.getPage(p);
       var c=await page.getTextContent();
-      parts.push(c.items.map(function(it){ return it.str; }).join(' '));
+      /* orden de LECTURA, no orden del archivo (columnas, líneas): ver cvPageText */
+      parts.push(cvPageText(c.items));
     }
     text=parts.join('\n');
     /* Páginas sí, texto no: el PDF es una FOTO. No es un archivo inválido —
@@ -9880,7 +10523,7 @@ async function readCvFile(file){
   } else {
     throw cvFileError('unsupported');
   }
-  return cvDeSpace((text||'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim());
+  return cvDeSpace(cvCleanExtract(text||'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim());
 }
 
 /* ---- estado de la actualización pendiente ---- */
@@ -10789,6 +11432,7 @@ function oauthReturn(){
         var u = (r && r.user) || {};
         if(!USER) USER = {};
         USER.name=u.name||''; USER.email=u.email||''; USER.plan=(u.tier==='pro')?'premium':'free';
+        USER.accessType=u.accessType||null;
         USER.verified=true; USER.day=USER.day||dayKey(); USER.used=USER.used||0; USER.history=USER.history||[];
         saveUser(); updateAccountUI(); renderRefer();
         if(MA_API.quota) MA_API.quota().then(quotaSync).catch(function(){});   // la cuota real, del servidor
@@ -10846,6 +11490,8 @@ function applyI18n(){
   if(typeof simLangSyncSeg==='function') simLangSyncSeg();
   if(typeof renderTipCards==='function') renderTipCards();
   if(typeof renderProfStrength==='function') renderProfStrength();
+  if(typeof renderCvLangHint==='function') renderCvLangHint();   // el aviso de idioma del CV se re-evalúa y localiza
+  if(typeof syncPriceCards==='function') syncPriceCards();       // "Pasar a Pro" no se le ofrece a quien ya es Pro
   /* DESPUÉS de applyI18n, siempre. La etiqueta del botón del adaptador tiene
      data-i18n, así que cada pasada de traducción la vuelve a "Adaptar mi CV a
      este aviso" y se comía el estado dinámico ("Analizar mi CV base"). Acá se
@@ -10892,6 +11538,12 @@ document.addEventListener('click', function(e){ var l=document.getElementById('l
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeLangMenu(); });
 /* cambio de idioma: traduce TODO (landing, herramientas, CV) y NO reinicia el chat */
 function setLang(l){ if(!I18N[l]) return; lang=l; try{ localStorage.setItem('ma_lang',l); }catch(e){}
+  /* Cambiar el idioma del SITIO es una señal fuerte: la entrevista vuelve a
+     seguirlo aunque antes hubieran tocado las píldoras del lanzador. Sin esto,
+     un clic previo en las píldoras dejaba las preguntas clavadas en un idioma
+     (típicamente español) sin importar el selector de arriba. Las píldoras
+     siguen sirviendo para practicar en OTRO idioma dentro de esa sesión. */
+  window._simLangTouched=false;
   closeLangMenu(); document.body.classList.add('lang-swap');
   markLang(); updateLangBtn(); cvRelang(); applyI18n();
   applyDemoCv();                   // #1: el CV de ejemplo se traduce con la interfaz
@@ -11002,88 +11654,8 @@ function setMeta(page){
   var d=document.querySelector('meta[name="description"]'); if(d) d.setAttribute('content', desc);
 }
 
-/* ============================================================
-   ONBOARDING — coach marks integrados, sin pop-ups
-   ============================================================ */
-var TOUR_STEPS = [
-  { sel:'#page-herramientas .prof-box', k:'tour_1', place:'bottom' },
-  { sel:'#seg',                          k:'tour_2', place:'bottom' },
-  { sel:'#botBtn',                       k:'tour_3', place:'left'   }
-];
-var tourIdx=0, tourOn=false;
-
-function tourSeen(){ try{ return localStorage.getItem('ma_tour')==='1'; }catch(e){ return true; } }
-function tourDone(){ try{ localStorage.setItem('ma_tour','1'); }catch(e){} }
-
-function startTour(){
-  if(tourOn) return;
-  showPage('herramientas');
-  setTimeout(function(){
-    tourOn=true; tourIdx=0;
-    document.body.insertAdjacentHTML('beforeend',
-      '<div class="tour" id="tour"><div class="tour-spot" id="tourSpot"></div>'+
-      '<div class="tour-tip" id="tourTip" role="dialog" aria-live="polite"></div></div>');
-    track('onboarding_start');
-    drawTour();
-    window.addEventListener('resize', drawTour);
-  }, 350);
-}
-function drawTour(){
-  if(!tourOn) return;
-  var step=TOUR_STEPS[tourIdx];
-  var el=document.querySelector(step.sel);
-  var spot=document.getElementById('tourSpot'), tip=document.getElementById('tourTip');
-  if(!el || !spot || !tip){ endTour(); return; }
-
-  el.scrollIntoView({behavior:'smooth', block:'center'});
-  setTimeout(function(){
-    var r=el.getBoundingClientRect(), pad=10;
-    spot.style.top=(r.top-pad)+'px'; spot.style.left=(r.left-pad)+'px';
-    spot.style.width=(r.width+pad*2)+'px'; spot.style.height=(r.height+pad*2)+'px';
-
-    tip.innerHTML=
-      '<div class="tour-step">'+(tourIdx+1)+' / '+TOUR_STEPS.length+'</div>'+
-      '<p>'+t(step.k)+'</p>'+
-      '<div class="tour-actions">'+
-        '<button class="tour-skip" onclick="endTour(true)">'+t('tour_skip')+'</button>'+
-        '<button class="tour-next" onclick="nextTour()">'+
-          (tourIdx===TOUR_STEPS.length-1 ? t('tour_done') : t('tour_next'))+'</button>'+
-      '</div>';
-
-    var tw=Math.min(320, window.innerWidth-32), th=tip.offsetHeight||150;
-    var top, left;
-    if(step.place==='left'){
-      top=Math.max(12, r.top - th/2 + r.height/2);
-      left=Math.max(12, r.left - tw - 18);
-    } else {
-      top=Math.min(window.innerHeight - th - 16, r.bottom + 16);
-      left=Math.min(Math.max(12, r.left), window.innerWidth - tw - 12);
-    }
-    tip.style.width=tw+'px'; tip.style.top=top+'px'; tip.style.left=left+'px';
-    tip.classList.add('show');
-    var nx=tip.querySelector('.tour-next'); if(nx) nx.focus();
-  }, 340);
-}
-function nextTour(){
-  track('onboarding_step', {step:tourIdx+1});
-  if(tourIdx>=TOUR_STEPS.length-1){ endTour(); return; }
-  tourIdx++;
-  var tip=document.getElementById('tourTip'); if(tip) tip.classList.remove('show');
-  drawTour();
-}
-function endTour(skipped){
-  tourOn=false; tourDone();
-  var el=document.getElementById('tour'); if(el) el.remove();
-  window.removeEventListener('resize', drawTour);
-  track(skipped ? 'onboarding_skipped' : 'onboarding_complete', {step:tourIdx+1});
-  if(!skipped && typeof toast==='function') toast(t('tour_end'));
-}
-document.addEventListener('keydown', function(e){
-  if(!tourOn) return;
-  if(e.key==='Escape') endTour(true);
-  if(e.key==='Enter')  nextTour();
-});
-
+/* El tour de onboarding se removio: tras autenticarse (login o registro) se
+   va directo al dashboard de herramientas, sin tutorial intermedio. */
 
 /* ============================================================
    AUTOSAVE — el trabajo del usuario no se pierde nunca.
@@ -11168,7 +11740,7 @@ var Draft = (function(){
 
       if(saved && saved.profile && saved.profile.trim() && el && !hadText){
         el.value=saved.profile;
-        if(saved.reader && typeof READERS!=='undefined' && READERS[saved.reader]) currentReader=saved.reader;
+        /* el evaluador ya no se restaura: ATS es fijo (currentReader='bot') */
         cvInvalidate(); renderChips();
         if(typeof pulseProfile==='function') pulseProfile();
         var mins=Math.round((Date.now()-(saved.at||Date.now()))/60000);
@@ -11469,8 +12041,7 @@ function authFormHTML(reg){
     (reg?'<label class="consent"><input type="checkbox" id="auConsent"><span>'+t('auth_consent')+'</span></label>':'')+
     '<div id="oauthSlot"></div>'+
     '<p class="auth-error" id="authErr"></p>'+
-    '<button class="btn btn-blue block act-primary" id="auGo" onclick="doAuth()"'+(reg?' disabled style="opacity:.5;cursor:not-allowed"':'')+'>'+(reg?t('auth_send_code'):t('auth_go'))+'</button>'+
-    '<p class="demo-note">'+t('auth_demo')+'</p>';
+    '<button class="btn btn-blue block act-primary" id="auGo" onclick="doAuth()"'+(reg?' disabled style="opacity:.5;cursor:not-allowed"':'')+'>'+(reg?t('auth_send_code'):t('auth_go'))+'</button>';
 }
 function drawAuth(dir){ var reg=authMode==='register';
   showModal('<span class="auth-aurora" aria-hidden="true"></span>'+
@@ -11537,7 +12108,7 @@ async function doAuth(){
       if(MA_API.quota) MA_API.quota().then(quotaSync).catch(function(){});
       if(typeof onAuthReady==='function') onAuthReady();             // el CV cargado se parsea con IA y se revela el diagnostico
       if(go){ go.classList.remove('is-working'); go.classList.add('is-done'); go.innerHTML=ICO.check+t('auth_welcome'); }
-      setTimeout(closeModal, 700);                                   // nunca queda la pantalla trabada
+      setTimeout(function(){ closeModal(); if(typeof showPage==='function') showPage('herramientas'); }, 700);   // directo a las herramientas
     } catch(err){
       track('login_error', { code:(err&&err.code)||'unknown' });
       if(go){ go.classList.remove('is-working','is-done'); go.innerHTML=t('auth_go'); }
@@ -11673,6 +12244,7 @@ function verifyOTP(){
         if(!USER) USER={};
         USER.name=u.name||PENDING.name; USER.email=u.email||PENDING.email;
         USER.plan=(u.tier==='pro')?'premium':'free';
+        USER.accessType=u.accessType||null;
         USER.discoverable=!!u.isDiscoverable; USER.verified=true;
         USER.day=USER.day||dayKey(); USER.used=USER.used||0; USER.history=USER.history||[];
         PENDING=null; saveUser(); updateAccountUI();
@@ -11741,7 +12313,7 @@ function authSuccess(){
   if(typeof onAuthReady==='function') onAuthReady();   // el CV cargado se parsea con IA y se revela el diagnostico
   setTimeout(function(){
     closeModal();
-    if(!tourSeen()) setTimeout(startTour, 400);     // primer impacto: el tour, no un pop-up
+    if(typeof showPage==='function') showPage('herramientas');   // directo al dashboard de herramientas, sin tutorial intermedio
   }, 1750);
 }
 var _authSwapping=false;
@@ -11818,25 +12390,129 @@ function openUpgrade(){
     '<div class="pro-head">'+
       '<button class="pro-x" aria-label="'+t('close')+'" onclick="closeModal()">'+ICO.close+'</button>'+
       '<span class="pro-badge">PRO</span>'+
-      '<h3>'+t('up_title')+'</h3>'+
+      '<h3>'+t('up_pick_h')+'</h3>'+
       '<p>'+t('up_sub')+'</p>'+
     '</div>'+
     '<div class="pro-body">'+
+      '<div class="plan-grid">'+
+        /* Mensual: usa el checkout recurrente de siempre (MP o tarjeta). */
+        '<div class="plan-card">'+
+          '<div class="plan-h"><b>'+t('pz_pro_h')+'</b>'+
+            '<div class="plan-price"><span class="pp-num">'+t('up_price')+'</span><span class="pp-per">'+t('up_permonth')+'</span></div></div>'+
+          '<p class="plan-note">'+t('pz_pro_note')+'</p>'+
+          payButtonsHTML()+
+        '</div>'+
+        /* De por vida: pago único. Destacada como "Mejor valor". */
+        '<div class="plan-card plan-best">'+
+          '<span class="plan-ribbon">'+t('up_best')+'</span>'+
+          '<div class="plan-h"><b>'+t('pz_life_h')+'</b>'+
+            '<div class="plan-price"><span class="pp-num">'+t('up_life_price')+'</span><span class="pp-per">'+t('pz_life_per')+'</span></div></div>'+
+          '<p class="plan-note">'+t('up_life_note')+'</p>'+
+          lifeButtonsHTML()+
+        '</div>'+
+      '</div>'+
+      /* Pase semanal: va DEBAJO y en formato tira, no como tercera tarjeta. Es la
+         opción de menor compromiso —para quien tiene una entrevista el jueves—, y
+         ponerla arriba anclaría el precio para abajo y se comería la mensual. */
+      weekStripHTML()+
       '<ul class="pro-list">'+
         PRO_FEATURES.map(function(f){
           return '<li><span class="pl-ic">'+ICO[f.ic]+'</span>'+
                  '<span><b>'+t(f.t)+'</b><span>'+t(f.d)+'</span></span></li>';
         }).join('')+
       '</ul>'+
-      '<div class="pro-price"><b>'+t('up_price')+'</b><span>'+t('up_permonth')+'</span></div>'+
-      payButtonsHTML()+
-      '<button class="pro-later" onclick="closeModal()">'+t('up_later')+'</button>'+
+      '<button class="pro-later" onclick="closeModal()">'+t('up_free')+'</button>'+
       '<p class="pro-note">'+(BILLING_ON? t('up_note') : t('pay_soon_note'))+'</p>'+
+      licRowHTML()+
     '</div>'
   );
   var mod=document.querySelector('.modal');
   if(mod){ mod.classList.add('pro'); requestAnimationFrame(function(){ mod.classList.add('in'); }); }
 }
+/* ===== Licencia institucional =====
+   Quien la usa NO está comprando: su universidad o su trabajo ya pagó y le dio
+   un código. Por eso vive abajo de todo y arranca plegado a un renglón: para el
+   99% que llega a este modal es ruido, y para el 1% restante es exactamente lo
+   que vino a buscar. Es el único lugar del sistema donde un clic activa Pro, y
+   no rompe la regla (el tier lo escribe quien cobró) porque acá ya se cobró por
+   afuera: el código es el comprobante, no la promesa. */
+function licRowHTML(){
+  return '<div class="lic-row" id="licRow">'+
+    '<span>'+t('lic_have')+'</span> '+
+    '<button type="button" class="lic-link" onclick="licOpen()">'+t('lic_open')+'</button>'+
+  '</div>';
+}
+function licOpen(){
+  var row=document.getElementById('licRow'); if(!row) return;
+  row.innerHTML='<form class="lic-form" onsubmit="return licSubmit(event)">'+
+    '<input id="licCode" type="text" autocomplete="off" spellcheck="false" placeholder="'+t('lic_ph')+'" aria-label="'+t('lic_ph')+'">'+
+    '<button type="submit" class="lic-go">'+t('lic_cta')+'</button>'+
+  '</form>';
+  var i=document.getElementById('licCode'); if(i) i.focus();
+}
+function licSubmit(ev){
+  if(ev && ev.preventDefault) ev.preventDefault();
+  var input=document.getElementById('licCode'); if(!input) return false;
+  var code=(input.value||'').trim();
+  if(!code) { input.focus(); return false; }
+  if(!(window.MA_API && MA_API.redeem)) return false;
+
+  var btn=document.querySelector('#licRow .lic-go');
+  var orig=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent=t('lic_sending'); }
+  input.disabled=true;
+
+  MA_API.redeem(code).then(function(r){
+    track('license_redeemed', {});
+    /* El plan lo acaba de escribir el servidor: lo reflejamos ya, sin esperar al
+       próximo /me, o la persona canjea y sigue viendo candados. Adentro el tier
+       Pro se llama 'premium' (histórico): ponerle 'pro' dejaría isPremium() en
+       false y todos los candados cerrados justo después de destrabarlos. */
+    if(USER){ USER.plan='premium'; if(typeof saveUser==='function') saveUser(); }
+    if(typeof updateAccountUI==='function') updateAccountUI();
+    if(typeof onAuthReady==='function') onAuthReady();
+    closeModal();
+    notify({ type:'ok', title:t('lic_ok_h'),
+      text:tf('lic_ok_p',{ org:(r&&r.organization)||'', fecha:licFecha(r&&r.until) }), duration:8000 });
+  }).catch(function(e){
+    if(btn){ btn.disabled=false; btn.textContent=orig; }
+    input.disabled=false; input.focus();
+    /* El backend manda un mensaje que dice QUÉ pasó y qué hacer (dominio
+       equivocado, cupo lleno, vencido). Se muestra tal cual: reemplazarlo por un
+       "no se pudo" genérico deja a la persona sin salida. */
+    notify({ type:'err', title:t('lic_err_h'), text:(e&&e.message)||'', duration:9000 });
+  });
+  return false;
+}
+/* La fecha del contrato, en el idioma de la app y sin la hora (a nadie le
+   importa el minuto en que vence su licencia). */
+function licFecha(iso){
+  if(!iso) return '';
+  var d=new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  try { return d.toLocaleDateString(lang||'es', { year:'numeric', month:'long', day:'numeric' }); }
+  catch(e){ return d.toISOString().slice(0,10); }
+}
+
+/* La tira del pase semanal. Si el backend no puede cobrarlo (sin monto en ARS y
+   sin precio de Paddle), devuelve vacío y el modal queda como estaba: nunca se
+   dibuja un plan que no se puede comprar. */
+function weekStripHTML(){
+  if(!WEEK_METHODS || !WEEK_METHODS.length) return '';
+  if(typeof PAY_LINK_DEAD!=='undefined' && PAY_LINK_DEAD) return '';
+  /* A quien ya es Pro, un pase de 7 días no le suma NADA: sería pagar por el
+     acceso que ya tiene. Ni se muestra. */
+  if(typeof planActivo==='function' && planActivo()) return '';
+  return '<div class="plan-week">'+
+    '<div class="pw-txt">'+
+      '<b>'+t('up_week_h')+'</b>'+
+      '<div class="pw-price"><span class="pw-num">'+t('up_week_price')+'</span><span class="pw-per">'+t('up_week_per')+'</span></div>'+
+      '<p>'+t('up_week_note')+'</p>'+
+    '</div>'+
+    '<div class="pw-cta">'+weekButtonsHTML()+'</div>'+
+  '</div>';
+}
+
 /* ¿Qué métodos de pago hay? Lo dice el backend en /health: billing:true si hay
    alguno, y billingMethods:['mercadopago','paddle'] cuáles. Arrancan vacíos y se
    prenden al bootear. Con esto el modal no dibuja un botón que promete un checkout
@@ -11846,7 +12522,35 @@ var BILLING_METHODS=[];
 
 /* Dibuja los botones de pago según los métodos disponibles. Con dos, el usuario
    elige: Mercado Pago (pesos) o tarjeta internacional (Paddle). */
+/* ===== Nadie paga dos veces lo mismo =====
+   Quien ya es Pro no puede volver a comprar Pro: lo único que consigue es que le
+   cobren dos veces por el mismo acceso. Lo que SÍ puede es pasarse al de por
+   vida — no es comprar de nuevo, es cambiar de forma de pagar, y el backend le
+   da de baja el débito mensual al activarlo.
+   El servidor decide igual (409 en /billing/checkout): esto es para que la
+   pantalla no ofrezca lo que el servidor va a rechazar. */
+function planActivo(){ return (typeof isPremium==='function') && isPremium(); }
+function esDePorVidaYa(){
+  var a = USER && USER.accessType;
+  return a==='paddle_lifetime' || a==='mercadopago_lifetime';
+}
+function planActualHTML(){
+  return '<button class="pro-cta pro-cta-owned" disabled>'+t('plan_current')+'</button>';
+}
+/* La tarjeta Pro de la sección Precios: al que ya es Pro no se le ofrece "Pasar
+   a Pro". Se corre después de applyI18n también, porque el data-i18n del botón
+   le devolvería el texto de venta al cambiar de idioma. */
+function syncPriceCards(){
+  var b=document.getElementById('pzProCta'); if(!b) return;
+  if(planActivo()){
+    b.textContent=t('plan_current'); b.disabled=true; b.classList.add('btn-owned');
+  } else {
+    b.textContent=t('pz_pro_cta'); b.disabled=false; b.classList.remove('btn-owned');
+  }
+}
+
 function payButtonsHTML(){
+  if(planActivo()) return planActualHTML();
   var m = BILLING_METHODS || [];
   if(!m.length) return '<button class="pro-cta" onclick="activatePro()">'+t('pay_notify')+'</button>';
   var both = (m.indexOf('mercadopago')>=0 && m.indexOf('paddle')>=0);
@@ -12839,6 +13543,305 @@ function cvDropSync(){
   var hay=(ta.value||'').trim().length>0;
   var dz=document.getElementById('cvDrop'); if(dz) dz.classList.toggle('compact', hay);
   var lk=document.getElementById('cvDemoLink'); if(lk) lk.classList.toggle('gone', hay);
+  var wz=document.getElementById('cvwEntry'); if(wz) wz.classList.toggle('gone', hay);   // con CV cargado, armarlo de cero es ruido
+}
+
+/* ============================================================
+   Creador de CV desde cero (wizard). Para quien llega SIN CV: 5 pasos que
+   recopilan sus datos y los compilan al MISMO texto plano que usa el CV base.
+   Todo local: no toca el backend ni gasta cuota. Al terminar, escribe en
+   #profile y dispara 'input' — con eso solo se encadena TODO lo demás (chips,
+   fuerza del perfil, invalidación del parseo, y el guardado del Draft). La IA
+   de verdad entra después, cuando la persona corre el Diagnóstico sobre este
+   CV base ya cargado.
+   ============================================================ */
+var CVW=null;   /* null = cerrado. Objeto = wizard abierto con su estado. */
+
+function cvwBlankExp(){ return { role:'', company:'', start:'', end:'', current:false, desc:'' }; }
+function cvwBlankEdu(){ return { degree:'', inst:'', status:'progress', year:'' }; }
+
+function cvwOpen(){
+  CVW={ step:1,
+    name:'', email:'', phone:'', loc:'', links:'',
+    exp:[ cvwBlankExp() ], noExp:false,
+    edu:[ cvwBlankEdu() ],
+    hard:'', soft:'', langs:'',
+    summary:'' };
+  if(typeof track==='function') track('cv_wizard_open', {});
+  showModal('<div class="cvw" id="cvwBody"></div>');
+  cvwPaint();
+}
+
+/* Vuelca lo tipeado del paso visible a la memoria ANTES de navegar o redibujar,
+   para que cambiar de paso (o agregar/quitar una tarjeta) no borre nada. */
+function cvwHarvest(){
+  if(!CVW) return;
+  var g=function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  var s=CVW.step;
+  if(s===1){ CVW.name=g('cvwName'); CVW.email=g('cvwEmail'); CVW.phone=g('cvwPhone'); CVW.loc=g('cvwLoc'); CVW.links=g('cvwLinks'); }
+  else if(s===2){
+    var chk=document.getElementById('cvwNoExp'); if(chk) CVW.noExp=!!chk.checked;
+    CVW.exp.forEach(function(e,i){
+      e.role=g('cvwExpRole'+i); e.company=g('cvwExpCo'+i);
+      e.start=g('cvwExpStart'+i); e.end=g('cvwExpEnd'+i);
+      var c=document.getElementById('cvwExpCur'+i); e.current=!!(c&&c.checked);
+      e.desc=g('cvwExpDesc'+i);
+    });
+  }
+  else if(s===3){
+    CVW.edu.forEach(function(e,i){
+      e.degree=g('cvwEduDeg'+i); e.inst=g('cvwEduInst'+i);
+      var st=document.getElementById('cvwEduSt'+i); e.status=st?st.value:'progress';
+      e.year=g('cvwEduYear'+i);
+    });
+  }
+  else if(s===4){ CVW.hard=g('cvwHard'); CVW.soft=g('cvwSoft'); CVW.langs=g('cvwLangs'); }
+  else if(s===5){ CVW.summary=g('cvwSummary'); }
+}
+
+function cvwInput(id,label,val,ph,type){
+  return '<div class="cvw-field"><label for="'+id+'">'+label+'</label>'+
+    '<input type="'+(type||'text')+'" id="'+id+'" value="'+cvEscape(val||'')+'"'+
+    (ph?' placeholder="'+cvEscape(ph)+'"':'')+'></div>';
+}
+function cvwArea(id,label,val,ph){
+  return '<div class="cvw-field"><label for="'+id+'">'+label+'</label>'+
+    '<textarea id="'+id+'"'+(ph?' placeholder="'+cvEscape(ph)+'"':'')+'>'+cvEscape(val||'')+'</textarea></div>';
+}
+function cvwPlus(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'; }
+function cvwInfoIc(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'; }
+function cvwBulbIc(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M8.5 14a5 5 0 1 1 7 0c-.6.5-1 1.2-1 2H9.5c0-.8-.4-1.5-1-2z"/></svg>'; }
+function cvwCheckIc(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>'; }
+/* Acordeón de inspiración para el paso Experiencia: "esto también cuenta". */
+function cvwHelpBox(){
+  return '<details class="cvw-help"><summary>'+cvwBulbIc()+t('cvw_exh')+'</summary>'+
+    '<p class="cvw-help-lead">'+t('cvw_exlead')+'</p>'+
+    '<ul><li>'+t('cvw_ex1')+'</li><li>'+t('cvw_ex2')+'</li><li>'+t('cvw_ex3')+'</li><li>'+t('cvw_ex4')+'</li></ul>'+
+  '</details>';
+}
+
+function cvwStep1(){
+  return cvwInput('cvwName',t('cvw_f_name'),CVW.name)+
+    '<div class="cvw-grid">'+
+      cvwInput('cvwEmail',t('cvw_f_email'),CVW.email,'','email')+
+      cvwInput('cvwPhone',t('cvw_f_phone'),CVW.phone,'','tel')+
+    '</div>'+
+    cvwInput('cvwLoc',t('cvw_f_loc'),CVW.loc,t('cvw_ph_loc'))+
+    cvwInput('cvwLinks',t('cvw_f_links'),CVW.links,t('cvw_ph_links'));
+}
+function cvwExpCards(){
+  var out='';
+  CVW.exp.forEach(function(e,i){
+    var rm = CVW.exp.length>1 ? '<button type="button" class="cvw-remove" onclick="cvwDelExp('+i+')">'+t('cvw_remove')+'</button>' : '';
+    out+='<div class="cvw-card">'+
+      '<div class="cvw-card-h"><b>'+(i+1)+'</b>'+rm+'</div>'+
+      cvwInput('cvwExpRole'+i,t('cvw_f_role'),e.role)+
+      cvwInput('cvwExpCo'+i,t('cvw_f_company'),e.company)+
+      '<div class="cvw-grid">'+
+        cvwInput('cvwExpStart'+i,t('cvw_f_start'),e.start,t('cvw_ph_start'))+
+        cvwInput('cvwExpEnd'+i,t('cvw_f_end'),e.end,t('cvw_ph_end'))+
+      '</div>'+
+      '<label class="cvw-check"><input type="checkbox" id="cvwExpCur'+i+'"'+(e.current?' checked':'')+'>'+t('cvw_f_current')+'</label>'+
+      cvwArea('cvwExpDesc'+i,t('cvw_f_desc'),e.desc,t('cvw_ph_desc'))+
+    '</div>';
+  });
+  return out;
+}
+function cvwStep2(){
+  var chk='<label class="cvw-check"><input type="checkbox" id="cvwNoExp" onchange="cvwToggleNoExp(this.checked)"'+(CVW.noExp?' checked':'')+'>'+t('cvw_noexp')+'</label>';
+  var hint = CVW.noExp ? '<div class="cvw-noexp-hint">'+t('cvw_noexp_hint')+'</div>' : '';
+  return chk+hint+cvwHelpBox()+cvwExpCards()+
+    '<button type="button" class="cvw-add" onclick="cvwAddExp()">'+cvwPlus()+t('cvw_add_exp')+'</button>';
+}
+function cvwStep3(){
+  var out='';
+  CVW.edu.forEach(function(e,i){
+    var rm = CVW.edu.length>1 ? '<button type="button" class="cvw-remove" onclick="cvwDelEdu('+i+')">'+t('cvw_remove')+'</button>' : '';
+    var opt=function(v){ return '<option value="'+v+'"'+(e.status===v?' selected':'')+'>'+t('cvw_st_'+v)+'</option>'; };
+    out+='<div class="cvw-card">'+
+      '<div class="cvw-card-h"><b>'+(i+1)+'</b>'+rm+'</div>'+
+      cvwInput('cvwEduDeg'+i,t('cvw_f_degree'),e.degree)+
+      cvwInput('cvwEduInst'+i,t('cvw_f_inst'),e.inst)+
+      '<div class="cvw-grid">'+
+        '<div class="cvw-field"><label for="cvwEduSt'+i+'">'+t('cvw_f_status')+'</label><select id="cvwEduSt'+i+'">'+opt('progress')+opt('grad')+opt('incomplete')+'</select></div>'+
+        cvwInput('cvwEduYear'+i,t('cvw_f_year'),e.year)+
+      '</div>'+
+    '</div>';
+  });
+  return out+'<button type="button" class="cvw-add" onclick="cvwAddEdu()">'+cvwPlus()+t('cvw_add_edu')+'</button>';
+}
+function cvwStep4(){
+  return cvwInput('cvwHard',t('cvw_f_hard'),CVW.hard,t('cvw_ph_hard'))+
+    cvwInput('cvwSoft',t('cvw_f_soft'),CVW.soft,t('cvw_ph_soft'))+
+    cvwInput('cvwLangs',t('cvw_f_langs'),CVW.langs,t('cvw_ph_langs'));
+}
+function cvwStep5(){
+  /* Botón que redacta un borrador con los datos ya cargados (estudios +
+     habilidades) — sin experiencia previa alcanza. Es local y editable, no IA.
+     Si el campo queda vacío, el resumen igual se arma solo en la compilación. */
+  return '<button type="button" class="cvw-gen" onclick="cvwDraft()">'+cvwBulbIc()+t('cvw_draft')+'</button>'+
+    cvwArea('cvwSummary',t('cvw_f_summary'),CVW.summary,t('cvw_ph_summary'))+
+    '<p class="cvw-valid">'+cvwCheckIc()+'<span>'+t('cvw_s5_valid')+'</span></p>';
+}
+
+function cvwPaint(){
+  var host=document.getElementById('cvwBody'); if(!host||!CVW) return;
+  var s=CVW.step, body;
+  if(s===1) body=cvwStep1();
+  else if(s===2) body=cvwStep2();
+  else if(s===3) body=cvwStep3();
+  else if(s===4) body=cvwStep4();
+  else body=cvwStep5();
+  var segs=''; for(var k=1;k<=5;k++){ segs+='<span class="'+(k<=s?'on':'')+'"></span>'; }
+  var back = s>1 ? '<button type="button" class="btn" onclick="cvwNav(-1)">'+t('cvw_back')+'</button>' : '';
+  var next = s<5
+    ? '<button type="button" class="btn btn-blue" onclick="cvwNav(1)">'+t('cvw_next')+'</button>'
+    : '<button type="button" class="btn btn-blue" onclick="cvwFinish()">'+t('cvw_finish')+'</button>';
+  host.innerHTML=
+    '<div class="modal-head"><div>'+
+        '<div class="cvw-count">'+t('cvw_kick')+' · '+tf('cvw_stepof',{n:s,m:5})+'</div>'+
+        '<h3>'+t('cvw_s'+s+'_t')+'</h3></div>'+
+      '<button class="xbtn" onclick="closeModal()">'+I.x+'</button></div>'+
+    '<div class="cvw-steps">'+segs+'</div>'+
+    '<div class="cvw-tip">'+cvwInfoIc()+'<span>'+t((s===5 && CVW.noExp) ? 'cvw_s5_tip_jr' : ('cvw_s'+s+'_tip'))+'</span></div>'+
+    '<div class="cvw-fields">'+body+'</div>'+
+    '<div class="cvw-foot">'+back+next+'</div>';
+  var m=document.querySelector('#modalRoot .modal'); if(m) m.scrollTop=0;
+}
+
+function cvwNav(dir){
+  if(!CVW) return;
+  cvwHarvest();
+  var n=CVW.step+dir;
+  if(n<1) n=1; if(n>5) n=5;
+  CVW.step=n;
+  cvwPaint();
+}
+function cvwToggleNoExp(v){ if(!CVW) return; cvwHarvest(); CVW.noExp=!!v; cvwPaint(); }
+function cvwAddExp(){ if(!CVW) return; cvwHarvest(); CVW.exp.push(cvwBlankExp()); cvwPaint(); }
+function cvwDelExp(i){ if(!CVW) return; cvwHarvest(); CVW.exp.splice(i,1); if(!CVW.exp.length) CVW.exp.push(cvwBlankExp()); cvwPaint(); }
+function cvwAddEdu(){ if(!CVW) return; cvwHarvest(); CVW.edu.push(cvwBlankEdu()); cvwPaint(); }
+function cvwDelEdu(i){ if(!CVW) return; cvwHarvest(); CVW.edu.splice(i,1); if(!CVW.edu.length) CVW.edu.push(cvwBlankEdu()); cvwPaint(); }
+
+function cvwCap(s){ s=String(s||'').trim(); return s?(s.charAt(0).toUpperCase()+s.slice(1)):s; }
+/* Borrador de resumen, armado con los datos ya cargados. NO es IA: es una
+   plantilla honesta que le ahorra a la persona la hoja en blanco. */
+/* Arma el resumen profesional SOLO con los datos ya cargados (rol, habilidades,
+   idiomas). Función pura: la usa la compilación, se dispare o no el campo extra. */
+function cvwBuildSummary(){
+  if(!CVW) return '';
+  var role='';
+  if(CVW.exp.length && CVW.exp[0].role.trim()) role=CVW.exp[0].role.trim();
+  if(!role && CVW.edu.length && CVW.edu[0].degree.trim()) role=t('cvw_gen_student').split('{x}').join(CVW.edu[0].degree.trim());
+  var parts=[];
+  if(role) parts.push(cvwCap(role)+'.');
+  if(CVW.hard.trim()) parts.push(t('cvw_gen_skills')+' '+CVW.hard.trim()+'.');
+  if(CVW.soft.trim()) parts.push(cvwCap(CVW.soft.trim())+'.');
+  if(CVW.langs.trim()) parts.push(t('cvw_gen_langs')+' '+CVW.langs.trim()+'.');
+  return parts.join(' ').replace(/\s+/g,' ').trim();
+}
+/* "Escribime un borrador": vuelca el resumen armado al campo, editable. Pensado
+   para quien no sabe qué poner (sin experiencia alcanza: sale de estudios +
+   habilidades). No es IA; la IA de verdad corre después en el Diagnóstico. */
+function cvwDraft(){
+  if(!CVW) return;
+  cvwHarvest();
+  var s=cvwBuildSummary();
+  if(!s){ if(typeof toast==='function') toast(t('cvw_draft_empty')); return; }
+  CVW.summary=s;
+  var el=document.getElementById('cvwSummary'); if(el){ el.value=s; el.focus(); }
+  if(typeof track==='function') track('cv_wizard_draft', {});
+}
+
+function cvwSpan(e){
+  var a=(e.start||'').trim(), b=(e.end||'').trim();
+  if(e.current) return a ? a+' – '+t('cvw_present') : t('cvw_present');
+  if(a&&b) return a+' – '+b;
+  return a||b||'';
+}
+/* Compila el estado a texto plano — mismo formato editorial que un CV pegado.
+   Encabezados por i18n para que salga en el idioma elegido. */
+function cvwCompile(){
+  var c=CVW, L=[];
+  if(c.name.trim()) L.push(c.name.trim());
+  var contact=[];
+  if(c.email.trim()) contact.push(c.email.trim());
+  if(c.phone.trim()) contact.push(c.phone.trim());
+  if(c.loc.trim()) contact.push(c.loc.trim());
+  if(contact.length) L.push(contact.join(' · '));
+  if(c.links.trim()) L.push(c.links.trim());
+
+  /* El RESUMEN es lo que quedó en el campo (que pudo arrancar del botón "Escribime
+     un borrador" y editarse). Si quedó vacío, se arma solo con los datos cargados.
+     Así el CV SIEMPRE tiene resumen, con o sin experiencia. */
+  var extra=(c.summary||'').trim();
+  var resumen = extra ? extra : cvwBuildSummary();
+  if(resumen){ L.push(''); L.push(t('cvw_h_summary')); L.push(resumen); }
+
+  var exps=c.exp.filter(function(e){ return (e.role+e.company+e.desc).trim(); });
+  if(exps.length){
+    L.push(''); L.push(c.noExp ? t('cvw_h_projects') : t('cvw_h_exp'));
+    exps.forEach(function(e){
+      var line=(e.role||'').trim();
+      if(e.company.trim()) line += (line?' — ':'')+e.company.trim();
+      var sp=cvwSpan(e); if(sp) line += (line?' ':'')+'('+sp+')';
+      if(line) L.push(line);
+      if(e.desc.trim()) L.push(e.desc.trim());
+    });
+  }
+
+  var edus=c.edu.filter(function(e){ return (e.degree+e.inst).trim(); });
+  if(edus.length){
+    L.push(''); L.push(t('cvw_h_edu'));
+    edus.forEach(function(e){
+      var line=(e.degree||'').trim();
+      if(e.inst.trim()) line += (line?' — ':'')+e.inst.trim();
+      var meta=[];
+      if(e.status) meta.push(t('cvw_st_'+e.status));
+      if(e.year.trim()) meta.push(e.year.trim());
+      if(meta.length) line += (line?' ':'')+'('+meta.join(', ')+')';
+      if(line) L.push(line);
+    });
+  }
+
+  var sk=[];
+  if(c.hard.trim()) sk.push(t('cvw_lbl_hard')+': '+c.hard.trim());
+  if(c.soft.trim()) sk.push(t('cvw_lbl_soft')+': '+c.soft.trim());
+  if(sk.length){ L.push(''); L.push(t('cvw_h_skills')); sk.forEach(function(x){ L.push(x); }); }
+
+  if(c.langs.trim()){ L.push(''); L.push(t('cvw_h_langs')); L.push(c.langs.trim()); }
+
+  return L.join('\n').replace(/\n{3,}/g,'\n\n').replace(/^\n+/,'').replace(/\n+$/,'');
+}
+function cvwHasAny(){
+  var c=CVW, any=false;
+  if((c.name+c.email+c.phone+c.loc+c.links+c.hard+c.soft+c.langs+c.summary).trim()) return true;
+  c.exp.forEach(function(e){ if((e.role+e.company+e.desc).trim()) any=true; });
+  c.edu.forEach(function(e){ if((e.degree+e.inst).trim()) any=true; });
+  return any;
+}
+function cvwFinish(){
+  if(!CVW) return;
+  cvwHarvest();
+  var txt=cvwCompile();
+  if(!txt.trim() || !cvwHasAny()){ if(typeof toast==='function') toast(t('cvw_need_name')); return; }
+  var ta=document.getElementById('profile'); if(!ta){ closeModal(); CVW=null; return; }
+  ta.value=txt;
+  if(typeof track==='function') track('cv_wizard_done', { exp:CVW.exp.length, edu:CVW.edu.length, noexp:CVW.noExp });
+  CVW=null;
+  closeModal();
+  if(typeof showPage==='function') showPage('herramientas');
+  /* dispara TODO el encadenado del CV base: chips, fuerza, invalidación del
+     parseo, fuente, y el guardado del Draft (persiste tras F5). */
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+  if(typeof setTabDirect==='function' && typeof currentTab!=='undefined' && currentTab!=='analysis') setTabDirect('analysis');
+  /* Igual que tras loguearse: el CV recién armado se parsea con IA y se revela el
+     diagnóstico. Sin esto, el diagnóstico quedaba en un estado a medias (o pedía
+     "analizar" a mano) y por eso saltaba el "No pudimos analizar tu CV". El parse
+     ya lleva reintento ante un bache transitorio. */
+  if(typeof onAuthReady==='function') onAuthReady();
+  if(typeof toast==='function') toast(t('cvw_done_toast'));
+  try{ ta.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
 }
 
 /* Arrastrar el archivo sobre la zona: mismo camino que el input de siempre. */
@@ -12890,7 +13893,7 @@ function renderDemoNote(){
   var isDemo = cur.length>0 && cur===DEMO_CV_TEXT;
   box.classList.toggle('gone', !isDemo);
 }
-function updateAccountUI(){ renderQuota(); renderDemoNote(); cvSourceSync(); var el=document.getElementById('acctArea'); if(!el) return;
+function updateAccountUI(){ renderQuota(); renderDemoNote(); cvSourceSync(); if(typeof syncPriceCards==='function') syncPriceCards(); var el=document.getElementById('acctArea'); if(!el) return;
   if(!isLogged()){ el.innerHTML='<button class="acct-btn" onclick="openAuth(\'login\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'+t('signin')+'</button>'; return; }
   var pro=isPremium(); var ini=(USER.name||USER.email||'U').charAt(0).toUpperCase();
   el.innerHTML='<div style="position:relative"><button class="acct-btn" onclick="toggleAcct(event)"><span class="acct-av">'+ini+'</span><span class="plan-badge '+(pro?'pro':'free')+'">'+(pro?'PRO':'FREE')+'</span></button>'+
@@ -12909,6 +13912,7 @@ document.getElementById('profile').addEventListener('input', function(){ renderC
   cvSourceSync();   // si vaciás el campo, el aviso del archivo se va con él
   if(typeof cvDropSync==='function') cvDropSync();     // la zona de arrastre y el enlace del ejemplo siguen al texto
   if(typeof renderProfStrength==='function') renderProfStrength();
+  if(typeof renderCvLangHint==='function') renderCvLangHint();   // ¿el CV está en otro idioma que la app?
   if(!document.getElementById('tab-analysis').classList.contains('hidden')) renderAnalysis(); });
 /* #total vivia dentro del #stats de la vieja pestaña Ofertas, que hoy es la
    waitlist. Sin esta guarda tira TypeError EN EL ARRANQUE y corta todo lo que
@@ -12943,6 +13947,9 @@ if(typeof isLogged==='function' && isLogged() && window.MA_API && typeof MA_API.
        directo o {user:...}: contemplamos ambas formas. */
     var who=(u&&u.user)?u.user:u;
     if(who&&who.tier) USER.plan=(who.tier==='pro')?'premium':'free';
+    /* QUÉ tipo de acceso, no solo si lo tiene: con esto el modal deja de
+       ofrecerle comprar Pro a alguien que ya lo está pagando. */
+    if(who) USER.accessType=who.accessType||null;
     if(who){ if(who.email) USER.email=who.email; if(who.name) USER.name=who.name; }
     if(typeof saveUser==='function') saveUser();
     if(typeof updateAccountUI==='function') updateAccountUI();
@@ -12959,27 +13966,49 @@ if(window.MA_API && MA_API.health){ MA_API.health().then(function(h){
      oculta desde el 19/07 porque su boton cobraba una suscripcion mensual; no
      se destapa por tenerla escrita, se destapa cuando el checkout existe. */
   LIFETIME_ON=!!(h&&h.lifetime);
+  LIFETIME_METHODS=(h&&h.lifetimeMethods)||[];
+  /* Mismo criterio para el pase semanal: sin metodo que lo cobre, la tira no se
+     dibuja. Federico prende el precio en Render y aparece solo. */
+  WEEK_METHODS=(h&&h.weekMethods)||[];
   var card=document.getElementById("prLifetime");
   if(card) card.classList.toggle("gone", !LIFETIME_ON);
   if(typeof syncLifetimeCard==="function") syncLifetimeCard();
 }).catch(function(){}); }
-if(typeof rvFlush==='function') rvFlush();   // reintenta las reseñas que quedaron pendientes
-refCapture();                                // el ?ref= del link, antes que nada
-oauthReturn();                               // la vuelta de Google/LinkedIn, si venimos de ahi
-captureDemoCv();                             // el CV de ejemplo, antes de que nadie lo toque
-applyDemoCv();                               // #1: el ejemplo, en el idioma activo de arranque
-renderDemoTry();                             // el micro-demo de entrevista
-renderRefer();                               // mi link de invitacion, o la oferta de entrar
-fillJobSelects(); renderChips(); render(); applyI18n(); updateAccountUI();
-if(typeof renderProfStrength==='function') renderProfStrength();   // fuerza del perfil al arrancar
-/* Los combos van DESPUES de fillJobSelects(): necesitan los <option> ya puestos.
-   Si esto explota, el select nativo queda intacto y la pagina sigue andando. */
-try { comboInit('adapterSel','combo_ph'); comboInit('roleSel','combo_ph_role'); }
-catch(e){ console.error('[Mavante] combo no inicializo, queda el select nativo:', e); }
-renderBotMsgs(); renderBotSugg();
+/* ===== ARRANQUE PROTEGIDO =====
+   Esto era una fila de llamadas peladas, y una fila así es una hilera de
+   dominó: si CUALQUIERA tiraba una excepción, todo lo de abajo no corría —
+   incluida restoreRoute, que es la que destapa la herramienta activa. Resultado
+   visible: tabs arriba, nada abajo ("no me aparece el diagnóstico"). Cada paso
+   cae SOLO: se loguea con nombre, se reporta a analítica, y el arranque sigue. */
+function paso(nombre, fn){
+  try { fn(); }
+  catch(e){
+    console.error('[Mavante] arranque: "'+nombre+'" falló:', e);
+    try { track('boot_step_crash', { step:nombre, msg:String(e&&e.message||e).slice(0,200) }); } catch(_e){}
+  }
+}
+paso('rvFlush',       function(){ if(typeof rvFlush==='function') rvFlush(); });  // reintenta las reseñas pendientes
+paso('refCapture',    refCapture);       // el ?ref= del link, antes que nada
+paso('oauthReturn',   oauthReturn);      // la vuelta de Google/LinkedIn, si venimos de ahi
+paso('captureDemoCv', captureDemoCv);    // el CV de ejemplo, antes de que nadie lo toque
+paso('applyDemoCv',   applyDemoCv);      // #1: el ejemplo, en el idioma activo de arranque
+paso('renderDemoTry', renderDemoTry);    // el micro-demo de entrevista
+paso('renderRefer',   renderRefer);      // mi link de invitacion, o la oferta de entrar
+paso('fillJobSelects',fillJobSelects);
+paso('renderChips',   renderChips);
+paso('render',        render);
+paso('applyI18n',     applyI18n);
+paso('updateAccountUI', updateAccountUI);
+paso('profStrength',  function(){ if(typeof renderProfStrength==='function') renderProfStrength(); });
+/* Los combos van DESPUES de fillJobSelects(): necesitan los <option> ya puestos. */
+paso('combos',        function(){ comboInit('adapterSel','combo_ph'); comboInit('roleSel','combo_ph_role'); });
+paso('bot',           function(){ renderBotMsgs(); renderBotSugg(); });
 /* el usuario vuelve exactamente a donde estaba antes del F5 */
 try{ if('scrollRestoration' in history) history.scrollRestoration='manual'; }catch(e){}
-restoreRoute(true);
+paso('restoreRoute',  function(){ restoreRoute(true); });
+/* el vigía, al final de todo: si aun así las herramientas quedaron todas
+   ocultas, lo detecta y muestra la pestaña activa */
+paso('toolsAlive',    function(){ if(typeof toolsAlive==='function') toolsAlive(); });
 setTimeout(moveSegIndicator,80);
 Draft.init();                       // recupera lo que el usuario estaba escribiendo
 window.addEventListener('hashchange', function(){ restoreRoute(true); });   // atras/adelante del navegador

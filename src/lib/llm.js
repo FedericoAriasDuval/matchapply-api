@@ -78,13 +78,67 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
    herd): una caida corta se convierte en una caida larga. */
 const backoff = (attempt) => 400 * 2 ** attempt + Math.floor(Math.random() * 250);
 
-/* Claude: system aparte, texto en content. Devuelve el texto plano. */
+/* ¿El modelo acepta que le apaguemos el razonamiento interno? Se APRENDE en
+   caliente: si la API rechaza el parámetro, se deja de mandar para siempre en
+   este proceso. Así el arreglo funciona donde está soportado y no puede romper
+   nada donde no lo está — que es la única forma responsable de tocar el
+   parámetro de una llamada que hoy paga y usa gente real. */
+let mandarThinkingOff = true;
+
+/* Claude: system aparte, texto en content. Devuelve el texto plano.
+ *
+ * EL 502 DETERMINÍSTICO DE LOS CVs DIFÍCILES (23/07/2026, CV de dos columnas).
+ * claude-sonnet-5 razona internamente POR DEFECTO, y ese razonamiento sale del
+ * MISMO max_tokens que la respuesta. Con un texto revuelto —el que producía
+ * pdf.js antes de reconstruir las columnas— el modelo deliberaba largo, se
+ * quedaba sin presupuesto y devolvía el JSON cortado (o nada). extractJson
+ * fallaba, y como el input no cambia entre reintentos, fallaba las tres veces:
+ * 502 sin un solo timeout. Exactamente la firma que mostró /health (fail:3,
+ * timedOut:0).
+ * Dos defensas: se apaga el razonamiento (para extraer campos de un CV no
+ * aporta nada) y se MIRA el stop_reason, que es el dato que convertía esto en
+ * una caja negra: truncado, rechazo y respuesta vacía eran indistinguibles. */
 const callAnthropic = async ({ system, user, maxTokens, signal }) => {
-  const res = await anthropic.messages.create(
-    { model: config.llm.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] },
-    { signal },
-  );
-  return res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+  const params = { model: config.llm.model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] };
+  if (mandarThinkingOff) params.thinking = { type: 'disabled' };
+
+  let res;
+  try {
+    res = await anthropic.messages.create(params, { signal });
+  } catch (e) {
+    /* El modelo no conoce el parámetro: se anota y se reintenta YA, sin que el
+       usuario se entere. Solo para un 400 que hable de thinking — cualquier otro
+       400 es un problema real y tiene que subir. */
+    const s = e?.status ?? e?.response?.status;
+    if (mandarThinkingOff && s === 400 && /thinking|unexpected|unrecognized/i.test(String(e?.message ?? ''))) {
+      mandarThinkingOff = false;
+      console.warn('[llm] este modelo no acepta thinking:disabled — se deja de mandar:', String(e?.message ?? '').slice(0, 160));
+      delete params.thinking;
+      res = await anthropic.messages.create(params, { signal });
+    } else {
+      throw e;
+    }
+  }
+
+  const text = res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+  /* Un texto vacío o un corte por presupuesto NO es "JSON inválido": es otra
+     falla, con otra causa y otro arreglo. Se le pone nombre acá para que el log
+     final lo diga en vez de esconderlo detrás de un genérico. */
+  if (!text.trim() || res.stop_reason === 'max_tokens' || res.stop_reason === 'refusal') {
+    const e = new Error(
+      res.stop_reason === 'max_tokens'
+        ? 'El modelo se quedó sin presupuesto de tokens antes de terminar el JSON.'
+        : res.stop_reason === 'refusal'
+          ? 'El modelo se negó a responder.'
+          : 'El modelo devolvió una respuesta vacía.',
+    );
+    e.name = 'ModelOutputError';
+    e.stopReason = res.stop_reason ?? '?';
+    e.usage = res.usage ? `in=${res.usage.input_tokens} out=${res.usage.output_tokens}` : '?';
+    e.textLen = text.length;
+    throw e;
+  }
+  return text;
 };
 
 /* Gemini: systemInstruction en config, JSON forzado por responseMimeType.
@@ -156,7 +210,9 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
            suele traer uno bueno. Antes se tiraba de una sin reintentar, y un solo
            mal muestreo del modelo se convertía en un 502 para el usuario. Ahora
            se reintenta igual que un error transitorio. */
-        const reintentable = isTransient(e) || e instanceof JsonExtractError;
+        /* ModelOutputError (vacío / cortado / rechazo) también se reintenta: el
+           muestreo cambia entre llamadas y la segunda suele salir entera. */
+        const reintentable = isTransient(e) || e instanceof JsonExtractError || e?.name === 'ModelOutputError';
         if (!reintentable || attempt === MAX_RETRIES) break;
         const espera = backoff(attempt);
         /* No arrancamos un reintento que no va a llegar a tiempo: esperar para
@@ -166,7 +222,8 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
       }
     }
     const timedOut = lastErr?.name === 'AbortError';
-    const badOutput = lastErr instanceof JsonExtractError;
+    const salidaMala = lastErr?.name === 'ModelOutputError';
+    const badOutput = lastErr instanceof JsonExtractError || salidaMala;
     /* El error REAL del proveedor va al log. Sin esta linea, el 502 esconde si
        fue clave invalida (401), modelo inexistente (404), credito agotado (400),
        proveedor caido (5xx) o JSON malformado — y el diagnostico se vuelve
@@ -178,6 +235,10 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
       lastErr?.error?.error?.type ?? lastErr?.name ?? '?',
       String(lastErr?.message ?? '').slice(0, 300),
       badOutput && lastErr?.rawSnippet ? `| output: ${lastErr.rawSnippet}` : '',
+      /* stop_reason es EL dato que faltaba: sin él, "se cortó por presupuesto",
+         "se negó" y "devolvió vacío" eran el mismo 502 mudo. */
+      salidaMala ? `| stop_reason=${lastErr.stopReason} usage=${lastErr.usage} textLen=${lastErr.textLen}` : '',
+      `| modelo=${activeModel()} thinkingOff=${mandarThinkingOff}`,
     );
     throw new HttpError(
       badOutput ? 502 : timedOut ? 504 : 502,

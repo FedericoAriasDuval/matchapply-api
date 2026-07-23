@@ -99,18 +99,57 @@ const structureCv = async (sourceText, lang) =>
      DOS resultados distintos (el modelo traduce el contenido al idioma pedido). */
   cvCache.wrap(`cv:v2:${lang}:${sha256(sourceText)}`, () => cvQueue.run(() => structureCvUncached(sourceText, lang)));
 
+/**
+ * HUELLA DEL TEXTO para los logs. Nunca el CV: nunca.
+ *
+ * Cuando un CV falla en producción, la pregunta es siempre la misma —"¿qué tenía
+ * de raro ESE texto?"— y hasta ahora la única respuesta era pedirle el archivo a
+ * la persona. Esto responde sin mirar su vida laboral: tamaño, forma y qué clase
+ * de basura tipográfica traía. El hash permite reconocer el mismo CV entre líneas
+ * de log sin poder reconstruirlo. */
+const huellaTexto = (t) => {
+  const s = String(t ?? '');
+  const lineas = s.split('\n').length;
+  const raros = (s.match(new RegExp('[\\uE000-\\uF8FF]', 'g')) || []).length;   // iconos de fuente privada
+  const invis = (s.match(new RegExp('[\\u200B-\\u200F\\u202A-\\u202E\\uFEFF\\u00AD]', 'g')) || []).length;
+  const emoji = (s.match(/\p{Extended_Pictographic}/gu) || []).length;
+  const nonAscii = (s.match(/[^\x00-\x7F]/g) || []).length;
+  return `chars=${s.length} lineas=${lineas} largoMedioLinea=${Math.round(s.length / Math.max(1, lineas))} pua=${raros} invis=${invis} emoji=${emoji} noAscii=${nonAscii} sha=${sha256(s).slice(0, 8)}`;
+};
+
 /** Llamada real al modelo. La caché de arriba deduplica pedidos idénticos y concurrentes. */
 const structureCvUncached = async (sourceText, lang) => {
-  const raw = await completeJson({
-    system: CV_SYSTEM_PROMPT,
-    user: buildUserMessage(sourceText, lang),
-  });
+  const t0 = Date.now();
+  const huella = huellaTexto(sourceText);
+  let raw;
   try {
-    return sanitizeCv(raw);
+    raw = await completeJson({
+      system: CV_SYSTEM_PROMPT,
+      user: buildUserMessage(sourceText, lang),
+    });
+  } catch (e) {
+    /* QUÉ paso falló y con QUÉ entrada, en una línea. Sin esto, un 502 obligaba
+       a pedirle el archivo a la persona para poder reproducirlo. */
+    console.error(`[cv:parse] paso=modelo lang=${lang} ${huella} ms=${Date.now() - t0} err=${e?.code ?? e?.name ?? '?'}`);
+    throw e;
+  }
+  try {
+    const cv = sanitizeCv(raw);
+    /* Una traza también cuando SALE BIEN pero sale flaco: un CV que vuelve sin
+       experiencia ni skills es exactamente el que produce "no se detectan las
+       secciones estándar" en la pantalla, y hasta ahora no dejaba rastro. */
+    if (!cv.experience.length || !cv.skills.length) {
+      console.warn(`[cv:parse] paso=ok-pero-flaco lang=${lang} ${huella} exp=${cv.experience.length} edu=${cv.education.length} skills=${cv.skills.length} ms=${Date.now() - t0}`);
+    }
+    return cv;
   } catch (e) {
     if (e instanceof CvValidationError) {
+      /* El modelo contestó pero su JSON no cumple el contrato. Es un fallo
+         distinto del de arriba y hay que poder distinguirlos en el log. */
+      console.error(`[cv:parse] paso=schema lang=${lang} ${huella} ms=${Date.now() - t0} detalle=${String(e.message).slice(0, 200)}`);
       throw badRequest('cv_unparsable', 'No pudimos estructurar el CV. Probá con otro archivo.');
     }
+    console.error(`[cv:parse] paso=sanitize-inesperado lang=${lang} ${huella} err=${e?.name ?? '?'}`);
     throw e;
   }
 };

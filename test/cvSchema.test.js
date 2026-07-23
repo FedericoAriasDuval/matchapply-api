@@ -168,3 +168,42 @@ test('sanitizeCv: normaliza niveles informales y una skill larga sobrevive al fi
   // y jamás un CEFR inventado
   assert.ok(!cv.skills.some((s) => /\b[ABC][12]\b/.test(s)));
 });
+
+/* ===== Revisión de robustez 23/07: la basura real que traen las plantillas ===== */
+
+test('scrubCvText: los "iconos" de plantillas (fuente privada/PUA) desaparecen', () => {
+  // el telefonito y el sobrecito de Canva llegan como glifos U+E000-F8FF
+  const out = scrubCvText(' 11-5555-5555   ana@mail.com');
+  assert.ok(!/[-]/.test(out), 'no debe quedar PUA');
+  assert.ok(out.includes('11-5555-5555') && out.includes('ana@mail.com'), out);
+});
+
+test('scrubCvText: expande ligaduras tipográficas ("finanzas" con ligadura)', () => {
+  const out = scrubCvText('ﬁnanzas y oﬃce management');
+  assert.ok(out.includes('finanzas'), out);
+  assert.ok(out.includes('office'), out);
+});
+
+test('scrubCvText: invisibles (bidi, ancho-cero, guion blando) y NBSP', () => {
+  const out = scrubCvText('Ge­rente​ de Producto‬');
+  assert.equal(out, 'Gerente de Producto');
+});
+
+test('scrubCvText: re-pega las versalitas partidas del PDF', () => {
+  // caso real (CV del padre de Federico): la letra capital viene como item aparte
+  const out = scrubCvText('M ARKETING C OUNTRY M ANAGER en G ERENTE DE P RODUCTO');
+  assert.ok(out.includes('MARKETING COUNTRY MANAGER'), out);
+  assert.ok(out.includes('GERENTE DE PRODUCTO'), out);
+});
+
+test('scrubCvText: NO pega palabras reales de una letra ("A CARGO", "Y VENTAS")', () => {
+  const out = scrubCvText('A CARGO de marketing Y VENTAS, con O TRO equipo');
+  assert.ok(out.includes('A CARGO'), out);      // "a" es palabra: no se toca
+  assert.ok(out.includes('Y VENTAS'), out);     // "y" es palabra: no se toca
+  assert.ok(out.includes('O TRO'), out);        // "o" es palabra: mejor no adivinar
+});
+
+test('scrubCvText: el texto de un CV normal pasa INTACTO (regresión)', () => {
+  const normal = 'Carla Irina Blanco Rolon\nABOGADA\nExperiencia laboral\nEstudio Jurídico "Equality" (2023-2024)\n• Seguimiento de Agenda. Redacción de Demandas.\nUniversidad Nacional de La Plata';
+  assert.equal(scrubCvText(normal), normal);
+});
