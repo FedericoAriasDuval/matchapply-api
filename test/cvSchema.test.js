@@ -72,9 +72,12 @@ test('educación: se descartan los comentarios sin institución ni título', () 
   assert.equal(cv.education[0].degree, 'Licenciatura en Marketing');
 });
 
-test('skills: términos, no frases; sin duplicados; con idiomas', () => {
+test('skills: términos, no frases; sin duplicados; y SIN los idiomas', () => {
+  /* Los idiomas salían acá adentro y el CV terminaba sin sección de idiomas.
+     Ahora cada cosa en su lugar: habilidades acá, idiomas en cv.languages. */
   const cv = sanitizeCv(dirty);
-  assert.deepEqual(cv.skills, ['SEO', 'SEM', 'Google Analytics', 'Inglés avanzado']);
+  assert.deepEqual(cv.skills, ['SEO', 'SEM', 'Google Analytics']);
+  assert.deepEqual(cv.languages, ['Inglés avanzado']);
 });
 
 test('intereses: sin fechas ni empresas', () => {
@@ -149,10 +152,11 @@ test('instituciones NO son skills ni idiomas (Hospital Francés / Italiano)', ()
   const s = JSON.stringify(cv.skills);
   assert.ok(!cv.skills.some((x) => /hospital/i.test(x)), 'ningún hospital en skills: ' + s);
   assert.ok(!cv.skills.some((x) => /colegio|universidad|instituto/i.test(x)), 'ninguna institución en skills: ' + s);
-  // y lo que SÍ es una habilidad/idioma real se conserva
+  // y lo que SÍ es una habilidad/idioma real se conserva, cada uno en su lugar
   assert.ok(cv.skills.includes('SAP'), s);
-  assert.ok(cv.skills.includes('Inglés avanzado'), s);
-  assert.deepEqual(cv.languages, []);   // languages se pliega a skills; nunca queda basura suelta
+  assert.deepEqual(cv.languages, ['Inglés avanzado']);
+  const l = JSON.stringify(cv.languages);
+  assert.ok(!cv.languages.some((x) => /hospital|instituto/i.test(x)), 'ninguna institución en idiomas: ' + l);
 });
 
 test('sanitizeCv: normaliza niveles informales y una skill larga sobrevive al filtro', () => {
@@ -163,10 +167,11 @@ test('sanitizeCv: normaliza niveles informales y una skill larga sobrevive al fi
   });
   // "Python (lo vi en un curso)" (6 palabras) se acorta a 3 y pasa el filtro
   assert.ok(cv.skills.includes('Python (formación académica)'), JSON.stringify(cv.skills));
-  assert.ok(cv.skills.includes('Italiano (básico)'), JSON.stringify(cv.skills));
-  assert.ok(cv.skills.includes('Inglés (intermedio)'), JSON.stringify(cv.skills));
-  // y jamás un CEFR inventado
-  assert.ok(!cv.skills.some((s) => /\b[ABC][12]\b/.test(s)));
+  // los idiomas se normalizan igual, pero en SU sección
+  assert.ok(cv.languages.includes('Italiano (básico)'), JSON.stringify(cv.languages));
+  assert.ok(cv.languages.includes('Inglés (intermedio)'), JSON.stringify(cv.languages));
+  // y jamás un CEFR inventado, en ninguna de las dos listas
+  assert.ok(![...cv.skills, ...cv.languages].some((s) => /\b[ABC][12]\b/.test(s)));
 });
 
 /* ===== Revisión de robustez 23/07: la basura real que traen las plantillas ===== */
@@ -206,4 +211,55 @@ test('scrubCvText: NO pega palabras reales de una letra ("A CARGO", "Y VENTAS")'
 test('scrubCvText: el texto de un CV normal pasa INTACTO (regresión)', () => {
   const normal = 'Carla Irina Blanco Rolon\nABOGADA\nExperiencia laboral\nEstudio Jurídico "Equality" (2023-2024)\n• Seguimiento de Agenda. Redacción de Demandas.\nUniversidad Nacional de La Plata';
   assert.equal(scrubCvText(normal), normal);
+});
+
+/* ===== IDIOMAS: sección propia, y NUNCA se pierden (23/07) =====
+   El CV de Santino decía "IDIOMAS · Inglés - C2" y el CV generado salía sin una
+   sola mención. La causa no era un filtro: sanitizeCv metía los idiomas dentro
+   de skills y devolvía languages:[] a la fuerza, y ni el PDF ni el DOCX tenían
+   sección de idiomas. Estos tests existen para que no vuelva a pasar. */
+
+test('idiomas: sobreviven y salen en SU sección, no dentro de skills', () => {
+  const cv = sanitizeCv({ ...dirty, skills: ['Python', 'SQL'], languages: ['Inglés - C2', 'Español (nativo)'] });
+  assert.deepEqual(cv.languages, ['Inglés - C2', 'Español (nativo)']);
+  assert.ok(!cv.skills.some((s) => /ingl|espa/i.test(s)), 'no se duplican en skills: ' + JSON.stringify(cv.skills));
+  assert.ok(cv.skills.includes('Python') && cv.skills.includes('SQL'));
+});
+
+test('idiomas: se rescatan aunque el modelo los meta en skills', () => {
+  const cv = sanitizeCv({ ...dirty, skills: ['Python', 'English (Native)', 'Excel'], languages: [] });
+  assert.deepEqual(cv.languages, ['English (Native)']);
+  assert.deepEqual(cv.skills, ['Python', 'Excel']);
+});
+
+test('idiomas: un CV con 30+ habilidades NO los pierde (el bug del recorte)', () => {
+  /* Iban al final de skills y el slice(0,30) se los comía enteros: justo los
+     CVs técnicos más cargados eran los que perdían el idioma. */
+  const muchas = Array.from({ length: 35 }, (_, i) => `Skill${i}`);
+  const cv = sanitizeCv({ ...dirty, skills: muchas, languages: ['Inglés - C2'] });
+  assert.equal(cv.skills.length, 30);
+  assert.deepEqual(cv.languages, ['Inglés - C2'], 'el idioma sobrevive al recorte de skills');
+});
+
+test('idiomas: un nombre de institución NO es un idioma', () => {
+  const cv = sanitizeCv({ ...dirty, skills: [], languages: ['Hospital Francés', 'Instituto de Lengua Inglesa', 'Italiano (básico)'] });
+  assert.deepEqual(cv.languages, ['Italiano (básico)']);
+});
+
+test('idiomas: una habilidad que MENCIONA un idioma sigue siendo habilidad', () => {
+  const cv = sanitizeCv({ ...dirty, skills: ['Traducción inglés-español', 'Redacción técnica'], languages: [] });
+  assert.equal(cv.languages.length, 0);
+  assert.ok(cv.skills.includes('Traducción inglés-español'), JSON.stringify(cv.skills));
+});
+
+test('idiomas: sin idiomas declarados, la lista queda vacía (no se inventa nada)', () => {
+  const cv = sanitizeCv({ ...dirty, skills: ['Python'], languages: [] });
+  assert.deepEqual(cv.languages, []);
+});
+
+test('idiomas: el nivel se normaliza igual que en skills, sin inflarlo', () => {
+  const cv = sanitizeCv({ ...dirty, skills: [], languages: ['Inglés (muy avanzado)', 'Italiano (muy poco)'] });
+  assert.ok(cv.languages.includes('Inglés (avanzado)'), JSON.stringify(cv.languages));
+  assert.ok(cv.languages.includes('Italiano (básico)'), JSON.stringify(cv.languages));
+  assert.ok(!cv.languages.some((l) => /\b[ABC][12]\b/.test(l)), 'nunca un CEFR inventado');
 });

@@ -7,10 +7,10 @@ const RIGHT = W - M;
 const WIDTH = RIGHT - M;
 
 const SECTIONS = {
-  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', int: 'Intereses' },
-  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', int: 'Interests' },
-  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', int: "Centres d'intérêt" },
-  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', int: 'Interesses' },
+  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', lng: 'Idiomas', int: 'Intereses' },
+  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', lng: 'Languages', int: 'Interests' },
+  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', lng: 'Langues', int: "Centres d'intérêt" },
+  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', lng: 'Idiomas', int: 'Interesses' },
 };
 
 /**
@@ -20,10 +20,22 @@ const SECTIONS = {
  *   institución/puesto a la izquierda, fechas/ubicación al margen derecho
  * @returns {Promise<Buffer>}
  */
-export const renderCvPdf = (cv, lang = 'es') =>
+/**
+ * @param {object} cv
+ * @param {string} lang
+ * @param {{compress?: boolean}} [opts] compress:false deja el flujo de texto
+ *   legible en crudo. Lo usa el TEST que verifica que los títulos de sección
+ *   salgan enteros: sin esto habría que descomprimir el PDF para poder mirarlos,
+ *   y una verificación que no se puede hacer no se hace.
+ */
+export const renderCvPdf = (cv, lang = 'es', opts = {}) =>
   new Promise((resolve, reject) => {
     const S = SECTIONS[lang] ?? SECTIONS.es;
-    const doc = new PDFDocument({ size: 'A4', margins: { top: M, bottom: M, left: M, right: M } });
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: M, bottom: M, left: M, right: M },
+      compress: opts.compress !== false,
+    });
     const chunks = [];
     doc.on('data', (c) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -57,8 +69,15 @@ export const renderCvPdf = (cv, lang = 'es') =>
     };
     const heading = (label) => {
       rule();
+      /* characterSpacing BAJO a propósito (era 1.2, 23/07/2026).
+         Con 1.2 el extractor de texto leía los títulos PARTIDOS —"EDU CAC IÓN",
+         "HABI LIDA DES"— porque el espaciado entre glifos entra al PDF como
+         separación real. O sea que el CV que generamos tenía justo el defecto
+         que este producto existe para detectar: un filtro automático busca la
+         palabra "EDUCACIÓN" y no la encuentra. Nuestro propio PDF tiene que
+         pasar la prueba que le exigimos al de los demás. */
       doc.font('Times-Bold').fontSize(10.5)
-        .text(label.toUpperCase(), M, doc.y, { characterSpacing: 1.2, width: WIDTH });
+        .text(label.toUpperCase(), M, doc.y, { characterSpacing: 0.4, width: WIDTH });
       doc.moveDown(0.35);
       doc.font('Times-Roman').fontSize(11.5);
     };
@@ -121,6 +140,14 @@ export const renderCvPdf = (cv, lang = 'es') =>
     if (cv.skills?.length) {
       heading(S.skl);
       paragraph(cv.skills.join('  ·  '));
+    }
+
+    /* IDIOMAS, en su propia sección. Iban mezclados adentro de Habilidades y el
+       CV salía sin la sección que la persona SÍ había escrito — y para un puesto
+       que pide inglés, ese es el dato que decide. */
+    if (cv.languages?.length) {
+      heading(S.lng);
+      paragraph(cv.languages.join('  ·  '));
     }
 
     if (cv.interests?.length) {

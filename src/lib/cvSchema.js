@@ -186,6 +186,71 @@ const ENTIDAD_RX =
   /\b(hospital(es)?|cl[ií]nicas?|sanatorios?|policl[ií]nicas?|centro m[eé]dico|colegios?|escuelas?|institutos?|universidad(es)?|university|facultad(es)?|fundaci[oó]n)\b/i;
 export const isEntityName = (value) => ENTIDAD_RX.test(String(value ?? ''));
 
+/**
+ * ¿Este término ES un idioma de la persona?
+ *
+ * POR QUÉ EXISTE (23/07/2026): "IDIOMAS · Inglés - C2" desaparecía del CV
+ * generado. La causa no era un filtro: sanitizeCv metía los idiomas adentro de
+ * skills y devolvía `languages: []` a la fuerza, y ni el PDF ni el DOCX tenían
+ * sección de idiomas. O sea que el CV salía sin una sección que la persona SÍ
+ * había escrito — y para un puesto que pide inglés, eso es el dato que decide.
+ * Peor: como los idiomas iban al final de la lista de skills y esa lista se
+ * recorta a 30, un CV con muchas habilidades técnicas los perdía enteros.
+ *
+ * Se compara sobre la BASE del término: se le sacan el nivel entre paréntesis,
+ * el guion con el nivel y las palabras de escala. Así "Inglés - C2" y
+ * "English (Native)" son idiomas, pero "Traducción inglés-español" sigue siendo
+ * una habilidad — porque su base tiene palabras que no son el nombre del idioma.
+ */
+const IDIOMAS_RX = new RegExp(
+  '^(' +
+    'espanol|espanhol|espagnol|spanish|castellano|' +
+    'ingles|english|anglais|' +
+    'frances|french|francais|' +
+    'aleman|german|allemand|alemao|deutsch|' +
+    'italiano|italian|italien|' +
+    'portugues|portuguese|portugais|' +
+    'chino|mandarin|chinese|' +
+    'japones|japanese|japonais|' +
+    'coreano|korean|' +
+    'ruso|russian|russe|' +
+    'arabe|arabic|' +
+    'hebreo|hebrew|' +
+    'hindi|urdu|bengali|' +
+    'catalan|gallego|euskera|vasco|' +
+    'holandes|neerlandes|dutch|' +
+    'sueco|swedish|noruego|norwegian|danes|danish|finlandes|finnish|' +
+    'polaco|polish|griego|greek|turco|turkish|' +
+    'ucraniano|ukrainian|rumano|romanian|checo|czech|hungaro|hungarian|' +
+    'vietnamita|vietnamese|tailandes|thai|indonesio|indonesian|' +
+    'guarani|quechua|latin|' +
+    'lengua de senas|lengua de signos|sign language|langue des signes|libras' +
+  ')$',
+  'i',
+);
+/* Palabras de nivel que acompañan al idioma y no forman parte de su nombre. */
+const NIVEL_RX = new RegExp(
+  '\\b([abc][12]|b[áa]sico|b[áa]sica|intermedio|intermedia|avanzado|avanzada|nativo|nativa|fluido|fluida|' +
+  'basic|intermediate|advanced|native|fluent|proficient|bilingue|biling[üu]e|bilingual|' +
+  'nociones|conversacional|conversational|profesional|professional|nivel|level|' +
+  'courant|interm[ée]diaire|avanc[ée]|natif|maternelle|langue|' +
+  'b[áa]sico|avan[çc]ado|nativo|fluente|materna|' +
+  'formaci[óo]n\\s+acad[ée]mica|academic\\s+background)\\b',
+  'gi',
+);
+export const isLanguageTerm = (value) => {
+  const base = String(value ?? '')
+    .replace(/\([^)]*\)/g, ' ')          // "(C2)", "(avanzado)"
+    .replace(/[-–—:,;|]/g, ' ')          // "Inglés - C2"
+    .replace(NIVEL_RX, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');    // sin tildes: "Inglés" == "Ingles"
+  if (!base) return false;
+  return IDIOMAS_RX.test(base);
+};
+
 /** Una skill es un término (1–4 palabras), no una oración. */
 export const isSkillTerm = (value) => {
   const x = String(value ?? '').trim();
@@ -266,14 +331,17 @@ export const sanitizeCv = (input) => {
   /* normalizeLevel ANTES de isSkillTerm: "Python (lo vi en un curso)" (6 palabras)
      se reformula a "Python (formación académica)" (3) y recién ahí pasa el filtro
      de término corto. Al revés, se descartaría por largo y perderíamos la skill. */
-  const skills = dropSubsumed(
-    dedupe(
-      [...cv.skills, ...cv.languages]
-        .map(normalizeLevel)
-        .filter(isSkillTerm)
-        .filter((x) => !isEntityName(x)),   // "Hospital Francés" es un lugar, no un idioma
-    ),
-  ).slice(0, 30);
+  const terminos = [...cv.skills, ...cv.languages]
+    .map(normalizeLevel)
+    .filter(isSkillTerm)
+    .filter((x) => !isEntityName(x));   // "Hospital Francés" es un lugar, no un idioma
+
+  /* IDIOMAS Y HABILIDADES VIVEN SEPARADOS. Los idiomas salen de donde el modelo
+     los haya puesto (a veces los manda dentro de skills) y se van a SU sección.
+     Cada lista tiene su propio tope: antes los idiomas iban al final de skills y
+     el recorte a 30 se los comía enteros en un CV con muchas técnicas. */
+  const languages = dropSubsumed(dedupe(terminos.filter(isLanguageTerm))).slice(0, 12);
+  const skills = dropSubsumed(dedupe(terminos.filter((x) => !isLanguageTerm(x)))).slice(0, 30);
 
   // --- INTERESES: ni fechas, ni empresas, ni logros ---
   const interests = dedupe(
@@ -290,7 +358,7 @@ export const sanitizeCv = (input) => {
     experience,
     education,
     skills,
-    languages: [],
+    languages,
     interests,
     warnings: cv.warnings,
   };

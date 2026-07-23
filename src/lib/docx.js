@@ -5,10 +5,10 @@ import {
 import { contactLine, dateRange } from './cvSchema.js';
 
 const SECTIONS = {
-  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', int: 'Intereses' },
-  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', int: 'Interests' },
-  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', int: "Centres d'intérêt" },
-  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', int: 'Interesses' },
+  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', lng: 'Idiomas', int: 'Intereses' },
+  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', lng: 'Languages', int: 'Interests' },
+  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', lng: 'Langues', int: "Centres d'intérêt" },
+  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', lng: 'Idiomas', int: 'Interesses' },
 };
 
 const FONT = 'Times New Roman';
@@ -88,6 +88,12 @@ export const renderCvDocx = async (cv, lang = 'es') => {
   if (cv.skills?.length) {
     children.push(sectionHeading(S.skl));
     children.push(new Paragraph({ children: [new TextRun({ text: cv.skills.join('  ·  '), size: 23, font: FONT })] }));
+  }
+
+  /* IDIOMAS aparte de Habilidades: ver el comentario en pdf.js. */
+  if (cv.languages?.length) {
+    children.push(sectionHeading(S.lng));
+    children.push(new Paragraph({ children: [new TextRun({ text: cv.languages.join('  ·  '), size: 23, font: FONT })] }));
   }
 
   if (cv.interests?.length) {

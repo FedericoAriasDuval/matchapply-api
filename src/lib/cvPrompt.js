@@ -37,7 +37,10 @@ export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums
   · Si una línea es una enumeración de herramientas ("React, Node, SQL"), va a skills, NO a bullets.
 - education: SOLO estudios formales, certificaciones y cursos. Cada ítem: institution, degree, location, start, end.
   · Nada de promedios comentados, opiniones ("me encantó la carrera"), logros laborales ni skills.
-- skills: SOLO términos y tecnologías (1 a 4 palabras cada uno), incluidos idiomas con su nivel. Nada de oraciones completas, nada de datos de contacto.
+- skills: SOLO términos y tecnologías (1 a 4 palabras cada uno). Nada de oraciones completas, nada de datos de contacto. Los idiomas NO van acá: tienen su propio campo.
+- languages: los idiomas que habla la PERSONA, uno por elemento, con su nivel tal como el CV lo declara ("Inglés - C2", "Portugués (básico)", "Español (nativo)").
+  · SI EL CV DECLARA IDIOMAS, ES OBLIGATORIO DEVOLVERLOS. No los omitas, no los resumas y no los muevas a "skills". Un CV al que se le borra el idioma pierde, muchas veces, el dato que decide la búsqueda.
+  · Copiá el nivel que el CV escribió, incluido un CEFR que YA esté escrito (C2, B1). No lo inventes si no está, no lo subas y no lo bajes.
 - NOMBRES DE INSTITUCIONES ≠ skills ni idiomas. Hospitales, clínicas, sanatorios, colegios, universidades, institutos y empresas son ENTIDADES: van al contexto de la experiencia o de la educación, JAMÁS a "skills" ni a "languages", aunque su nombre contenga una palabra que parezca un idioma o una tecnología.
   · "Hospital Francés", "Hospital Italiano", "Instituto de Lengua Inglesa", "Colegio Champagnat" son LUGARES donde la persona trabajó o estudió. No son idiomas ni habilidades.
   · Un idioma entra a "languages" SOLO si el CV declara que la PERSONA lo habla (una sección de idiomas, o algo como "Inglés avanzado"). Si la palabra aparece únicamente dentro del nombre de un lugar, NO es un idioma de la persona.
