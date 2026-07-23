@@ -106,10 +106,28 @@ Devolvé exclusivamente JSON:
  */
 const LANG_NAMES = { es: 'español', en: 'inglés', fr: 'francés', pt: 'portugués' };
 
+/* Limpia el texto del CV antes de mandárselo al modelo. Algunos CV (diseñados en
+   Word/Canva) usan EMOJIS de viñeta (💼🚀📊); pdf.js los extrae como pictogramas.
+   No aportan nada al parseo, un CV para ATS no debería llevarlos, y son la clase
+   de carácter que puede ensuciar la llamada al proveedor. Se sacan junto con los
+   selectores de variación, el ZWJ, los surrogates sueltos (por si la extracción
+   partió un par) y los caracteres de control. Cierra en forma canónica NFC. */
+const SCRUB_LONE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+const SCRUB_EMOJI = /[\p{Extended_Pictographic}︀-️‍⃣]/gu;
+const SCRUB_CTRL = new RegExp('[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]', 'g');
+export const scrubCvText = (s) =>
+  String(s ?? '')
+    .replace(SCRUB_LONE, '')
+    .replace(SCRUB_EMOJI, '')
+    .replace(SCRUB_CTRL, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .normalize('NFC')
+    .trim();
+
 export const buildUserMessage = (cvText, lang = 'es') => {
   const idioma = LANG_NAMES[lang] ?? 'español';
   return (
-    `<cv_text>\n${String(cvText ?? '').slice(0, 60_000)}\n</cv_text>\n\n` +
+    `<cv_text>\n${scrubCvText(cvText).slice(0, 60_000)}\n</cv_text>\n\n` +
     `Estructurá este CV siguiendo tus reglas. ` +
     /* La traduccion es tarea del modelo, no de un diccionario: el glosario
        palabra-por-palabra del cliente producia "Third-Año Economía estudiante". */

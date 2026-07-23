@@ -119,7 +119,16 @@ const callOnce = async ({ system, user, maxTokens, timeoutMs = TIMEOUT_MS }) => 
       PROVIDER === 'gemini'
         ? await callGemini({ system, user, maxTokens, signal: ctrl.signal })
         : await callAnthropic({ system, user, maxTokens, signal: ctrl.signal });
-    return extractJson(text);
+    try {
+      return extractJson(text);
+    } catch (e) {
+      /* Guardamos QUÉ devolvió el modelo (recortado, sin exponer el CV entero):
+         sin esto, un JSON malformado o truncado era una caja negra. */
+      if (e instanceof JsonExtractError) {
+        e.rawSnippet = `len=${(text || '').length} · ini=${JSON.stringify(String(text || '').slice(0, 140))} · fin=${JSON.stringify(String(text || '').slice(-80))}`;
+      }
+      throw e;
+    }
   } finally {
     clearTimeout(timer);
   }
@@ -143,8 +152,12 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
         return await callOnce({ system, user, maxTokens, timeoutMs: Math.min(TIMEOUT_MS, restante) });
       } catch (e) {
         lastErr = e;
-        if (e instanceof JsonExtractError) throw new HttpError(502, 'llm_bad_output', e.message);
-        if (!isTransient(e) || attempt === MAX_RETRIES) break;
+        /* Un JSON malformado o truncado casi nunca es determinístico: regenerar
+           suele traer uno bueno. Antes se tiraba de una sin reintentar, y un solo
+           mal muestreo del modelo se convertía en un 502 para el usuario. Ahora
+           se reintenta igual que un error transitorio. */
+        const reintentable = isTransient(e) || e instanceof JsonExtractError;
+        if (!reintentable || attempt === MAX_RETRIES) break;
         const espera = backoff(attempt);
         /* No arrancamos un reintento que no va a llegar a tiempo: esperar para
            después abandonar es gastar el doble y contestar más tarde. */
@@ -153,19 +166,22 @@ export const completeJson = async ({ system, user, maxTokens = config.llm.maxTok
       }
     }
     const timedOut = lastErr?.name === 'AbortError';
+    const badOutput = lastErr instanceof JsonExtractError;
     /* El error REAL del proveedor va al log. Sin esta linea, el 502 esconde si
-       fue clave invalida (401), modelo inexistente (404), credito agotado (400)
-       o proveedor caido (5xx) — y el diagnostico se vuelve adivinanza. La clave
-       no se loguea jamas: solo status, tipo y mensaje. */
+       fue clave invalida (401), modelo inexistente (404), credito agotado (400),
+       proveedor caido (5xx) o JSON malformado — y el diagnostico se vuelve
+       adivinanza. La clave no se loguea jamas: solo status, tipo, mensaje y (si
+       fue JSON malo) un recorte de lo que devolvio el modelo. */
     console.error(
       '[llm] fallo real:',
       lastErr?.status ?? lastErr?.response?.status ?? '?',
       lastErr?.error?.error?.type ?? lastErr?.name ?? '?',
       String(lastErr?.message ?? '').slice(0, 300),
+      badOutput && lastErr?.rawSnippet ? `| output: ${lastErr.rawSnippet}` : '',
     );
     throw new HttpError(
-      timedOut ? 504 : 502,
-      timedOut ? 'llm_timeout' : 'llm_unavailable',
+      badOutput ? 502 : timedOut ? 504 : 502,
+      badOutput ? 'llm_bad_output' : timedOut ? 'llm_timeout' : 'llm_unavailable',
       'La IA no esta disponible en este momento.',
     );
   };

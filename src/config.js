@@ -67,7 +67,10 @@ export const config = {
        tira 503). Es extraccion de campos, no necesita razonar. Se puede fijar con
        GEMINI_MODEL en el env si algun dia conviene otro. */
     geminiModel: process.env.GEMINI_MODEL ?? 'gemini-2.0-flash',
-    maxTokens: 4000,
+    /* 8000: un CV muy denso (27 años, 8 puestos, decenas de bullets) genera un
+       JSON largo. Con 4000 podía truncarse -> JSON incompleto -> 502. sonnet-5
+       soporta salidas grandes; el costo real lo pone el contenido, no el tope. */
+    maxTokens: 8000,
     enabled: (process.env.LLM_PROVIDER ?? 'anthropic').toLowerCase() === 'gemini'
       ? Boolean(process.env.GEMINI_API_KEY)
       : Boolean(process.env.ANTHROPIC_API_KEY),

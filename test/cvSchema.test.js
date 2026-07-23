@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { contactLine, dateRange, normalizeLevel, sanitizeCv } from '../src/lib/cvSchema.js';
+import { scrubCvText } from '../src/lib/cvPrompt.js';
+
+test('scrubCvText: saca emojis de viñeta pero conserva el texto del CV', () => {
+  const out = scrubCvText('ACERCA DE MÍ: 💼 Ejecutivo con 27 años. 🚀 P&L. 📩 mail@x.com');
+  assert.equal(/\p{Extended_Pictographic}/u.test(out), false);            // sin emojis
+  assert.ok(out.includes('Ejecutivo con 27 años'), out);                  // texto intacto
+  assert.ok(out.includes('P&L') && out.includes('mail@x.com'), out);
+});
+
+test('scrubCvText: elimina surrogates sueltos y caracteres de control', () => {
+  const roto = 'Hola\uD83D mun' + String.fromCharCode(0) + 'do' + String.fromCharCode(7) + ' fin';
+  const out = scrubCvText(roto);
+  assert.ok(!/[\uD800-\uDFFF]/.test(out), 'no debe quedar surrogate suelto');
+  assert.ok(!/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(out), 'no debe quedar control');
+  assert.ok(out.includes('Hola') && out.includes('mundo') && out.includes('fin'), out);
+});
 
 /** Salida "sucia" típica de un modelo distraído: datos cruzados entre secciones. */
 const dirty = {
