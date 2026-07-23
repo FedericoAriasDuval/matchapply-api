@@ -149,3 +149,93 @@ test('cvCleanExtract: re-pega versalitas partidas sin romper palabras de una let
   assert.ok(out.includes('GERENTE DE PRODUCTO'), out);
   assert.ok(out.includes('A CARGO'), '"A CARGO" queda intacto: ' + out);
 });
+
+/* ===== Diccionario de encabezados (23/07) =====
+   El aviso "No se detectan las secciones estándar" saltaba con títulos válidos
+   pero no canónicos: "EXPERIENCIA LABORAL", "DIPLOMAS Y CERTIFICADOS". El regex
+   viejo exigía que el título EMPEZARA con la palabra clave, así que
+   "PROYECTOS Y EXPERIENCIA" no contaba como experiencia. Y había DOS listas
+   distintas —una para parsear, otra para el aviso— que podían contradecirse. */
+const tipoDeTitulo = (linea) => run(`cvIsHeader(${JSON.stringify(linea)})`);
+
+test('encabezados: los sinónimos reales de EXPERIENCIA', () => {
+  for (const x of ['EXPERIENCIA LABORAL', 'TRAYECTORIA PROFESIONAL', 'EXPERIENCIA DE TRABAJO',
+    'WORK EXPERIENCE', 'HISTORY', 'PROYECTOS Y EXPERIENCIA', 'Historial laboral', 'Antecedentes laborales']) {
+    assert.equal(tipoDeTitulo(x), 'exp', x);
+  }
+});
+
+test('encabezados: los sinónimos reales de EDUCACIÓN y CERTIFICACIONES', () => {
+  for (const x of ['ESTUDIOS', 'FORMACIÓN ACADÉMICA', 'ESTUDIOS REALIZADOS', 'EDUCATION', 'Escolaridad']) {
+    assert.equal(tipoDeTitulo(x), 'edu', x);
+  }
+  // los certificados son su propia sección, pero cuentan como formación para el aviso
+  for (const x of ['DIPLOMAS Y CERTIFICADOS', 'CURSOS Y CERTIFICACIONES', 'Capacitaciones']) {
+    assert.equal(tipoDeTitulo(x), 'cert', x);
+  }
+});
+
+test('encabezados: los sinónimos reales de HABILIDADES', () => {
+  for (const x of ['HABILIDADES TÉCNICAS', 'CONOCIMIENTOS', 'SKILLS', 'TECH STACK', 'COMPETENCIAS', 'Aptitudes']) {
+    assert.equal(tipoDeTitulo(x), 'skl', x);
+  }
+});
+
+test('encabezados: adornos, mayúsculas, tildes y espacios de más no importan', () => {
+  assert.equal(tipoDeTitulo('➢ EXPERIENCIA LABORAL'), 'exp');
+  assert.equal(tipoDeTitulo('★ Habilidades ★'), 'skl');
+  assert.equal(tipoDeTitulo('*** EDUCACION ***'), 'edu');
+  assert.equal(tipoDeTitulo('   experiencia    laboral   '), 'exp');
+  assert.equal(tipoDeTitulo('Educación:'), 'edu');
+});
+
+test('encabezados: una oración NO es un encabezado', () => {
+  assert.equal(tipoDeTitulo('Trabajé en Acme durante tres años haciendo reportes de ventas'), null);
+  assert.equal(tipoDeTitulo(''), null);
+  assert.equal(tipoDeTitulo('   '), null);
+});
+
+test('el aviso de secciones usa el MISMO diccionario que el parser', () => {
+  // el caso exacto que reportó Federico: no puede pedir secciones que ya están
+  const cv = 'Juan Perez\njuan@mail.com\nEXPERIENCIA LABORAL\nAcme S.A. 2020-2024\nGestioné el equipo comercial\nDIPLOMAS Y CERTIFICADOS\nScrum Master 2021';
+  assert.equal(tieneSecciones(cv), true);
+});
+
+test('el aviso NO se conforma con la palabra suelta en medio de un bullet', () => {
+  /* Buscar "experiencia" en todo el texto daba falso positivo con cualquier
+     bullet que dijera "tengo experiencia en...". Se mira renglón por renglón. */
+  const sinSecciones = 'Ana Ruiz\nSoy analista.\n- Tengo experiencia en SQL y conocimientos de Python.\n- Mi formación incluye cursos varios.';
+  assert.equal(tieneSecciones(sinSecciones), false);
+});
+
+/* ===== El modelo tiene que ser de ESTE CV (23/07) =====
+   Se reportó que aparecían habilidades de otro CV ("JavaScript, Python, Java,
+   C++, SQL, pandas, NumPy, Google Sheets") en el diagnóstico de un CV que no
+   las tiene. No era un mock hardcodeado: era el modelo ANTERIOR sobreviviendo.
+   CVM vive en memoria y —si está editado— en localStorage; si algún camino
+   cambiaba el texto sin pasar por cvInvalidate, el modelo viejo seguía en pie. */
+
+test('el modelo se descarta solo cuando el CV cambia (fuga de skills de otro CV)', () => {
+  const santino = 'Santino Domato\nHABILIDADES TECNICAS\nPython, C++, Java, JavaScript, SQL, pandas, NumPy\nEXPERIENCIA\nKavak 2025';
+  const carla = 'Carla Blanco\nABOGADA\nEXPERIENCIA LABORAL\nEstudio Equality 2023\nEDUCACION\nUniversidad de La Plata';
+  const { get, run: r } = boot({ profile: santino });
+
+  r('CVM=null;');
+  const skillsSantino = r('JSON.stringify(cvModel().skills)');
+  assert.match(skillsSantino, /Python/i, 'fixture: el primer CV tiene skills técnicas');
+  r('CVM.edited=true; cvSaveModel();');   // el caso peor: modelo editado y persistido
+
+  // el texto cambia SIN pasar por cvInvalidate
+  get('profile').value = carla;
+  const skillsCarla = r('JSON.stringify(cvModel().skills)');
+  assert.ok(!/python|java|numpy|pandas/i.test(skillsCarla), 'no puede traer skills del CV anterior: ' + skillsCarla);
+});
+
+test('editar la hoja NO regenera el modelo (las ediciones sobreviven)', () => {
+  /* La guarda compara contra el TEXTO del textarea, y editar la hoja no lo toca:
+     si esto fallara, cada tecleo en el CV borraría lo que la persona escribió. */
+  const { run: r } = boot({ profile: 'Ana Ruiz\nEXPERIENCIA LABORAL\nAcme 2020\nEDUCACION\nUBA' });
+  r('CVM=null; cvModel();');
+  r('CVM.name="Ana Ruiz Editada"; CVM.edited=true; cvSaveModel();');
+  assert.equal(r('cvModel().name'), 'Ana Ruiz Editada');
+});

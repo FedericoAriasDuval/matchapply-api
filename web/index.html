@@ -1172,7 +1172,11 @@
     transition:background-color .2s var(--ease), box-shadow .2s var(--ease); }
   .cv-doc [contenteditable]:hover { background:#f1f6fd; }
   .cv-doc [contenteditable]:focus { background:#e9f2ff; box-shadow:0 0 0 2px rgba(0,113,227,.32); }
-  .cv-doc [contenteditable]:empty::before { content:attr(data-ph); color:#bfc3cb; font-style:italic; }
+  /* El texto guía solo aparece cuando la hoja está EN MODO EDICIÓN. Con la hoja
+     bloqueada —que es como la ve casi todo el mundo, y como se imprime— un
+     "Ciudad, País" gris debajo de cada empresa se lee como un dato del CV que
+     quedó a medias. Es una ayuda para escribir, no contenido. */
+  .cv-doc:not(.locked) [contenteditable]:empty::before { content:attr(data-ph); color:#bfc3cb; font-style:italic; }
   .cv-item { position:relative; }
   .cv-x { position:absolute; top:0; right:-24px; width:19px; height:19px; border:none; border-radius:50%;
     background:var(--panel); color:var(--ink-3); font-size:12px; line-height:1; cursor:pointer; opacity:0;
@@ -8994,20 +8998,54 @@ function cvApplyLang(){
 function cvEscape(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 /* --- 1. Parsing: entiende el CV por secciones, no por adivinanza --- */
-var CV_SEC_RX = {
-  sum:/^(resumen|resumo|perfil|perfil profesional|professional summary|summary|profile|about( me)?|sobre m[ií]|objetivo|profil)\b/i,
-  exp:/^(experiencia|experi[eê]ncia|experiencia (laboral|profesional)|work experience|professional experience|experience|exp[ée]rience|trayectoria|historial laboral|empleo)\b/i,
-  edu:/^(educaci[oó]n|educa[cç][aã]o|formaci[oó]n|formation|education|estudios|acad[eé]mic|escolaridad)/i,
-  skl:/^(habilidades|competencias|compet[eê]ncias|comp[ée]tences|skills|technical skills|conocimientos|tecnolog[ií]as|stack|herramientas)\b/i,
-  int:/^(intereses|interesses|interests|int[eé]r[eê]ts|centres d'int[eé]r[eê]t|hobbies|otros|extra)\b/i,
-  cert:/^(certificaciones|certifica[cç][õo]es|certifications|certificados|cursos|courses|capacitaciones|formaci[oó]n complementaria|diplomas)\b/i,
-  lang:/^(idiomas|languages|langues|l[ií]nguas)\b/i
-};
-function cvIsHeader(line){
-  var l=line.replace(/[:：]\s*$/,'').trim();
-  if(!l || l.length>42 || l.split(/\s+/).length>5) return null;
-  for(var k in CV_SEC_RX){ if(CV_SEC_RX[k].test(l)) return k; }
+/* UN SOLO DICCIONARIO DE ENCABEZADOS PARA TODO EL PRODUCTO.
+   Antes habia dos listas separadas —una para partir el CV en secciones y otra
+   para decidir si mostrar el aviso "no se detectan las secciones estandar"— y
+   podian discrepar: el CV se parseaba bien y el aviso saltaba igual.
+
+   Y el matching pasa de ANCLADO a CONTIENE. El regex viejo exigia que el titulo
+   EMPEZARA con la palabra clave: "PROYECTOS Y EXPERIENCIA" no contaba como
+   experiencia y "DIPLOMAS Y CERTIFICADOS" no contaba como formacion. Ahora
+   alcanza con que la palabra aparezca, que es como escribe la gente de verdad. */
+function cvNormHead(s){
+  return String(s||'')
+    .replace(/[:\uFF1A]\s*$/,'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   /* sin tildes: "EDUCACION" == "educacion" */
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu,' ')                /* fuera vinetas y adornos: flechas, estrellas, asteriscos */
+    .replace(/\s+/g,' ')
+    .trim();
+}
+/* Las claves se prueban EN ESTE ORDEN y la primera que coincide gana. Por eso
+   'sum' va primero (un "perfil profesional" no es experiencia) y 'cert' antes
+   que 'edu' ("cursos y certificaciones" son certificaciones). */
+var CV_SEC_WORDS = [
+  ['sum',  ['resumen','resumo','perfil','summary','profile','about','sobre mi','acerca de mi','objetivo','profil','presentacion','sintesis']],
+  ['lang', ['idiomas','languages','langues','linguas','lenguas']],
+  ['cert', ['certificacion','certificaciones','certificado','certificados','certificacoes','certification','certifications','curso','cursos','course','courses','capacitacion','capacitaciones','diploma','diplomas','diplomes','complementaria']],
+  ['exp',  ['experiencia','experiencias','experience','experiences','trayectoria','historial','antecedentes','empleo','empleos','employment','history','historico','parcours','pasantias','practicas','proyectos']],
+  ['edu',  ['educacion','educacao','education','formacion','formacao','formation','estudios','estudo','estudos','academic','academica','academico','escolaridad','escolaridade','titulacion','qualifications','etudes','secundario']],
+  ['skl',  ['habilidades','habilidad','competencias','competences','skills','skill','stack','conocimientos','conhecimentos','tecnologias','herramientas','aptitudes','destrezas','savoir faire','expertise']],
+  ['int',  ['intereses','interesses','interests','interets','hobbies','aficiones','voluntariado','otros','extra']]
+];
+/* Se compara por PALABRA (o prefijo de palabra, para que "academic" agarre
+   "academica" y "certificad" agarre "certificados"), nunca a mitad de palabra. */
+function cvHeadHas(norm, palabra){ return (' '+norm).indexOf(' '+palabra) >= 0; }
+function cvHeadKind(line){
+  var n=cvNormHead(line);
+  if(!n) return null;
+  for(var i=0;i<CV_SEC_WORDS.length;i++){
+    var clave=CV_SEC_WORDS[i][0], lista=CV_SEC_WORDS[i][1];
+    for(var j=0;j<lista.length;j++){ if(cvHeadHas(n,lista[j])) return clave; }
+  }
   return null;
+}
+function cvIsHeader(line){
+  /* Un encabezado es corto, y el largo se mide sobre el texto YA limpio de
+     adornos: un titulo decorado con flechas y estrellas sigue siendo un titulo. */
+  var n=cvNormHead(line);
+  if(!n || n.length>42 || n.split(' ').length>5) return null;
+  return cvHeadKind(line);
 }
 var CV_MONTH='(?:ene|feb|mar|abr|may|jun|jul|ago|sep|set|oct|nov|dic|jan|apr|aug|dec|janv|f\u00e9vr|avr|juil|ao\u00fbt|d\u00e9c)\\w*\\.?\\s*(?:de\\s+)?';
 var CV_NUMDATE_RX=/\b(0?[1-9]|1[0-2])\/((?:19|20)\d{2})\s*(?:[\u2013\-\u2014]|a|to)\s*(?:(0?[1-9]|1[0-2])\/((?:19|20)\d{2})|(actualidad|presente|present|current|hoy))/i;
@@ -9494,9 +9532,31 @@ function onAuthReady(){
 }
 function cvLoadModel(){ try{ var raw=localStorage.getItem('ma_cv'); if(raw){ var m=JSON.parse(raw); if(m && m.edited) CVM=m; } }catch(e){} }
 function cvSaveModel(){ try{ if(CVM) localStorage.setItem('ma_cv',JSON.stringify(CVM)); }catch(e){} }
+
+/* Huella barata y estable del texto del CV. No es criptografía: solo tiene que
+   cambiar cuando cambia el CV. */
+function cvTextHash(s){
+  var t=String(s||''), h=5381, i;
+  for(i=0;i<t.length;i++){ h=((h*33) ^ t.charCodeAt(i)) >>> 0; }
+  return t.length+':'+h.toString(36);
+}
 function cvModel(){
   var txt=(document.getElementById('profile').value||'').trim();
+  var huella=cvTextHash(txt);
+  /* EL MODELO TIENE QUE SER DE ESTE CV.
+     CVM sobrevive en memoria y en localStorage (los editados). Si por cualquier
+     camino el texto cambió sin pasar por cvInvalidate —una subida, una
+     restauración, un flujo nuevo que alguien agregue mañana— el modelo viejo
+     seguía en pie y la pantalla mostraba las habilidades de OTRO CV. Acá no se
+     confía en que todos los caminos hayan hecho lo suyo: se compara el modelo
+     con el texto que hay AHORA, que es el único dato que no miente.
+     Las ediciones no se pierden: editar la hoja no toca el textarea, así que la
+     huella sigue siendo la misma. */
+  if(CVM && CVM.srcHash && CVM.srcHash!==huella) CVM=null;
   if(!CVM) CVM=cvRemoteModel()||cvParse(txt);
+  /* Los modelos guardados antes de que existiera la huella se adoptan una vez
+     (para no borrarle las ediciones a nadie) y desde ahí quedan protegidos. */
+  if(CVM && !CVM.srcHash) CVM.srcHash=huella;
   return CVM;
 }
 function cvInvalidate(){
@@ -10354,16 +10414,25 @@ function renderCvLangHint(){
    variantes ("Experiencia laboral", "Trayectoria profesional", "Formación",
    "Work Experience", "Parcours"...). Sin tildes obligatorias y sin importar
    mayúsculas: en un PDF extraído nada de eso es confiable. */
-var CV_SECCIONES = {
-  exp: /\b(experiencia(\s+(laboral|profesional|de\s+trabajo))?|trayectoria(\s+profesional)?|historial\s+laboral|antecedentes\s+laborales|work\s+experience|professional\s+experience|employment(\s+history)?|experience|exp[ée]rience(s)?(\s+professionnelle(s)?)?|parcours(\s+professionnel)?|experi[êe]ncia(\s+profissional)?|hist[óo]rico\s+profissional)\b/i,
-  edu: /\b(educaci[óo]n|formaci[óo]n(\s+(acad[ée]mica|profesional))?|estudios|acad[ée]mic[oa]s?|titulaci[óo]n|education|academic\s+background|qualifications|formation|[ée]tudes|dipl[ôo]mes|educa[çc][ãa]o|forma[çc][ãa]o(\s+acad[êe]mica)?|escolaridade)\b/i,
-  skl: /\b(habilidades|competencias|aptitudes|conocimientos|destrezas|skills|core\s+competencies|technical\s+skills|comp[ée]tences|savoir[- ]faire|habilidades|compet[êe]ncias|conhecimentos)\b/i
-};
 function cvTieneSecciones(txt){
   var s=String(txt||'');
   if(s.length<40) return false;
-  var n=0, k;
-  for(k in CV_SECCIONES){ if(CV_SECCIONES[k].test(s)) n++; }
+  /* MISMO diccionario que usa el parser (cvHeadKind): si el CV se parsea por
+     secciones, el aviso NO puede decir que no las tiene. Antes eran dos listas
+     distintas y se contradecían entre sí.
+     Se mira RENGLÓN POR RENGLÓN, como un título: buscar las palabras sueltas en
+     todo el texto daba falsos positivos (cualquier bullet que dijera "tengo
+     experiencia en..." contaba como si hubiera una sección). */
+  var vistas={}, lineas=s.split('\n'), i, k;
+  for(i=0;i<lineas.length;i++){
+    k=cvIsHeader(lineas[i]);
+    /* las certificaciones cuentan como formación: un CV con "CURSOS Y
+       CERTIFICACIONES" y sin "EDUCACIÓN" tiene su sección de estudios */
+    if(k==='cert') k='edu';
+    if(k==='exp'||k==='edu'||k==='skl') vistas[k]=true;
+  }
+  var n=0;
+  for(k in vistas) n++;
   /* dos de tres alcanza: hay CV legítimos sin una sección de habilidades */
   return n>=2;
 }
