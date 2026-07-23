@@ -138,6 +138,23 @@ test('normalizeLevel: fuera de paréntesis NO toca nada (no es una aclaración)'
   assert.equal(normalizeLevel('Marketing avanzado'), 'Marketing avanzado');
 });
 
+test('instituciones NO son skills ni idiomas (Hospital Francés / Italiano)', () => {
+  const cv = sanitizeCv({
+    ...dirty,
+    // lo que devolvía el parser con el CV real: "Promoción y venta en
+    // Hospitales Muñiz, Francés e Italiano de Buenos Aires"
+    skills: ['SAP', 'Hospital Francés', 'Colegio Champagnat', 'Universidad de Palermo'],
+    languages: ['Hospital Italiano', 'Instituto de Lengua Inglesa', 'Inglés avanzado'],
+  });
+  const s = JSON.stringify(cv.skills);
+  assert.ok(!cv.skills.some((x) => /hospital/i.test(x)), 'ningún hospital en skills: ' + s);
+  assert.ok(!cv.skills.some((x) => /colegio|universidad|instituto/i.test(x)), 'ninguna institución en skills: ' + s);
+  // y lo que SÍ es una habilidad/idioma real se conserva
+  assert.ok(cv.skills.includes('SAP'), s);
+  assert.ok(cv.skills.includes('Inglés avanzado'), s);
+  assert.deepEqual(cv.languages, []);   // languages se pliega a skills; nunca queda basura suelta
+});
+
 test('sanitizeCv: normaliza niveles informales y una skill larga sobrevive al filtro', () => {
   const cv = sanitizeCv({
     ...dirty,

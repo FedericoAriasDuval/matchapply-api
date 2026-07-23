@@ -33,6 +33,9 @@ export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums
 - education: SOLO estudios formales, certificaciones y cursos. Cada ítem: institution, degree, location, start, end.
   · Nada de promedios comentados, opiniones ("me encantó la carrera"), logros laborales ni skills.
 - skills: SOLO términos y tecnologías (1 a 4 palabras cada uno), incluidos idiomas con su nivel. Nada de oraciones completas, nada de datos de contacto.
+- NOMBRES DE INSTITUCIONES ≠ skills ni idiomas. Hospitales, clínicas, sanatorios, colegios, universidades, institutos y empresas son ENTIDADES: van al contexto de la experiencia o de la educación, JAMÁS a "skills" ni a "languages", aunque su nombre contenga una palabra que parezca un idioma o una tecnología.
+  · "Hospital Francés", "Hospital Italiano", "Instituto de Lengua Inglesa", "Colegio Champagnat" son LUGARES donde la persona trabajó o estudió. No son idiomas ni habilidades.
+  · Un idioma entra a "languages" SOLO si el CV declara que la PERSONA lo habla (una sección de idiomas, o algo como "Inglés avanzado"). Si la palabra aparece únicamente dentro del nombre de un lugar, NO es un idioma de la persona.
 - interests: SOLO intereses/hobbies. Nada de fechas, empresas ni logros.
 - Si un dato podría ir en dos secciones, elegí la nativa y NO lo dupliques.
 

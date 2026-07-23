@@ -171,6 +171,21 @@ export const normalizeLevel = (raw) =>
     return `(${s})`;
   });
 
+/**
+ * Nombre de institución que se cuela como "skill" o "idioma".
+ *
+ * Caso real que lo motivó: un CV decía "Promoción y venta en Hospitales Muñiz,
+ * Francés e Italiano" y "Francés"/"Italiano" terminaban listados como idiomas de
+ * la persona. Un hospital, un colegio o una universidad es el LUGAR donde trabajó
+ * o estudió — va al contexto de experiencia/educación, nunca a lo que sabe hacer.
+ *
+ * Solo se aplica a skills/idiomas: la sección de educación SÍ debe contener
+ * "Universidad", "Instituto" y compañía, y no la toca.
+ */
+const ENTIDAD_RX =
+  /\b(hospital(es)?|cl[ií]nicas?|sanatorios?|policl[ií]nicas?|centro m[eé]dico|colegios?|escuelas?|institutos?|universidad(es)?|university|facultad(es)?|fundaci[oó]n)\b/i;
+export const isEntityName = (value) => ENTIDAD_RX.test(String(value ?? ''));
+
 /** Una skill es un término (1–4 palabras), no una oración. */
 export const isSkillTerm = (value) => {
   const x = String(value ?? '').trim();
@@ -251,7 +266,14 @@ export const sanitizeCv = (input) => {
   /* normalizeLevel ANTES de isSkillTerm: "Python (lo vi en un curso)" (6 palabras)
      se reformula a "Python (formación académica)" (3) y recién ahí pasa el filtro
      de término corto. Al revés, se descartaría por largo y perderíamos la skill. */
-  const skills = dropSubsumed(dedupe([...cv.skills, ...cv.languages].map(normalizeLevel).filter(isSkillTerm))).slice(0, 30);
+  const skills = dropSubsumed(
+    dedupe(
+      [...cv.skills, ...cv.languages]
+        .map(normalizeLevel)
+        .filter(isSkillTerm)
+        .filter((x) => !isEntityName(x)),   // "Hospital Francés" es un lugar, no un idioma
+    ),
+  ).slice(0, 30);
 
   // --- INTERESES: ni fechas, ni empresas, ni logros ---
   const interests = dedupe(
