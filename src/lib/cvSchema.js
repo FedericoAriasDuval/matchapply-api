@@ -151,9 +151,16 @@ export const isAchievement = (line) => {
    correcta, no un problema. Y ningún reemplazo es fuente de otra regla, así que
    no hay cascada ("nivel básico" no se vuelve a reescribir). */
 const NIVEL_INFORMAL = [
+  // curso/facultad -> "formación académica" (es un contexto, no un nivel)
   [/\b(?:lo vi en (?:un|una) (?:curso|materia)|visto en (?:la )?facultad|de (?:la )?facultad|en la facu(?:ltad)?|en un curso|de la carrera|vi en la facu)\b/gi, 'formación académica'],
-  [/\b(?:medio |algo )?oxidad[oa]s?\b/gi, 'nivel intermedio'],
-  [/\b(?:muy poc[oa]s?|un poc[oa]|poqu[ií]t[oa]|apenas|casi nada|nivel usuario|principiante)\b/gi, 'nivel básico'],
+  // "oxidado" implica que hubo nivel -> intermedio
+  [/\b(?:medio |algo )?oxidad[oa]s?\b/gi, 'intermedio'],
+  // intensificador + nivel estándar -> el nivel SOLO ("muy avanzado" -> "avanzado")
+  [/\b(?:muy|bastante|s[úu]per|re)\s+(b[áa]sico|intermedio|avanzado|fluido|nativ[oa])\b/gi, '$1'],
+  // coloquialismos de nivel bajo -> "básico" (la escala estándar, sin "nivel")
+  [/\b(?:muy poc[oa]s?|un poc[oa]|poqu[ií]t[oa]|apenas|casi nada|nivel usuario|principiante)\b/gi, 'básico'],
+  // "nivel X" redundante -> solo la palabra de la escala ("nivel básico" -> "básico")
+  [/\bnivel\s+(b[áa]sico|intermedio|avanzado)\b/gi, '$1'],
 ];
 export const normalizeLevel = (raw) =>
   String(raw ?? '').replace(/\(([^)]*)\)/g, (_m, inner) => {

@@ -89,12 +89,19 @@ test('rango de fechas', () => {
 });
 
 test('normalizeLevel: aclaraciones informales entre paréntesis se profesionalizan', () => {
-  assert.equal(normalizeLevel('Italiano (muy poco)'), 'Italiano (nivel básico)');
-  assert.equal(normalizeLevel('Inglés (un poco)'), 'Inglés (nivel básico)');
-  assert.equal(normalizeLevel('Excel (nivel usuario)'), 'Excel (nivel básico)');
+  assert.equal(normalizeLevel('Italiano (muy poco)'), 'Italiano (básico)');
+  assert.equal(normalizeLevel('Inglés (un poco)'), 'Inglés (básico)');
+  assert.equal(normalizeLevel('Excel (nivel usuario)'), 'Excel (básico)');
   assert.equal(normalizeLevel('Python (lo vi en un curso)'), 'Python (formación académica)');
   assert.equal(normalizeLevel('Alemán (visto en la facultad)'), 'Alemán (formación académica)');
-  assert.equal(normalizeLevel('Inglés (medio oxidado)'), 'Inglés (nivel intermedio)');
+  assert.equal(normalizeLevel('Inglés (medio oxidado)'), 'Inglés (intermedio)');
+});
+
+test('normalizeLevel: los intensificadores se sacan del nivel estándar', () => {
+  assert.equal(normalizeLevel('Inglés (muy avanzado)'), 'Inglés (avanzado)');   // el caso que reportó Federico
+  assert.equal(normalizeLevel('Excel (muy básico)'), 'Excel (básico)');
+  assert.equal(normalizeLevel('Inglés (bastante avanzado)'), 'Inglés (avanzado)');
+  assert.equal(normalizeLevel('Inglés (nivel avanzado)'), 'Inglés (avanzado)');   // "nivel" redundante fuera
 });
 
 test('normalizeLevel: NUNCA fabrica un código CEFR que el CV no escribió', () => {
@@ -103,11 +110,11 @@ test('normalizeLevel: NUNCA fabrica un código CEFR que el CV no escribió', () 
   }
 });
 
-test('normalizeLevel: no infla ni duplica "nivel", y respeta lo ya profesional', () => {
-  assert.equal(normalizeLevel('Inglés (nivel básico)'), 'Inglés (nivel básico)');   // sin "nivel nivel"
+test('normalizeLevel: la escala estándar de una palabra se respeta (sin inflar)', () => {
   assert.equal(normalizeLevel('Excel (básico)'), 'Excel (básico)');                 // ya es estándar: intacto
   assert.equal(normalizeLevel('Inglés (avanzado)'), 'Inglés (avanzado)');           // idem: no se toca
   assert.equal(normalizeLevel('Español (nativo)'), 'Español (nativo)');              // nativo se deja
+  assert.equal(normalizeLevel('Inglés (nivel básico)'), 'Inglés (básico)');          // "nivel" redundante fuera
 });
 
 test('normalizeLevel: fuera de paréntesis NO toca nada (no es una aclaración)', () => {
@@ -123,8 +130,8 @@ test('sanitizeCv: normaliza niveles informales y una skill larga sobrevive al fi
   });
   // "Python (lo vi en un curso)" (6 palabras) se acorta a 3 y pasa el filtro
   assert.ok(cv.skills.includes('Python (formación académica)'), JSON.stringify(cv.skills));
-  assert.ok(cv.skills.includes('Italiano (nivel básico)'), JSON.stringify(cv.skills));
-  assert.ok(cv.skills.includes('Inglés (nivel intermedio)'), JSON.stringify(cv.skills));
+  assert.ok(cv.skills.includes('Italiano (básico)'), JSON.stringify(cv.skills));
+  assert.ok(cv.skills.includes('Inglés (intermedio)'), JSON.stringify(cv.skills));
   // y jamás un CEFR inventado
   assert.ok(!cv.skills.some((s) => /\b[ABC][12]\b/.test(s)));
 });
