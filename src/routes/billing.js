@@ -1,12 +1,17 @@
 import express, { Router } from 'express';
 import Stripe from 'stripe';
+import { z } from 'zod';
 import { Paddle, Environment } from '@paddle/paddle-node-sdk';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
-import { webhookLimiter } from '../middleware/rateLimit.js';
+import { licenseLimiter, webhookLimiter } from '../middleware/rateLimit.js';
 import { HttpError } from '../middleware/errors.js';
-import { PROVIDERS_CON_VENCIMIENTO, nuevoVencimiento } from '../lib/tier.js';
+import {
+  ESTADOS_VIVOS, PROVIDERS_CON_VENCIMIENTO, PROVIDERS_DE_POR_VIDA,
+  bloqueoDeCompra, debeCancelarRecurrente, nuevoVencimiento, recurrenteViva,
+} from '../lib/tier.js';
+import { motivoDeRechazo, normalizarCodigo } from '../lib/orgLicense.js';
 
 export const billingRouter = Router();
 
@@ -90,16 +95,10 @@ const setTier = (userId, tier) => query(`update users set tier = $2 where id = $
    base todavía no tiene. */
 const esDePorVida = async (userId) => {
   const { rows } = await query(`select provider from subscriptions where user_id = $1`, [userId]);
-  const p = rows[0]?.provider;
-  return p === 'paddle_lifetime' || p === 'mercadopago_lifetime';
+  return PROVIDERS_DE_POR_VIDA.has(rows[0]?.provider);
 };
 
-/* Estados en los que una suscripción todavía da acceso. past_due entra a
-   propósito: el proveedor sigue reintentando el cobro (mismo criterio que
-   paddleDeactivates). */
-const ESTADOS_VIVOS = new Set(['active', 'trialing', 'authorized', 'past_due']);
-
-const upsertSub = (userId, provider, customerId, subscriptionId, status, periodEnd) =>
+const upsertSub =(userId, provider, customerId, subscriptionId, status, periodEnd) =>
   query(
     `insert into subscriptions (user_id, provider, customer_id, subscription_id, status, current_period_end)
      values ($1, $2, $3, $4, $5, $6)
@@ -108,6 +107,39 @@ const upsertSub = (userId, provider, customerId, subscriptionId, status, periodE
        current_period_end = excluded.current_period_end, updated_at = now()`,
     [userId, provider, customerId, subscriptionId, status, periodEnd],
   );
+
+/**
+ * Da de baja el débito mensual en el proveedor. Best-effort A PROPÓSITO: la
+ * persona YA pagó el de por vida, así que un error del proveedor no puede
+ * impedirle recibir lo que compró. Pero se loguea fuerte, porque si esto falla
+ * le sigue entrando el cobro todos los meses y eso hay que arreglarlo A MANO.
+ */
+async function cancelarRecurrente(provider, subscriptionId, userId) {
+  try {
+    if (provider === 'mercadopago' && mpToken) {
+      const r = await fetch(`https://api.mercadopago.com/preapproval/${subscriptionId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      if (!r.ok) throw new Error(`MP respondió ${r.status}`);
+    } else if (provider === 'paddle' && paddle) {
+      await paddle.subscriptions.cancel(subscriptionId, { effectiveFrom: 'immediately' });
+    } else if (provider === 'stripe' && stripe) {
+      await stripe.subscriptions.cancel(subscriptionId);
+    } else {
+      console.warn('[billing] no se pudo cancelar', provider, '(proveedor sin configurar)');
+      return;
+    }
+    console.log('[billing] débito mensual dado de baja para', userId, `(${provider} ${subscriptionId})`);
+  } catch (e) {
+    console.error(
+      `[billing] ATENCIÓN: ${userId} compró el plan de por vida y NO se pudo cancelar su ` +
+      `suscripción ${provider} ${subscriptionId}: ${e.message}. Le va a seguir entrando el cobro ` +
+      `mensual — hay que cancelarlo a mano en el panel del proveedor.`,
+    );
+  }
+}
 
 /**
  * Otorga un plan de pago único ya COBRADO (lo llaman los dos webhooks).
@@ -124,17 +156,25 @@ async function otorgarPagoUnico({ userId, plan, proveedor, customerId, refId }) 
   const unico = PAGO_UNICO[plan];
   if (!unico) return;
   const { rows } = await query(
-    `select provider, status, current_period_end from subscriptions where user_id = $1`,
+    `select provider, status, subscription_id, current_period_end from subscriptions where user_id = $1`,
     [userId],
   );
   const actual = rows[0];
   const prov = actual?.provider;
-  const dePorVida = prov === 'paddle_lifetime' || prov === 'mercadopago_lifetime';
-  const recurrenteViva =
+  const dePorVida = PROVIDERS_DE_POR_VIDA.has(prov);
+  const mensualViva =
     Boolean(prov) && !dePorVida && !PROVIDERS_CON_VENCIMIENTO.has(prov) &&
     ESTADOS_VIVOS.has(String(actual.status || '').toLowerCase());
 
-  if (unico.diasDeAcceso && (dePorVida || recurrenteViva)) {
+  /* Se pasó al de por vida teniendo la mensual: se le da de baja el débito. Si
+     no, pagaría el plan definitivo y le seguiría entrando el cobro todos los
+     meses. Va ANTES de escribir la fila porque después se pierde el id de la
+     suscripción que hay que cancelar. */
+  if (debeCancelarRecurrente(actual, plan)) {
+    await cancelarRecurrente(actual.provider, actual.subscription_id, userId);
+  }
+
+  if (unico.diasDeAcceso && (dePorVida || mensualViva)) {
     await setTier(userId, 'pro');
     console.warn(`[billing] ${plan} cobrado a ${userId} que ya tenía un acceso mayor (${prov}): no se pisa la fila`);
     return;
@@ -153,6 +193,23 @@ async function otorgarPagoUnico({ userId, plan, proveedor, customerId, refId }) 
 billingRouter.post('/checkout', authenticate, async (req, res, next) => {
   try {
     const method = String(req.body?.method || '').toLowerCase() || availableMethods()[0];
+
+    /* NADIE PAGA DOS VECES LO MISMO. El front ya no dibuja el botón cuando la
+       persona es Pro, pero la decisión de cobrar no puede vivir en un botón: un
+       enlace viejo, dos pestañas abiertas o un doble clic llegan igual hasta acá.
+       El único plan que un Pro puede comprar es el de por vida, que no es comprar
+       de nuevo sino cambiar de forma de pagar — y al activarse le damos de baja
+       la mensual (ver otorgarPagoUnico). */
+    const { rows: acceso } = await query(
+      `select provider as sub_provider, current_period_end as sub_until, status
+         from subscriptions where user_id = $1`,
+      [req.user.id],
+    );
+    const bloqueo = bloqueoDeCompra(
+      { tier: req.user.tier, ...(acceso[0] ?? {}) },
+      String(req.body?.plan || 'monthly').toLowerCase(),
+    );
+    if (bloqueo) throw new HttpError(409, bloqueo.code, bloqueo.message);
 
     if (method === 'mercadopago') {
       if (!mpToken) throw new HttpError(503, 'billing_disabled', 'Mercado Pago no está configurado.');
@@ -267,6 +324,90 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
   }
 });
 
+/**
+ * POST /billing/redeem  { code }  — canje de una licencia institucional.
+ *
+ * Es el ÚNICO camino por el que un clic del usuario activa Pro, y no rompe la
+ * regla de oro (el tier lo escribe quien cobró): acá ya cobramos, por afuera y
+ * por adelantado, a la institución. El código no es una promesa de pago, es el
+ * comprobante de uno que ya ocurrió.
+ *
+ * Lo que sí se cuida: quién puede usarlo (dominio de mail), cuántos (cupo) y
+ * hasta cuándo (la fecha del contrato, que hace cumplir lib/tier.js).
+ */
+billingRouter.post('/redeem', authenticate, licenseLimiter, async (req, res, next) => {
+  try {
+    const { code } = z.object({ code: z.string().trim().min(3).max(64) }).parse(req.body);
+    const codigo = normalizarCodigo(code);
+
+    /* Si ya está pagando Pro por su cuenta, canjear le haría GASTAR un cupo de la
+       institución sin ganar nada — y peor: la fila de suscripción (una por
+       usuario) pasaría a ser la de la licencia y perderíamos el id del débito que
+       le sigue entrando. Se le dice que no hace falta, que es la verdad. */
+    const { rows: yaTiene } = await query(
+      `select provider, status from subscriptions where user_id = $1`,
+      [req.user.id],
+    );
+    const suyo = yaTiene[0];
+    if (req.user.tier === 'pro' && (PROVIDERS_DE_POR_VIDA.has(suyo?.provider) || recurrenteViva(suyo))) {
+      throw new HttpError(409, 'already_pro',
+        'Ya tenés Mavante Pro con tu propia suscripción, así que no necesitás canjear el código. Si querés usar el de tu institución y dar de baja el tuyo, escribinos a support@mavante.com.');
+    }
+
+    const { rows: lics } = await query(
+      `select id, code, name, email_domain, max_users, valid_until, is_active
+         from org_licenses where upper(code) = $1`,
+      [codigo],
+    );
+    const lic = lics[0] ?? null;
+
+    /* Cupo y pertenencia se consultan juntos: si ya sos miembro, volver a canjear
+       el mismo código no puede fallar por cupo lleno (sos uno de los que lo
+       llenan). Pasa de verdad — la gente reintenta cuando no ve el cambio. */
+    const { rows: cuenta } = lic
+      ? await query(
+          `select count(*)::int as usados,
+                  count(*) filter (where user_id = $2)::int as mio
+             from org_license_members where license_id = $1`,
+          [lic.id, req.user.id],
+        )
+      : [{ usados: 0, mio: 0 }];
+
+    const rechazo = motivoDeRechazo(lic, {
+      usados: cuenta[0].usados,
+      email: req.user.email,
+      yaEsMiembro: cuenta[0].mio > 0,
+    });
+    if (rechazo) throw new HttpError(400, rechazo.code, rechazo.message);
+
+    /* Una persona ocupa UN cupo en UNA licencia (unique en user_id). Si ya está
+       en otra, el insert no hace nada y hay que decirlo: quedarse callado le
+       haría creer que canjeó algo que no canjeó. */
+    const { rows: alta } = await query(
+      `insert into org_license_members (license_id, user_id) values ($1, $2)
+       on conflict do nothing returning license_id`,
+      [lic.id, req.user.id],
+    );
+    if (!alta[0] && cuenta[0].mio === 0) {
+      throw new HttpError(400, 'license_other', 'Tu cuenta ya está usando otra licencia institucional.');
+    }
+
+    await setTier(req.user.id, 'pro');
+    await upsertSub(req.user.id, 'org_license', null, lic.id, 'active', lic.valid_until);
+    console.log('[billing] licencia', lic.code, 'canjeada por', req.user.id);
+
+    res.json({
+      ok: true,
+      organization: lic.name,
+      until: lic.valid_until,
+      /* El front lo usa para actualizar el plan sin esperar al próximo /me. */
+      tier: 'pro',
+    });
+  } catch (e) {
+    next(e instanceof z.ZodError ? new HttpError(400, 'invalid_payload', 'Escribí el código que te dieron.') : e);
+  }
+});
+
 /* ═══════════════════════════════ Mercado Pago ═══════════════════════════════ */
 
 /**
@@ -288,9 +429,18 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
       const pre = await r.json();
       const userId = pre.external_reference;
       if (userId) {
-        const active = pre.status === 'authorized';
-        await setTier(userId, active ? 'pro' : 'free');
-        await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, pre.status ?? 'pending', null);
+        /* Misma guarda que en Paddle, y acá es todavía más necesaria: cuando
+           alguien se pasa al plan de por vida le DAMOS DE BAJA la mensual, y esa
+           baja vuelve como este mismo aviso. Sin la guarda, el sistema le sacaría
+           el Pro a alguien treinta segundos después de venderle el acceso
+           definitivo. "Para siempre" tiene que aguantar nuestros propios actos. */
+        if (await esDePorVida(userId)) {
+          console.log('[billing] aviso de MP', pre.status, 'ignorado: el usuario tiene plan de por vida');
+        } else {
+          const active = pre.status === 'authorized';
+          await setTier(userId, active ? 'pro' : 'free');
+          await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, pre.status ?? 'pending', null);
+        }
       }
     } else if (id && /payment/i.test(type)) {
       /* PAGO ÚNICO de por vida (Checkout Pro). Se re-consulta a la API de MP

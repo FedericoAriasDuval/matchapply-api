@@ -39,6 +39,11 @@ const publicUser = (u) => ({
   email: u.email,
   name: u.name,
   tier: u.tier,
+  /* QUÉ tipo de acceso tiene, no solo si tiene. Lo usa el front para no
+     ofrecerle comprar lo que ya está pagando: sin esto, la pantalla le vende
+     Pro a alguien que ya es Pro. null cuando nunca pagó nada. */
+  accessType: u.sub_provider ?? null,
+  accessUntil: u.sub_until ?? null,
   isVerified: u.is_verified,
   /* ?? false: la columna puede no venir en el SELECT (o no existir todavia, si
      la migracion 005 no corrio). El perfil no puede romperse por eso. */

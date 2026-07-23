@@ -122,6 +122,15 @@ export const corporateLimiter = rateLimit(
     }),
 );
 
+/* Canje de licencia institucional: 12 intentos cada 15 min POR USUARIO. Exige
+   sesión, así que siempre sabemos quién prueba — y un código de licencia es lo
+   único adivinable del sistema. Doce alcanza de sobra para alguien que lo copió
+   mal de un mail; no alcanza para barrer el espacio de códigos. */
+export const licenseLimiter = rateLimit(
+  opts(15 * 60_000, 12, 'license_rate_limited',
+    'Probaste varias veces. Esperá unos minutos y fijate que el código esté completo.', porUsuarioOIp),
+);
+
 /* Webhooks de pago: 60/min por IP. MP/Paddle mandan poco; frena la amplificación
    de fetch salientes con ids arbitrarios hacia la API del proveedor. (Audit M7.) */
 export const webhookLimiter = rateLimit(

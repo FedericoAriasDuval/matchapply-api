@@ -27,6 +27,71 @@ export const PROVIDERS_CON_VENCIMIENTO = new Set([
   'org_license',
 ]);
 
+/** El acceso que no vence nunca porque se pagó una vez y para siempre. */
+export const PROVIDERS_DE_POR_VIDA = new Set(['mercadopago_lifetime', 'paddle_lifetime']);
+
+/** Estados en los que una suscripción todavía da acceso. past_due entra a
+    propósito: el proveedor sigue reintentando el cobro, y bajarla ahí castigaría
+    por un problema transitorio. */
+export const ESTADOS_VIVOS = new Set(['active', 'trialing', 'authorized', 'past_due']);
+
+/** ¿Este proveedor cobra TODOS los meses? (lo contrario del pago único) */
+export const esRecurrente = (provider) =>
+  provider === 'mercadopago' || provider === 'paddle' || provider === 'stripe';
+
+/** ¿La suscripción de esta fila se sigue cobrando ahora mismo? */
+export const recurrenteViva = (fila) =>
+  Boolean(fila) && esRecurrente(fila.provider) && ESTADOS_VIVOS.has(String(fila.status || '').toLowerCase());
+
+/**
+ * ¿Puede esta persona COMPRAR este plan? Devuelve null si sí, o { code, message }.
+ *
+ * La regla que gobierna: nadie paga dos veces por lo mismo. Alguien que ya tiene
+ * Pro no puede comprar Pro otra vez —ni la mensual ni el pase semanal—, porque
+ * lo único que consigue es que le cobren dos veces por el mismo acceso. Lo que
+ * SÍ puede es pasarse al de por vida, que no es comprar de nuevo: es cambiar de
+ * forma de pagar, y al activarse le damos de baja la mensual.
+ *
+ * @param {{tier?:string, sub_provider?:string|null, sub_until?:Date|string|null}} u  la cuenta
+ * @param {string} plan  '' | 'monthly' | 'week' | 'lifetime'
+ */
+export const bloqueoDeCompra = (u, plan) => {
+  const pedido = String(plan || 'monthly').toLowerCase() || 'monthly';
+  const esPro = tierEfectivo(u) === 'pro';
+  if (!esPro) return null;                     // sin Pro, se puede comprar todo
+
+  const proveedor = u?.sub_provider ?? null;
+
+  if (pedido === 'lifetime') {
+    /* Ya lo tiene: no hay nada arriba de "para siempre" que venderle. */
+    if (PROVIDERS_DE_POR_VIDA.has(proveedor)) {
+      return { code: 'already_lifetime', message: 'Ya tenés el acceso de por vida. No hay nada más que pagar.' };
+    }
+    return null;                               // mejora: se permite
+  }
+
+  /* Mensual o pase semanal teniendo Pro = cobrarle dos veces lo mismo. */
+  if (PROVIDERS_DE_POR_VIDA.has(proveedor)) {
+    return { code: 'already_lifetime', message: 'Ya tenés el acceso de por vida. No hace falta que pagues nada más.' };
+  }
+  if (proveedor === 'org_license') {
+    return { code: 'already_pro', message: 'Tu acceso Pro ya está cubierto por tu institución.' };
+  }
+  return { code: 'already_pro', message: 'Ya tenés Mavante Pro activo. Si querés cambiar de plan, escribinos a support@mavante.com.' };
+};
+
+/**
+ * Al comprar el de por vida, ¿hay que darle de baja una suscripción que se
+ * sigue cobrando? Si no lo hiciéramos, la persona pagaría el plan definitivo y
+ * le seguiría entrando el débito mensual: cobrado dos veces por lo mismo, que es
+ * exactamente lo que esta función existe para evitar.
+ *
+ * @param {{provider?:string, status?:string, subscription_id?:string|null}|null} fila
+ * @param {string} planComprado
+ */
+export const debeCancelarRecurrente = (fila, planComprado) =>
+  planComprado === 'lifetime' && recurrenteViva(fila) && Boolean(fila.subscription_id);
+
 /**
  * @param {{tier?:string, sub_provider?:string|null, sub_until?:Date|string|null}} u
  * @returns {'free'|'pro'} el plan que de verdad rige AHORA
