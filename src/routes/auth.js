@@ -10,6 +10,7 @@ import {
   revokeSession, rotateSession, setAuthCookies, signAccessToken, verifyAccessToken,
 } from '../lib/tokens.js';
 import { authenticate } from '../middleware/auth.js';
+import { SELECT_USER_CON_ACCESO, tierEfectivo } from '../lib/tier.js';
 import { codeLimiter, loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
 import { HttpError, badRequest, forbidden, tooMany, unauthorized } from '../middleware/errors.js';
 import { attachReferral, creditReferral } from './referrals.js';
@@ -43,6 +44,23 @@ const publicUser = (u) => ({
      la migracion 005 no corrio). El perfil no puede romperse por eso. */
   isVisibleToCompanies: u.is_visible_to_companies ?? false,
 });
+
+/* El tier que viaja al front tiene que ser el EFECTIVO también en login y en el
+   refresh. Esos caminos traen la fila de users sin el join de subscriptions, y
+   sin esto alguien con el pase semanal vencido vería la interfaz Pro mientras el
+   servidor lo trata como free — el peor de los dos mundos: promete y no cumple. */
+const conTierEfectivo = async (u) => {
+  if (!u) return u;
+  if (u.sub_provider === undefined) {
+    const { rows } = await query(
+      `select provider as sub_provider, current_period_end as sub_until from subscriptions where user_id = $1`,
+      [u.id],
+    );
+    Object.assign(u, rows[0] ?? { sub_provider: null, sub_until: null });
+  }
+  u.tier = tierEfectivo(u);
+  return u;
+};
 
 const audit = (req, event, { userId = null, email = null } = {}) =>
   query(
@@ -294,7 +312,7 @@ authRouter.post('/login', loginLimiter, async (req, res, next) => {
     setAuthCookies(res, { access: signAccessToken(user), refresh });
     await audit(req, 'login_ok', { userId: user.id, email: user.email });
 
-    res.json({ user: publicUser(user) });
+    res.json({ user: publicUser(await conTierEfectivo(user)) });
   } catch (e) {
     next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Datos inválidos.') : e);
   }
@@ -313,7 +331,7 @@ authRouter.post('/refresh', async (req, res, next) => {
       throw unauthorized('session_expired', 'Tu sesión expiró.');
     }
     setAuthCookies(res, { access: signAccessToken(rotated.user), refresh: rotated.refresh });
-    res.json({ user: publicUser(rotated.user) });
+    res.json({ user: publicUser(await conTierEfectivo(rotated.user)) });
   } catch (e) {
     next(e);
   }
@@ -349,10 +367,11 @@ authRouter.get('/me', async (req, res, next) => {
     if (token) {
       try {
         const payload = verifyAccessToken(token);
-        const { rows } = await query(
-          `select id, email, name, tier, is_verified from users where id = $1`,
-          [payload.sub],
-        );
+        /* Mismo SELECT y misma regla que el middleware: si /auth/me mirara solo
+           users.tier, el front creería Pro a alguien con el pase ya vencido y
+           chocaría contra el candado del servidor. */
+        const { rows } = await query(SELECT_USER_CON_ACCESO, [payload.sub]);
+        if (rows[0]) rows[0].tier = tierEfectivo(rows[0]);
         /* Sin verificar el email no hay sesión utilizable: se contesta "nadie"
            en vez de un 403, que dejaría el mismo error rojo. */
         if (rows[0]?.is_verified) return res.json({ user: publicUser(rows[0]) });
@@ -365,7 +384,7 @@ authRouter.get('/me', async (req, res, next) => {
       const rotated = await rotateSession(raw, req);
       if (rotated) {
         setAuthCookies(res, { access: signAccessToken(rotated.user), refresh: rotated.refresh });
-        return res.json({ user: publicUser(rotated.user) });
+        return res.json({ user: publicUser(await conTierEfectivo(rotated.user)) });
       }
       clearAuthCookies(res);   // refresh muerto: que el navegador no lo siga mandando
     }

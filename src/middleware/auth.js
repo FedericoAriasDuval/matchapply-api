@@ -1,5 +1,6 @@
 import { query } from '../db.js';
 import { readAccessCookie, verifyAccessToken } from '../lib/tokens.js';
+import { SELECT_USER_CON_ACCESO, tierEfectivo } from '../lib/tier.js';
 import { forbidden, unauthorized } from './errors.js';
 
 /** Carga req.user desde la cookie de acceso (o el header Bearer). */
@@ -16,14 +17,23 @@ export const authenticate = async (req, _res, next) => {
       throw unauthorized('token_invalid', 'Tu sesión expiró. Volvé a iniciar sesión.');
     }
 
-    const { rows } = await query(
-      `select id, email, name, tier, is_verified from users where id = $1`,
-      [payload.sub],
-    );
+    const { rows } = await query(SELECT_USER_CON_ACCESO, [payload.sub]);
     if (!rows[0]) throw unauthorized();
     if (!rows[0].is_verified) throw forbidden('not_verified', 'Verificá tu email para continuar.');
 
-    req.user = rows[0];
+    /* El tier que rige es el EFECTIVO: un pase semanal vencido deja de ser Pro
+       aunque la columna diga 'pro'. Se resuelve en el único lugar por donde pasa
+       toda petición autenticada, así ningún candado se olvida de mirar la fecha. */
+    const u = rows[0];
+    req.user = {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      is_verified: u.is_verified,
+      tier: tierEfectivo(u),
+      accesoHasta: u.sub_until ?? null,      // lo usa /auth/me para avisar cuándo vence
+      accesoTipo: u.sub_provider ?? null,
+    };
     next();
   } catch (e) {
     next(e);

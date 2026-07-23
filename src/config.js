@@ -104,6 +104,10 @@ export const config = {
     // Pago ÚNICO de por vida por Mercado Pago (ARS). Sin este monto no se ofrece
     // MP para el Lifetime (no inventamos un precio). Federico lo fija en Render.
     mpLifetimeArs: Number(process.env.MP_LIFETIME_ARS ?? 0),
+    // PASE SEMANAL (USD 4,99): pago único que da Pro por 7 días y se apaga solo.
+    // Mismo criterio que el de por vida: sin monto configurado, no se ofrece.
+    mpWeekArs: Number(process.env.MP_WEEK_ARS ?? 0),
+    paddleWeekPriceId: process.env.PADDLE_WEEK_PRICE_ID,
     mpEnabled: Boolean(process.env.MP_ACCESS_TOKEN && Number(process.env.MP_PRICE_ARS ?? 0) > 0),
     // ¿hay ALGÚN método disponible? (lo usa el front para saber si mostrar el botón)
     enabled: Boolean(
