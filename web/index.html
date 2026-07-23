@@ -9032,14 +9032,59 @@ var CV_SEC_WORDS = [
    "academica" y "certificad" agarre "certificados"), nunca a mitad de palabra. */
 function cvHeadHas(norm, palabra){ return (' '+norm).indexOf(' '+palabra) >= 0; }
 function cvHeadKind(line){
-  var n=cvNormHead(line);
-  if(!n) return null;
-  for(var i=0;i<CV_SEC_WORDS.length;i++){
-    var clave=CV_SEC_WORDS[i][0], lista=CV_SEC_WORDS[i][1];
-    for(var j=0;j<lista.length;j++){ if(cvHeadHas(n,lista[j])) return clave; }
-  }
-  return null;
+  var k=cvHeadKinds(line);
+  return k.length? k[0] : null;
 }
+/* ENCABEZADOS COMPUESTOS: "EDUCATION & SKILLS", "EDUCACIÓN Y HABILIDADES",
+   "Formación / Cursos". Un título así habla de DOS secciones, y quedarse con
+   una sola tira la otra a la basura: el caso reportado perdía la carrera entera
+   ("B.S. in Computer Science - UTN") porque el bloque se archivaba como
+   habilidades. Devuelve TODAS las secciones que nombra el título, en orden.
+   Se exige un CONECTOR (&, y, and, /, +, coma) para tratarlo como compuesto:
+   sin eso, "FORMACIÓN ACADÉMICA" sería formación Y académica, y no es dos
+   cosas, es una. */
+var CV_CONECTOR_RX=/(\s[y&+]\s|\sand\s|\se\s|\s?\/\s?|\s?,\s|\s?[|·–—-]\s)/i;
+function cvHeadKinds(line){
+  var n=cvNormHead(line);
+  if(!n) return [];
+  var out=[], i, j;
+  for(i=0;i<CV_SEC_WORDS.length;i++){
+    var clave=CV_SEC_WORDS[i][0], lista=CV_SEC_WORDS[i][1];
+    for(j=0;j<lista.length;j++){
+      if(cvHeadHas(n,lista[j])){ if(out.indexOf(clave)<0) out.push(clave); break; }
+    }
+  }
+  if(out.length<2) return out;
+  /* varias secciones nombradas pero SIN conector: es un título de una sola cosa
+     que casualmente usa dos palabras nuestras. Gana la primera por prioridad. */
+  if(!CV_CONECTOR_RX.test(String(line||''))) return [out[0]];
+  return out;
+}
+/* En un bloque de título compuesto, cada renglón se manda a la sección que le
+   corresponde POR SU CONTENIDO: la carrera a educación, la lista de tecnologías
+   a habilidades. Si no se puede decidir, va a la primera del título. */
+function cvRouteLine(l, kinds){
+  var s=String(l||'');
+  if(kinds.indexOf('edu')>=0 && (CV_INST_RX.test(s) || CV_DEGREE_RX.test(s))) return 'edu';
+  if(kinds.indexOf('cert')>=0 && CV_DEGREE_RX.test(s)) return 'cert';
+  if(kinds.indexOf('lang')>=0 && CV_IDIOMA_RX.test(s)) return 'lang';
+  if(kinds.indexOf('skl')>=0 && (cvIsSkillList(s) || s.split(/\s+/).length<=6)) return 'skl';
+  if(kinds.indexOf('exp')>=0 && cvIsAchievement(s)) return 'exp';
+  return kinds[0];
+}
+var CV_IDIOMA_RX=/\b(ingl[eé]s|english|espa[nñ]ol|castellano|spanish|franc[eé]s|french|portugu[eé]s|portuguese|alem[aá]n|german|italiano|italian|chino|mandar[ií]n|japon[eé]s|nativo|native|biling[uü]e|[abc][12])\b/i;
+/* Títulos académicos INEQUÍVOCOS: los que alcanzan por sí solos para decir "esto
+   es formación", incluso sin la palabra "universidad" al lado. Es a propósito
+   más exigente que CV_DEGREE_RX (que incluye "curso" o "certificado", palabras
+   que aparecen en cualquier parte de un CV): esta lista decide un rescate y no
+   puede traerse una línea de experiencia por confusión. */
+var CV_STRONG_DEGREE_RX=/\b(b\.\s?[as]\.|m\.\s?[as]\.|b\.?\s?eng|ph\.?\s?d|bachelor|master(?:'?s)?|m[aá]ster|maestr[ií]a|mba|doctorad|licenciatur|licenciad[oa]|ingenier[ií]a|abogac[ií]a|profesorado|tecnicatura|diplomatura|posgrado|postgrado|degree in|carrera de)\b/i;
+/* La MISMA lista de instituciones que CV_INST_RX pero ANCLADA A PALABRA.
+   Sin los \b, la sigla "ort" matcheaba adentro de "rep-ort-es" y el rescate
+   convertía el logro "arme los reportes de caja" en un título universitario.
+   Inventarle estudios a alguien es la peor falla que puede tener este producto,
+   así que el rescate usa la versión estricta y nada más. */
+var CV_INST_STRICT_RX=/\b(universidad|universidade|university|universit[ée]|instituto|institute|facultad|escuela|colegio|coll[eè]ge|academia|academy|utn|uba|udesa|itba|ort|unlp|uade|uca|di\s?tella)\b/i;
 function cvIsHeader(line){
   /* Un encabezado es corto, y el largo se mide sobre el texto YA limpio de
      adornos: un titulo decorado con flechas y estrellas sigue siendo un titulo. */
@@ -9175,14 +9220,17 @@ function cvParse(text){
   var contact=cvContactBits(txt);
   var lines=txt.split(/\n/).map(function(x){return x.replace(/\s+$/,'');});
   var buckets={sum:[],exp:[],edu:[],skl:[],int:[],cert:[],lang:[],head:[]}, cur='head', found=false;
+  var curKinds=null;   /* != null cuando el título nombraba VARIAS secciones */
   lines.forEach(function(raw){
     var l=raw.trim(); if(!l) { buckets[cur].push(''); return; }
-    var h=cvIsHeader(l);
-    if(h){ cur=h; found=true;
+    var n=cvNormHead(l);
+    var hs=(n && n.length<=42 && n.split(' ').length<=5) ? cvHeadKinds(l) : [];
+    if(hs.length){ cur=hs[0]; curKinds=(hs.length>1)?hs:null; found=true;
       var inline=l.replace(/^[^:：]*[:：]\s*/,''); // "Skills: React, Node"
-      if(inline && inline!==l) buckets[cur].push(inline);
+      if(inline && inline!==l) buckets[curKinds? cvRouteLine(inline,curKinds) : cur].push(inline);
       return; }
-    buckets[cur].push(l);
+    /* bajo un título compuesto, cada renglón busca su propia sección */
+    buckets[curKinds? cvRouteLine(l,curKinds) : cur].push(l);
   });
   var model={ name:name, contactLine:contact.join('  |  '), summary:'', experience:[], education:[], skills:[], interests:'' };
 
@@ -9304,6 +9352,52 @@ function cvParse(text){
     }
     if(!model.interests && intS) model.interests=intS[1].trim();
   }
+
+  /* ÚLTIMO RESCATE DE LA EDUCACIÓN.
+     Si después de todo no quedó ninguna formación PERO el CV nombra una carrera
+     o una casa de estudios, se rescata igual. Decirle "no detectamos tu
+     educación" a alguien que escribió "B.S. in Computer Science - UTN
+     (2019-2023)" es el peor error posible del diagnóstico: le pide que agregue
+     algo que YA agregó, y encima le borra el dato de la maqueta.
+     Corre solo cuando la lista quedó vacía: nunca compite con lo que el parser
+     ya entendió bien. Y pasa por parseEdu, que filtra el ruido con las mismas
+     reglas de siempre — no se cuela una línea cualquiera por tener una palabra. */
+  if(!model.education.length){
+    /* Lo que ya es EXPERIENCIA no puede volver a contarse como estudios: quien
+       TRABAJÓ en una universidad no estudió ahí. */
+    var yaEnExp={};
+    model.experience.forEach(function(e){
+      if(e.company) yaEnExp[String(e.company).trim().toLowerCase()]=1;
+      if(e.role) yaEnExp[String(e.role).trim().toLowerCase()]=1;
+    });
+    var candidatas=lines.filter(function(l){
+      var s=String(l||'').trim();
+      if(!s || cvIsHeader(s)) return false;
+      if(s.split(/\s+/).length>14) return false;             // una oración larga no es una entrada de estudios
+      if(cvIsBullet(s) || cvIsAchievement(s)) return false;  // un logro no es un título
+      if(yaEnExp[cvStripDate(s).trim().toLowerCase()]) return false;
+      return CV_INST_STRICT_RX.test(s) || CV_STRONG_DEGREE_RX.test(s);
+    });
+    if(candidatas.length){
+      model.education=parseEdu(candidatas).slice(0,4);
+      /* Si la carrera venía suelta dentro del bloque de experiencia, el parser
+         de experiencia también la había tomado como si fuera un empleo. Ahora
+         que sabemos que es formación, se saca de ahí — pero SOLO si esa entrada
+         no tiene ningún logro colgando: una entrada con logros es un trabajo de
+         verdad y no se toca. */
+      var deEdu={};
+      model.education.forEach(function(e){
+        if(e.title) deEdu[String(e.title).trim().toLowerCase()]=1;
+        if(e.detail) deEdu[String(e.detail).trim().toLowerCase()]=1;
+      });
+      model.experience=model.experience.filter(function(e){
+        if(e.bullets && e.bullets.length) return true;
+        var r=String(e.role||'').trim().toLowerCase(), c=String(e.company||'').trim().toLowerCase();
+        return !((r && deEdu[r]) || (c && deEdu[c]));
+      });
+    }
+  }
+
   /* skills: primero lo que el usuario escribio en su bloque, luego lo detectado en el texto. Nada inventado. */
   var seen={}, merged=[];
   model.skills.concat(detectedSkills(txt)).forEach(function(k){

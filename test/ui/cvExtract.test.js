@@ -239,3 +239,64 @@ test('editar la hoja NO regenera el modelo (las ediciones sobreviven)', () => {
   r('CVM.name="Ana Ruiz Editada"; CVM.edited=true; cvSaveModel();');
   assert.equal(r('cvModel().name'), 'Ana Ruiz Editada');
 });
+
+/* ===== Encabezados COMPUESTOS y rescate de la educación (23/07) =====
+   "EDUCATION & SKILLS" archivaba el bloque entero en una sola sección y la otra
+   se perdía: el CV decía "B.S. in Computer Science - UTN (2019-2023)" y el
+   diagnóstico contestaba "no detectamos tu educación". Pedirle a alguien que
+   agregue algo que YA agregó es el peor error que puede cometer el diagnóstico. */
+const parsear = (cv) => {
+  const { get, run: r } = boot({ profile: cv });
+  r('CVM=null;');
+  return JSON.parse(r('JSON.stringify(cvModel())'));
+};
+const kinds = (titulo) => JSON.parse(run(`JSON.stringify(cvHeadKinds(${JSON.stringify(titulo)}))`));
+
+test('un título compuesto nombra las DOS secciones', () => {
+  assert.deepEqual(kinds('EDUCATION & SKILLS'), ['edu', 'skl']);
+  assert.deepEqual(kinds('EDUCACIÓN Y HABILIDADES'), ['edu', 'skl']);
+  assert.deepEqual(kinds('Formación / Cursos'), ['cert', 'edu']);
+});
+
+test('sin conector NO es compuesto ("FORMACIÓN ACADÉMICA" es una sola cosa)', () => {
+  assert.deepEqual(kinds('FORMACIÓN ACADÉMICA'), ['edu']);
+  assert.deepEqual(kinds('HABILIDADES TÉCNICAS'), ['skl']);
+});
+
+test('EDUCATION & SKILLS: la carrera va a educación y las tecnologías a skills', () => {
+  const m = parsear('John Doe\njohn@mail.com | Buenos Aires\n\nEXPERIENCE\nQuantumLabs 2020 - 2024\nSoftware Engineer\nBuilt data pipelines in Python for the analytics team\n\nEDUCATION & SKILLS\nB.S. in Computer Science - UTN (2019 - 2023)\nPython, SQL, Docker, AWS');
+  assert.equal(m.education.length, 1, 'la educación no puede perderse: ' + JSON.stringify(m.education));
+  assert.match(m.education[0].title + ' ' + m.education[0].detail, /UTN/);
+  assert.match(m.education[0].detail, /Computer Science/);
+  assert.ok(m.skills.some((s) => /python/i.test(s)), JSON.stringify(m.skills));
+  assert.equal(m.experience.length, 1, 'y la experiencia queda intacta');
+});
+
+test('la carrera se rescata aunque NO haya título de sección', () => {
+  const m = parsear('Marta Diaz\nm@mail.com\n\nEXPERIENCIA\nAcme 2020 - 2024\nDisenadora\nRedisene la identidad de la marca completa\n\nB.S. in Graphic Design - UBA (2016 - 2020)');
+  assert.equal(m.education.length, 1, JSON.stringify(m.education));
+  assert.match(m.education[0].title + m.education[0].detail, /UBA|Graphic Design/);
+  // y no queda duplicada como si fuera un empleo
+  assert.ok(!m.experience.some((e) => /graphic design/i.test((e.role || '') + (e.company || ''))), JSON.stringify(m.experience));
+});
+
+test('TRABAJAR en una universidad no es haber estudiado ahí', () => {
+  const m = parsear('Pedro Sosa\np@mail.com\n\nEXPERIENCIA\nUniversidad de Palermo 2019 - 2023\nCoordinador administrativo\nCoordine la agenda academica de tres carreras');
+  assert.deepEqual(m.education, [], 'no se inventa un título: ' + JSON.stringify(m.education));
+  assert.equal(m.experience.length, 1);
+});
+
+test('sin nada académico, NO se inventa una educación', () => {
+  /* Esto ya falló una vez: la sigla "ORT" matcheaba dentro de "reportes" y el
+     logro "armé los reportes de caja" se convertía en un título universitario. */
+  const m = parsear('Sofia Luna\ns@mail.com\n\nEXPERIENCIA\nAcme 2020 - 2024\nVendedora\nAtendi al publico y arme los reportes de caja');
+  assert.deepEqual(m.education, [], 'inventó estudios: ' + JSON.stringify(m.education));
+});
+
+test('un CV con secciones normales sigue parseándose igual (regresión)', () => {
+  const m = parsear('Ana\na@mail.com\n\nEXPERIENCIA\nAcme 2020\nAnalista\nArme los reportes mensuales del area\n\nEDUCACION\nUniversidad de Buenos Aires\nLicenciatura en Economia 2015 - 2019');
+  assert.equal(m.education.length, 1);
+  assert.match(m.education[0].title, /Universidad de Buenos Aires/);
+  assert.match(m.education[0].detail, /Economia/);
+  assert.equal(m.experience.length, 1);
+});
