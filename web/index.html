@@ -11284,10 +11284,10 @@ var DI_CLICHES = {
 };
 /* Marcas de que la respuesta CIERRA: dice cómo terminó, no solo qué hizo. */
 var DI_RESULT = {
-  es:['result','logr','consegu','termin','pas[oó] de','redu','mejor','ahora','desde entonces','evit'],
-  en:['result','achiev','ended up','went from','reduc','improv','now','since then','avoid'],
-  fr:['résultat','abouti','fini par','passé de','rédui','amélior','maintenant','depuis'],
-  pt:['resultad','consegu','termin','passou de','reduz','melhor','agora','desde então','evit']
+  es:['result','logr','consegu','termin','pas[oó] de','redu','mejor','ahora','hoy','desde entonces','evit'],
+  en:['result','achiev','ended up','went from','reduc','improv','now','today','since then','since','avoid'],
+  fr:['résultat','abouti','fini par','passé de','rédui','amélior','maintenant',"aujourd'hui",'depuis'],
+  pt:['resultad','consegu','termin','passou de','reduz','melhor','agora','hoje','desde então','evit']
 };
 
 /* Devuelve las TRES señales. No inventa un puntaje con decimales: tres señales
@@ -11296,9 +11296,18 @@ function diCheck(txt){
   var s=(txt||'').toLowerCase().trim();
   var palabras=s.split(/\s+/).filter(Boolean).length;
 
+  /* Números escritos con LETRAS: "dos veces", "twice", "la mitad", "deux fois"
+     son datos concretos igual que "2" o "50%". Contar solo el dígito descartaba
+     hasta nuestra propia respuesta modelo —que dice "dos veces"— y le clavaba
+     una cruz; y le clava una a cualquier persona que escribe los números con
+     palabras, que es lo natural. Se excluyen "un/una/one" A PROPÓSITO: son
+     artículos ("un equipo") tanto como el número 1, y contarlos haría pasar casi
+     cualquier frase. */
+  var NUM_WORD = /\b(dos|deux|tr[eê]s|cuatro|quatro|quatre|cinco|cinq|seis|six|siete|sept|sete|ocho|oito|huit|nueve|nove|diez|dez|dix|doce|douze|quince|veinte|vingt|vinte|treinta|trente|trinta|cuarenta|cincuenta|forty|fifty|cien|cem|cent|hundred|mil|mille|thousand|mill[oó]n|millones|million|doble|double|dobro|triple|triplo|mitad|moiti[ée]|metade|half|two|three|four|five|seven|eight|nine|twelve|twenty|thirty|twice|dois|duas)\b/i;
+
   /* 1) ¿Hay un dato concreto? Un porcentaje, una cantidad, un plazo. Se excluye
         un año suelto ("en 2021"), que no es un resultado. */
-  var num = /\d+\s*%/.test(s) || /(?:^|\s)\d{1,3}(?:[.,]\d+)?\s*(?!\d)(?:mil|k|millones|horas?|d[ií]as?|meses|personas|puntos|veces|clientes|usuarios)/i.test(s) || /(?:^|\s)(\d{1,3})(?:\s|$)/.test(s.replace(/\b(19|20)\d{2}\b/g,''));
+  var num = /\d+\s*%/.test(s) || /(?:^|\s)\d{1,3}(?:[.,]\d+)?\s*(?!\d)(?:mil|k|millones|horas?|d[ií]as?|meses|personas|puntos|veces|clientes|usuarios)/i.test(s) || /(?:^|\s)(\d{1,3})(?:\s|$)/.test(s.replace(/\b(19|20)\d{2}\b/g,'')) || NUM_WORD.test(s);
 
   /* 2) ¿Aparece un cliché literal? Se devuelve CUÁL, porque "usás un cliché" sin
         decir cuál no le sirve a nadie. */
@@ -11310,7 +11319,11 @@ function diCheck(txt){
         resultado al principio suele ser la pregunta, no la respuesta. */
   var mitad = s.slice(Math.floor(s.length/2));
   var res = (DI_RESULT[lang] || DI_RESULT.es);
-  var cierra = res.some(function(r){ return new RegExp(r).test(mitad); });
+  /* Cierra si hay una marca de resultado en la segunda mitad, O si ahí hay un
+     dato concreto: un número en el cierre ES la evidencia de cómo terminó. Sin
+     esto, una respuesta que cierra con la métrica ("...31% de apertura, 14
+     bajas.") no contaba como cerrada. */
+  var cierra = res.some(function(r){ return new RegExp(r).test(mitad); }) || /\d/.test(mitad) || NUM_WORD.test(mitad);
 
   return { palabras:palabras, num:num, cliche:cliche, cierra:cierra };
 }
