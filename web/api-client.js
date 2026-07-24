@@ -290,6 +290,13 @@
       });
     },
 
+    /* Panel de Talento — visibilidad para empresas (opt-in, revocable).
+       enabled=true prende y REGISTRA el consentimiento; false apaga y corta la
+       visibilidad al instante. No expone datos: solo cambia si te ven o no. */
+    talentVisibility: function (enabled) {
+      return request('/talent/visibility', { method: 'PUT', body: { enabled: !!enabled } });
+    },
+
     /* Canje de una licencia institucional (una universidad o un trabajo ya pago
        por N personas). Devuelve { organization, until } para poder decirle a la
        persona quien le cubre el acceso y hasta cuando. */

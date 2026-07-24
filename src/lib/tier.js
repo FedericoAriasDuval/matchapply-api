@@ -135,6 +135,7 @@ export const nuevoVencimiento = (dias, vigenteHasta, ahora = Date.now()) => {
  */
 export const SELECT_USER_CON_ACCESO = `
   select u.id, u.email, u.name, u.tier, u.is_verified,
+         u.is_visible_to_companies,
          s.provider          as sub_provider,
          s.current_period_end as sub_until
     from users u

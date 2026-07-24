@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { badRequest } from '../middleware/errors.js';
+import { recordConsentGiven, recordConsentWithdrawn } from '../lib/consent.js';
 
 export const talentRouter = Router();
 talentRouter.use(authenticate);
@@ -50,6 +51,12 @@ talentRouter.put('/visibility', async (req, res, next) => {
         [req.user.id],
       );
     }
+
+    /* Bitácora auditable del consentimiento. Va DESPUÉS de que la visibilidad ya
+       cambió (efecto inmediato, la promesa del panel) y está blindada: si la
+       migración 007 no corrió, el toggle funciona igual. */
+    if (enabled) await recordConsentGiven(req.user.id);
+    else await recordConsentWithdrawn(req.user.id);
 
     res.json({
       visible: rows[0].is_visible_to_companies,

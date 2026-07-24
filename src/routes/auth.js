@@ -11,6 +11,7 @@ import {
 } from '../lib/tokens.js';
 import { authenticate } from '../middleware/auth.js';
 import { SELECT_USER_CON_ACCESO, tierEfectivo } from '../lib/tier.js';
+import { recordConsentGiven, wantsCompanyVisibility } from '../lib/consent.js';
 import { codeLimiter, loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
 import { HttpError, badRequest, forbidden, tooMany, unauthorized } from '../middleware/errors.js';
 import { attachReferral, creditReferral } from './referrals.js';
@@ -78,7 +79,13 @@ const signupSchema = z.object({
   email: z.string().trim().email().max(160),
   password: z.string().min(1).max(128),
   passwordConfirm: z.string().min(1).max(128),
-  isVisibleToCompanies: z.boolean().optional().default(false),
+  // OPT-IN, desmarcado por defecto: compartir el perfil con empresas es una
+  // elección, nunca un requisito. `isDiscoverable` es el nombre viejo (pre
+  // rename de la migración 005) que el front todavía puede mandar durante la
+  // ventana de deploy: se acepta como alias para que ningún consentimiento se
+  // pierda si el front y el back no despliegan exactamente a la vez.
+  isVisibleToCompanies: z.boolean().optional(),
+  isDiscoverable: z.boolean().optional(),
   // El codigo de invitacion. Opcional y tolerante: si viene roto, la persona se
   // registra igual. Nadie se queda afuera por un link mal pegado.
   ref: z.string().trim().max(16).optional(),
@@ -119,22 +126,30 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     }
 
     const passwordHash = await hashPassword(body.password);
+    // La elección del checkbox opt-in (acepta nombre nuevo y viejo). Ver consent.js.
+    const wantsVisible = wantsCompanyVisibility(body);
 
     if (user) {
       // Cuenta creada pero nunca verificada: se pisan los datos y se reintenta.
       await query(
-        `update users set name = $2, password_hash = $3 where id = $1`,
-        [user.id, body.name, passwordHash],
+        `update users
+            set name = $2, password_hash = $3, is_visible_to_companies = $4,
+                visible_since = case when $4 then coalesce(visible_since, now()) else null end
+          where id = $1`,
+        [user.id, body.name, passwordHash, wantsVisible],
       );
     } else {
       const { rows } = await query(
-        `insert into users (email, name, password_hash, tier, is_verified)
-         values ($1, $2, $3, 'free', false)
+        `insert into users (email, name, password_hash, tier, is_verified, is_visible_to_companies, visible_since)
+         values ($1, $2, $3, 'free', false, $4, case when $4 then now() else null end)
          returning id, email, is_verified`,
-        [email, body.name, passwordHash],
+        [email, body.name, passwordHash, wantsVisible],
       );
       user = rows[0];
     }
+    /* Bitácora del consentimiento (blindada: si la migración 007 no corrió, la
+       elección ya quedó en is_visible_to_companies y esto solo no anota la fecha). */
+    if (wantsVisible) await recordConsentGiven(user.id);
 
     /* La invitacion se ANOTA aca (no se paga): el pago llega cuando verifica el
        email, en POST /auth/verify. Si algo falla, el registro sigue: el
