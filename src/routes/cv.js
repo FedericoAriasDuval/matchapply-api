@@ -392,7 +392,7 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
     const { jobDescription, lang } = z
       .object({
         jobDescription: z.string().trim().min(30).max(20_000),
-        lang: z.enum(['es', 'en', 'fr', 'pt']).optional(),
+        lang: z.enum(['es', 'en', 'fr', 'pt', 'it']).optional(),   // it: faltaba y un usuario en italiano recibía 400 en el adaptador (Pro)
       })
       .parse(req.body);
 

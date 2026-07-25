@@ -11,6 +11,7 @@ const SECTIONS = {
   en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', lng: 'Languages', int: 'Interests' },
   fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', lng: 'Langues', int: "Centres d'intérêt" },
   pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', lng: 'Idiomas', int: 'Interesses' },
+  it: { sum: 'Profilo professionale', exp: 'Esperienza', edu: 'Formazione', skl: 'Competenze', lng: 'Lingue', int: 'Interessi' },
 };
 
 /**
