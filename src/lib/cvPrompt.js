@@ -253,18 +253,12 @@ Identificá las 2–3 cosas que el puesto más necesita (requisitos centrales, r
 - Usá el nombre real de la persona (del CV). Cero placeholders: nunca [Nombre], [Empresa], [Puesto], [X].
 - La empresa: si el aviso la nombra, podés nombrarla. NO le atribuyas misión, valores ni "enfoque" que el aviso no diga. Nada de "admiro su compromiso con la innovación".
 
-## PROHIBIDO SONAR A MOLDE (esto es lo que nos diferencia)
-Nunca, en ningún idioma:
-- Arranques de relleno: "Espero que este mensaje le encuentre bien", "Me dirijo a usted", "Por medio de la presente", "Con gran interés me postulo a…", "Adjunto mi CV para su consideración".
-- Autoelogios vacíos: "persona proactiva y orientada a resultados", "apasionado y dinámico", "excelentes habilidades de comunicación", "trabajo bien en equipo y bajo presión", "creo que sería una gran incorporación".
-- Cierres acartonados: "Sin otro particular, saludo a usted atentamente", "Quedo a la espera de su pronta respuesta".
-Un logro concreto vale más que diez adjetivos. Mostrá, no declames.
-
-MISMAS PROHIBICIONES EN LOS OTROS IDIOMAS (la lista de arriba estaba solo en
-español, así que en inglés, francés y portugués no frenaba nada):
-- EN: "I hope this message finds you well", "I am writing to express my interest in", "I am excited to apply for", "As a seasoned professional with X years of experience", "I believe I would be a great fit", "team player who thrives under pressure", "Thank you for your time and consideration", "I look forward to hearing from you at your earliest convenience".
-- FR: "J'espère que ce message vous trouve en bonne santé", "Je me permets de vous écrire", "C'est avec grand intérêt que je postule", "Dans l'attente de votre retour", "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées".
-- PT: "Espero que esta mensagem o encontre bem", "Venho por meio desta", "É com grande interesse que me candidato", "Fico no aguardo de seu retorno", "Desde já agradeço a atenção".
+## LO QUE VUELVE MALA A UNA CARTA (no es el formato, es el vacío)
+Una carta formal PUEDE abrir declarando el interés en el puesto ("me postulo a…", "I am writing to express my interest in…") y cerrar agradeciendo el tiempo ("gracias por su tiempo y su consideración", "thank you for your time and consideration"): eso es el registro esperado y está bien. Lo que la arruina es que el CUERPO no diga nada concreto. Entonces:
+- Nada de AUTOELOGIOS VACÍOS sin evidencia, en ningún idioma: "persona proactiva y orientada a resultados", "apasionado y dinámico", "excelentes habilidades de comunicación", "trabajo bien en equipo y bajo presión", "team player who thrives under pressure". Si querés decir que la persona lidera, mostralo con un HECHO del CV (un proyecto que dirigió, un equipo que coordinó), nunca con el adjetivo suelto.
+- Nada de ARRANQUES PURAMENTE DECORATIVOS: "Espero que este mensaje le encuentre bien", "I hope this message finds you well", "Por medio de la presente", "Venho por meio desta". Entrá al interés y al perfil sin preámbulo hueco.
+- Nada de FRASES QUE SIRVEN PARA CUALQUIERA: si una oración del cuerpo podría estar IGUAL en la carta de otra persona para otro puesto, no dice nada — reemplazala por un dato real del CV (una materia, un proyecto con su nombre, un logro, una herramienta).
+Un dato concreto del CV vale más que diez adjetivos. Mostrá, no declames — pero sin dejar la carta incompleta.
 
 ## LAS OTRAS MARCAS DE TEXTO ESCRITO POR IA
 Estas no son clichés de carta: son tics de redacción automática. Delatan a la
@@ -296,23 +290,27 @@ No anuncies la estructura ("En esta carta voy a…"): entrá directo.
 - "creativo": cercano, con voz propia y personalidad, sin dejar de ser profesional. Puede abrir con un gancho más original. 3 párrafos.
 - "corto": 4 a 6 oraciones, directo al hueso: solo el gancho + la prueba más fuerte + el cierre. Un párrafo o dos muy breves.
 
-## FORMA
-- Primera persona del singular. Voz natural, como escribe una persona real — no una IA.
-- Largo: formal/creativo, 150–220 palabras. Corto, 60–100.
-- SIEMPRE arrancá con un saludo, en su propio renglón, seguido de una línea en blanco y recién ahí el gancho. Sin saludo la carta parece un fragmento pegado a medias — y la mayoría se manda por mail, donde entrar sin saludar se lee como brusco.
-  · Si el aviso nombra a una persona o un equipo, saludalos a ellos ("Estimada Ana," / "Hola, equipo de Datos,").
-  · Si no, usá una fórmula sobria y humana: "Estimado equipo de selección," o "Hola," a secas si el tono es creativo.
-  · NUNCA "A quien corresponda" ni "Estimados señores": son las dos que gritan plantilla.
-  El saludo no cuenta para el largo de la carta ni reemplaza al gancho: después del salto de línea, la primera oración sigue siendo lo más concreto que tengas.
+## FORMA — CARTA COMPLETA (no un fragmento suelto)
+La carta se manda TAL CUAL, así que va con todos sus bloques, cada uno separado por una
+línea en blanco (\\n\\n), EN ESTE ORDEN:
+1. FECHA Y LUGAR: una sola línea con la ciudad del candidato y el año. Ej: "Buenos Aires, 2026." La ciudad sale de <ciudad> (del CV); el año es <anio>. Si no hay ciudad, poné solo "<anio>.".
+2. SALUDO, en su propio renglón:
+  · Si el aviso nombra a una persona o un equipo, saludalos ("Estimada Ana," / "Dear Ms. Ríos,").
+  · Si no, una fórmula sobria: "Estimado equipo de selección," / "Dear Hiring Manager,".
+  · NUNCA "A quien corresponda" / "To whom it may concern" / "Estimados señores".
+3. CUERPO: 3 a 4 párrafos siguiendo el ARCO. Primera persona del singular, voz natural.
+4. CIERRE cordial: agradecé el tiempo y la consideración del lector e invitá a conversar, con naturalidad (un "gracias por su tiempo y su consideración" / "thank you for your time and consideration" está BIEN acá — es el registro esperado de una carta).
+5. DESPEDIDA en su renglón: "Atentamente," / "Sincerely," / "Cordialement," / "Atenciosamente,".
+6. FIRMA: el nombre completo del candidato (del CV) en su renglón. Debajo, si el CV los trae, el email y el teléfono, cada uno en su propio renglón. Sin placeholders — si el CV no tiene un dato, no lo pongas.
+- Largo del CUERPO: formal/creativo 180–280 palabras; corto 100–150. La fecha, el saludo y la firma van igual.
 - Un solo idioma, el pedido, de forma natural (jamás traducción palabra por palabra).
-- Sin fecha, sin encabezado postal, sin asunto: escribís el cuerpo de la carta.
 
 ## SI HAY BORRADOR DEL CANDIDATO
-Si llega una <carta_borrador>, tu trabajo NO es escribir de cero: es MEJORAR esa carta. Mantené su voz, su estructura general y todos sus hechos; arreglá lo que la debilita (clichés, arranques de relleno, falta de gancho o de prueba concreta, desorden, largo). Podés traer del CV un dato que la refuerce, pero nada que contradiga el borrador. El resultado tiene que sentirse como "mi carta, pero mejor" — no como una carta nueva.
+Si llega una <carta_borrador>, tu trabajo NO es escribir de cero: es MEJORAR esa carta. Mantené su voz, su estructura general y todos sus hechos; arreglá lo que la debilita (autoelogios vacíos, arranques huecos, falta de prueba concreta, desorden, largo). Si al borrador le falta algún bloque del formato (fecha y lugar, saludo, cierre, despedida o firma con contacto), completalo con los datos del CV. Podés traer del CV un dato que la refuerce, pero nada que contradiga el borrador ni que el CV no diga. El resultado tiene que sentirse como "mi carta, pero completa y mejor".
 
 ## SALIDA
 Devolvé exclusivamente este JSON, sin markdown ni texto alrededor:
-{ "letter": "el texto de la carta, con \\n entre párrafos" }`;
+{ "letter": "la carta COMPLETA (fecha y lugar, saludo, cuerpo, cierre, despedida y firma con contacto), con \\n entre renglones y \\n\\n entre bloques/párrafos" }`;
 
 const TONE_NAMES = {
   formal: 'formal (profesional y sobrio)',
@@ -325,9 +323,14 @@ export const buildCoverMessage = (cvJson, jobDescription, tone = 'formal', lang 
   const tono = TONE_NAMES[tone] ?? TONE_NAMES.formal;
   const job = fence(String(jobDescription ?? '').trim()).slice(0, 20_000) || '(no se especificó el puesto; escribí una carta general orientada al perfil del CV)';
   const propia = fence(String(draft ?? '').trim()).slice(0, 6_000);
+  // Para la línea de fecha/lugar de la carta: la ciudad sale del CV, el año es el actual
+  // (el modelo no sabe qué año es). Corre en el server real, así que Date es válido acá.
+  const ciudad = fence(String(cvJson?.contact?.location ?? '').trim()).slice(0, 80);
+  const anio = new Date().getFullYear();
   return (
     `<cv_json>\n${JSON.stringify(cvJson)}\n</cv_json>\n\n` +
     `<puesto>\n${job}\n</puesto>\n\n` +
+    `<ciudad>${ciudad}</ciudad>\n<anio>${anio}</anio>\n\n` +
     (propia ? `<carta_borrador>\n${propia}\n</carta_borrador>\n\n` : '') +
     (propia
       ? `Mejorá la carta del borrador siguiendo tus reglas (sección "SI HAY BORRADOR"). Tono: ${tono}. `
