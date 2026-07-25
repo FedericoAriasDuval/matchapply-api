@@ -293,7 +293,7 @@ No anuncies la estructura ("En esta carta voy a…"): entrá directo.
 ## FORMA — CARTA COMPLETA (no un fragmento suelto)
 La carta se manda TAL CUAL, así que va con todos sus bloques, cada uno separado por una
 línea en blanco (\\n\\n), EN ESTE ORDEN:
-1. FECHA Y LUGAR: una sola línea con la ciudad del candidato y el año. Ej: "Buenos Aires, 2026." La ciudad sale de <ciudad> (del CV); el año es <anio>. Si no hay ciudad, poné solo "<anio>.".
+1. FECHA Y LUGAR: una sola línea con la ciudad del candidato y el año. Ej: "Buenos Aires, 2026." La ciudad sale de <ciudad> (del CV); el año es <anio>. Si <ciudad> viene VACÍO, OMITÍ por completo esta línea: NUNCA pongas el año solo ("2026." suelto se ve mal). En ese caso la carta arranca directo por el saludo.
 2. SALUDO, en su propio renglón:
   · Si el aviso nombra a una persona o un equipo, saludalos ("Estimada Ana," / "Dear Ms. Ríos,").
   · Si no, una fórmula sobria: "Estimado equipo de selección," / "Dear Hiring Manager,".
