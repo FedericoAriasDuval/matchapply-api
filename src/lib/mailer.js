@@ -33,18 +33,65 @@ const vaDeNuevo = (e) => {
 const escape = (s) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const template = ({ name, code, minutes }) => `
+/* El mail de verificación en los 5 idiomas del producto. Antes salía SIEMPRE en
+   español, así que un francés/italiano/etc. que se registraba recibía en el momento
+   de más intención un mensaje que no entendía. `subject`/`text` son para el mail
+   plano; `title`/`greeting`/`disclaimer` para el HTML. El idioma lo elige quien
+   llama (la UI si lo manda, o el Accept-Language del navegador; ver auth.js). */
+const EMAIL_I18N = {
+  es: {
+    subject: (c) => `${c} es tu código de verificación de Mavante`,
+    title: 'Verificá tu email',
+    greeting: (n, m) => `Hola ${n}, usá este código para activar tu cuenta. Vence en ${m} minutos.`,
+    disclaimer: 'Si no creaste una cuenta en Mavante, ignorá este mensaje: sin el código, nadie puede activarla. Nunca te vamos a pedir este código por teléfono, chat ni redes.',
+    text: (n, c, m) => `Hola ${n}. Tu código de verificación es ${c}. Vence en ${m} minutos.`,
+  },
+  en: {
+    subject: (c) => `${c} is your Mavante verification code`,
+    title: 'Verify your email',
+    greeting: (n, m) => `Hi ${n}, use this code to activate your account. It expires in ${m} minutes.`,
+    disclaimer: "If you didn't create a Mavante account, ignore this message: without the code, no one can activate it. We'll never ask you for this code by phone, chat or social media.",
+    text: (n, c, m) => `Hi ${n}. Your verification code is ${c}. It expires in ${m} minutes.`,
+  },
+  fr: {
+    subject: (c) => `${c} est votre code de vérification Mavante`,
+    title: 'Vérifiez votre e-mail',
+    greeting: (n, m) => `Bonjour ${n}, utilisez ce code pour activer votre compte. Il expire dans ${m} minutes.`,
+    disclaimer: "Si vous n'avez pas créé de compte Mavante, ignorez ce message : sans le code, personne ne peut l'activer. Nous ne vous demanderons jamais ce code par téléphone, chat ou réseaux sociaux.",
+    text: (n, c, m) => `Bonjour ${n}. Votre code de vérification est ${c}. Il expire dans ${m} minutes.`,
+  },
+  pt: {
+    subject: (c) => `${c} é o seu código de verificação da Mavante`,
+    title: 'Verifique seu e-mail',
+    greeting: (n, m) => `Olá ${n}, use este código para ativar sua conta. Expira em ${m} minutos.`,
+    disclaimer: 'Se você não criou uma conta na Mavante, ignore esta mensagem: sem o código, ninguém pode ativá-la. Nunca vamos pedir este código por telefone, chat ou redes sociais.',
+    text: (n, c, m) => `Olá ${n}. Seu código de verificação é ${c}. Expira em ${m} minutos.`,
+  },
+  it: {
+    subject: (c) => `${c} è il tuo codice di verifica di Mavante`,
+    title: 'Verifica la tua email',
+    greeting: (n, m) => `Ciao ${n}, usa questo codice per attivare il tuo account. Scade tra ${m} minuti.`,
+    disclaimer: 'Se non hai creato un account su Mavante, ignora questo messaggio: senza il codice, nessuno può attivarlo. Non ti chiederemo mai questo codice per telefono, chat o social.',
+    text: (n, c, m) => `Ciao ${n}. Il tuo codice di verifica è ${c}. Scade tra ${m} minuti.`,
+  },
+};
+/** Idioma soportado o 'es'. */
+export const emailLang = (l) => (EMAIL_I18N[l] ? l : 'es');
+
+const template = ({ name, code, minutes, lang }) => {
+  const L = EMAIL_I18N[emailLang(lang)];
+  return `
 <!doctype html>
-<html lang="es">
+<html lang="${emailLang(lang)}">
 <body style="margin:0;background:#f8fafc;padding:32px 16px;font-family:'Manrope',Helvetica,Arial,sans-serif;color:#15294d">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:480px;background:#fff;border:1px solid #dbe2ec;border-radius:4px;padding:34px 34px 28px">
         <tr><td>
           <div style="font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#0b5fff;font-weight:700;margin-bottom:14px">Mavante</div>
-          <h1 style="margin:0 0 10px;font-size:23px;letter-spacing:-.02em">Verificá tu email</h1>
+          <h1 style="margin:0 0 10px;font-size:23px;letter-spacing:-.02em">${L.title}</h1>
           <p style="margin:0 0 22px;font-size:14.5px;line-height:1.55;color:#4b5565">
-            Hola ${escape(name)}, usá este código para activar tu cuenta. Vence en ${minutes} minutos.
+            ${L.greeting(escape(name), minutes)}
           </p>
           <div style="text-align:center;margin:0 0 22px">
             <div style="display:inline-block;font-family:'JetBrains Mono',Menlo,monospace;font-size:32px;font-weight:700;
@@ -53,8 +100,7 @@ const template = ({ name, code, minutes }) => `
             </div>
           </div>
           <p style="margin:0;font-size:12px;line-height:1.6;color:#8a93a5">
-            Si no creaste una cuenta en Mavante, ignorá este mensaje: sin el código, nadie puede activarla.
-            Nunca te vamos a pedir este código por teléfono, chat ni redes.
+            ${L.disclaimer}
           </p>
         </td></tr>
       </table>
@@ -64,14 +110,16 @@ const template = ({ name, code, minutes }) => `
     </td></tr>
   </table>
 </body></html>`;
+};
 
 /**
  * Envía el código de verificación.
  * Sin SMTP configurado (dev), lo loguea por consola en vez de fallar.
  * El código NUNCA se devuelve al cliente.
  */
-export const sendVerificationEmail = async ({ to, name, code }) => {
+export const sendVerificationEmail = async ({ to, name, code, lang }) => {
   const minutes = config.auth.codeTtlMinutes;
+  const L = EMAIL_I18N[emailLang(lang)];
   if (!transporter) {
     console.log(`[mailer:dev] código para ${to}: ${code} (vence en ${minutes} min)`);
     return { delivered: false, dev: true };
@@ -79,9 +127,9 @@ export const sendVerificationEmail = async ({ to, name, code }) => {
   const mensaje = {
     from: config.mail.from,
     to,
-    subject: `${code} es tu código de verificación de Mavante`,
-    text: `Hola ${name}. Tu código de verificación es ${code}. Vence en ${minutes} minutos.`,
-    html: template({ name, code, minutes }),
+    subject: L.subject(code),
+    text: L.text(name, code, minutes),
+    html: template({ name, code, minutes, lang }),
   };
 
   /* Un intento y un reintento. La mayoría de las fallas de SMTP son un hipo de

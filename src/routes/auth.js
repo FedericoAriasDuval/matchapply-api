@@ -27,9 +27,19 @@ export const authRouter = Router();
  * salió— y le damos la única salida real: volver a pedirlo. La cuenta ya quedó
  * creada sin verificar, así que reintentar funciona.
  */
-const enviarCodigo = async ({ to, name, code }) => {
+/* Idioma para el mail: el que manda la UI si vino (body.lang), si no el del
+   navegador (Accept-Language), y si nada, español. Antes el mail salía SIEMPRE en
+   español para todos. */
+const pickLang = (req) => {
+  const b = req.body?.lang;
+  if (['es', 'en', 'fr', 'pt', 'it'].includes(b)) return b;
+  const m = String(req.get('accept-language') || '').toLowerCase().match(/\b(es|en|fr|pt|it)\b/);
+  return m ? m[1] : 'es';
+};
+
+const enviarCodigo = async ({ to, name, code, lang }) => {
   try {
-    await sendVerificationEmail({ to, name, code });
+    await sendVerificationEmail({ to, name, code, lang });
   } catch (e) {
     throw new HttpError(503, 'mail_failed', 'No pudimos enviarte el código.', { email: to });
   }
@@ -165,7 +175,7 @@ authRouter.post('/signup', signupLimiter, async (req, res, next) => {
     }
 
     const { code } = await issueCode(user.id, 'signup');
-    await enviarCodigo({ to: email, name: body.name, code });
+    await enviarCodigo({ to: email, name: body.name, code, lang: pickLang(req) });
     await audit(req, 'signup', { userId: user.id, email });
 
     // El código NUNCA vuelve al cliente.
@@ -261,7 +271,7 @@ authRouter.post('/resend', codeLimiter, async (req, res, next) => {
     if (wait > 0) throw tooMany('resend_cooldown', `Esperá ${wait} segundos antes de pedir otro código.`, { wait });
 
     const { code } = await issueCode(user.id, 'signup');
-    await enviarCodigo({ to: user.email, name: user.name, code });
+    await enviarCodigo({ to: user.email, name: user.name, code, lang: pickLang(req) });
     await audit(req, 'resend', { userId: user.id, email: user.email });
 
     res.status(202).json({ status: 'sent', resendCooldownSeconds: config.auth.resendCooldownSeconds });
@@ -327,7 +337,7 @@ authRouter.post('/login', loginLimiter, async (req, res, next) => {
            Si el envío falla, se loguea y se sigue — tapar esa respuesta con un
            error de mail dejaría a la persona sin entender por qué no entra. */
         try {
-          await sendVerificationEmail({ to: user.email, name: user.name, code });
+          await sendVerificationEmail({ to: user.email, name: user.name, code, lang: pickLang(req) });
         } catch (e) {
           console.error('[auth] login de cuenta sin verificar: el reenvío del código falló', e?.message);
         }
