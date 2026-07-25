@@ -7,11 +7,11 @@ const RIGHT = W - M;
 const WIDTH = RIGHT - M;
 
 const SECTIONS = {
-  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', lng: 'Idiomas', int: 'Intereses' },
-  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', lng: 'Languages', int: 'Interests' },
-  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', lng: 'Langues', int: "Centres d'intérêt" },
-  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', lng: 'Idiomas', int: 'Interesses' },
-  it: { sum: 'Profilo professionale', exp: 'Esperienza', edu: 'Formazione', skl: 'Competenze', lng: 'Lingue', int: 'Interessi' },
+  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', lng: 'Idiomas', int: 'Intereses', grd: 'Nota' },
+  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', lng: 'Languages', int: 'Interests', grd: 'Grade' },
+  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', lng: 'Langues', int: "Centres d'intérêt", grd: 'Note' },
+  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', lng: 'Idiomas', int: 'Interesses', grd: 'Nota' },
+  it: { sum: 'Profilo professionale', exp: 'Esperienza', edu: 'Formazione', skl: 'Competenze', lng: 'Lingue', int: 'Interessi', grd: 'Voto' },
 };
 
 /**
@@ -134,6 +134,15 @@ export const renderCvPdf = (cv, lang = 'es', opts = {}) =>
       cv.education.forEach((e) => {
         row(e.institution, e.location);
         if (e.degree || e.start || e.end) row(e.degree, dateRange(e.start, e.end), true);
+        // La nota/promedio va DESTACADA (negrita): es un dato de valor que se perdía.
+        if (e.grade) {
+          need(16);
+          doc.font('Times-Bold').fontSize(11).fillColor('#000')
+            .text(`${S.grd}: ${e.grade}`, M + 4, doc.y, { width: WIDTH });
+          doc.font('Times-Roman').fontSize(11.5);
+          doc.moveDown(0.1);
+        }
+        if (e.details?.length) bullets(e.details);
         doc.moveDown(0.2);
       });
     }

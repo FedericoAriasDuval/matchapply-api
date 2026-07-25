@@ -89,6 +89,10 @@ export const parseCv = (input) => {
               location: s(e.location, 120),
               start: s(e.start, 40),
               end: s(e.end, 40),
+              // nota/promedio/distinción a destacar ("8,57", "9/10", "A", "con distinción")
+              grade: s(e.grade, 80),
+              // materias destacadas, mención, etc. (no logros de experiencia)
+              details: arr(e.details, (d) => s(d, 200), 6),
             }
           : null,
       12,
@@ -240,17 +244,28 @@ const NIVEL_RX = new RegExp(
   'formaci[óo]n\\s+acad[ée]mica|academic\\s+background)\\b',
   'gi',
 );
-export const isLanguageTerm = (value) => {
-  const base = String(value ?? '')
+const cleanLangBase = (str) =>
+  String(str ?? '')
     .replace(/\([^)]*\)/g, ' ')          // "(C2)", "(avanzado)"
-    .replace(/[-–—:,;|]/g, ' ')          // "Inglés - C2"
+    .replace(/[-–—:,;|.]/g, ' ')          // "Inglés - C2", "Inglés: ...", "204 puntos."
     .replace(NIVEL_RX, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '');    // sin tildes: "Inglés" == "Ingles"
-  if (!base) return false;
-  return IDIOMAS_RX.test(base);
+export const isLanguageTerm = (value) => {
+  const base = cleanLangBase(value);
+  if (base && IDIOMAS_RX.test(base)) return true;
+  /* FORMA VERBOSA (bug del 25/07, CV de Nicolás): "Inglés: Certificate of Proficiency
+     in English (CPE) – Cambridge. Nivel C2, Grade C, 204 puntos". Después de sacar
+     nivel/paréntesis quedan tokens sobrantes (Cambridge, Grade, puntos) y el match
+     ANCLADO (^idioma$) fallaba → el idioma se descartaba entero, aunque tuviera nivel.
+     Red de seguridad: si el PRIMER segmento (antes del primer separador fuerte) es un
+     idioma, ES un idioma. "English translation" no tiene separador → su primer segmento
+     es todo el término y no matchea; "Traducción inglés-español" arranca con
+     "Traducción" → tampoco. Así rescatamos el idioma sin tragarnos skills. */
+  const first = cleanLangBase(String(value ?? '').split(/[:\-–—,.(]/)[0]);
+  return !!first && IDIOMAS_RX.test(first);
 };
 
 /** Una skill es un término (1–4 palabras), no una oración. */

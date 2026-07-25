@@ -5,11 +5,11 @@ import {
 import { contactLine, dateRange } from './cvSchema.js';
 
 const SECTIONS = {
-  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', lng: 'Idiomas', int: 'Intereses' },
-  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', lng: 'Languages', int: 'Interests' },
-  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', lng: 'Langues', int: "Centres d'intérêt" },
-  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', lng: 'Idiomas', int: 'Interesses' },
-  it: { sum: 'Profilo professionale', exp: 'Esperienza', edu: 'Formazione', skl: 'Competenze', lng: 'Lingue', int: 'Interessi' },
+  es: { sum: 'Resumen profesional', exp: 'Experiencia', edu: 'Educación', skl: 'Habilidades', lng: 'Idiomas', int: 'Intereses', grd: 'Nota' },
+  en: { sum: 'Professional summary', exp: 'Experience', edu: 'Education', skl: 'Skills', lng: 'Languages', int: 'Interests', grd: 'Grade' },
+  fr: { sum: 'Profil professionnel', exp: 'Expérience', edu: 'Formation', skl: 'Compétences', lng: 'Langues', int: "Centres d'intérêt", grd: 'Note' },
+  pt: { sum: 'Resumo profissional', exp: 'Experiência', edu: 'Educação', skl: 'Competências', lng: 'Idiomas', int: 'Interesses', grd: 'Nota' },
+  it: { sum: 'Profilo professionale', exp: 'Esperienza', edu: 'Formazione', skl: 'Competenze', lng: 'Lingue', int: 'Interessi', grd: 'Voto' },
 };
 
 const FONT = 'Times New Roman';
@@ -83,6 +83,20 @@ export const renderCvDocx = async (cv, lang = 'es') => {
     cv.education.forEach((e) => {
       children.push(rowRight(e.institution, e.location, { bold: true }));
       if (e.degree || e.start || e.end) children.push(rowRight(e.degree, dateRange(e.start, e.end), { italic: true }));
+      // La nota/promedio va DESTACADA (negrita): dato de valor que se perdía.
+      if (e.grade) {
+        children.push(new Paragraph({
+          spacing: { after: 20 },
+          children: [new TextRun({ text: `${S.grd}: ${e.grade}`, size: 23, font: FONT, bold: true })],
+        }));
+      }
+      (e.details ?? []).filter(Boolean).forEach((d) => {
+        children.push(new Paragraph({
+          bullet: { level: 0 },
+          spacing: { after: 20 },
+          children: [new TextRun({ text: d, size: 23, font: FONT })],
+        }));
+      });
     });
   }
 

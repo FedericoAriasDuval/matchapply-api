@@ -117,7 +117,15 @@ export const config = {
     ),
   },
 
-  quota: { free: 3, pro: 10 },
+  quota: { free: 3, pro: 30 },
+
+  /* Cuentas que NO gastan cuota (el fundador probando la plataforma). Se setean por
+     env (FOUNDER_EMAILS, separadas por coma) para no hardcodear un mail en el código.
+     Vacío = nadie tiene bypass. */
+  founderEmails: String(process.env.FOUNDER_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
 
   /* Panel de Talento (B2B2C). APAGADO por defecto, y es a propósito: mientras
      esté en false, /corporate/* no existe — devuelve 404 como cualquier ruta

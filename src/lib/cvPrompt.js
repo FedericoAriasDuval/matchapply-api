@@ -42,13 +42,16 @@ export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums
   · Si una línea es una enumeración de herramientas ("React, Node, SQL"), va a skills, NO a bullets.
   · INTEGRIDAD DEL BLOQUE (crítico): cada ítem es UN bloque, y su role, company, start, end y bullets salen TODOS del mismo bloque. Un logro pertenece a la empresa/puesto de SU bloque; NUNCA lo corras al empleo de arriba o de abajo, y NUNCA pegues las fechas de un empleo al empleo contiguo. La empresa (dónde) y el puesto (qué) tienen que ser coherentes con los logros: si un logro dice "vendí tarjetas de crédito" no puede quedar bajo un instituto de inglés, y "promocioné productos en hospitales" no puede quedar bajo una empresa que no es del rubro salud. Si un logro no encaja con la empresa que quedó a su lado, es señal de que el texto llegó desordenado (REGLA 0): reasocialo por CONTENIDO al empleo correcto, no por proximidad.
   · UNA MISMA EMPRESA, VARIOS PUESTOS (ascensos): es normal que alguien tenga dos o más puestos en la misma empresa (ej. entró como analista y ascendió a gerente). En ese caso devolvé UN ítem por puesto, todos con la MISMA "company" y cada uno con sus fechas y sus logros propios. No fusiones dos empresas distintas en un solo ítem, y no partas un mismo puesto en dos.
-- education: SOLO estudios formales, certificaciones y cursos. Cada ítem: institution, degree, location, start, end.
-  · Nada de promedios comentados, opiniones ("me encantó la carrera"), logros laborales ni skills.
+- education: SOLO estudios formales, certificaciones y cursos. Cada ítem: institution, degree, location, start, end, grade, details.
+  · grade: la nota, promedio, calificación o distinción que el CV declare para ese estudio o curso — "8,57", "9/10", "A", "aprobado con distinción", "sobresaliente". Es un dato de VALOR para el candidato: PRESERVALO, no lo tires. Un curso de Excel con "Calificación: 9/10" tiene que conservar ese 9/10. Si no hay nota, "".
+  · details: materias destacadas, menciones u otra info del estudio que el CV liste ("Microeconomía, Macroeconomía, Econometría"). Cada una es un elemento del array. Sin logros laborales ni skills sueltas acá.
+  · Nada de opiniones ("me encantó la carrera") ni logros laborales.
 - skills: SOLO términos y tecnologías (1 a 4 palabras cada uno). Nada de oraciones completas, nada de datos de contacto. Los idiomas NO van acá: tienen su propio campo.
 - languages: los idiomas que habla la PERSONA, uno por elemento, con su nivel tal como el CV lo declara ("Inglés - C2", "Portugués (básico)", "Español (nativo)").
   · SI EL CV DECLARA IDIOMAS, ES OBLIGATORIO DEVOLVERLOS. No los omitas, no los resumas y no los muevas a "skills". Un CV al que se le borra el idioma pierde, muchas veces, el dato que decide la búsqueda.
   · UN IDIOMA SE DEVUELVE AUNQUE COINCIDA CON EL IDIOMA DE SALIDA. Si el CV declara "English (C2)" y estás devolviendo el CV en inglés, "English (C2)" VA en languages igual: NUNCA lo saques por "obvio" ni porque el documento ya esté en ese idioma. Un CV en inglés que declara inglés C2 tiene que seguir mostrando ese C2. Lo mismo para cualquier idioma en cualquier idioma de salida.
   · Copiá el nivel que el CV escribió, incluido un CEFR que YA esté escrito (C2, B1), y su acreditación si la trae ("C2 Proficient – EF SET, 2026"). No lo inventes si no está, no lo subas y no lo bajes.
+  · FORMA VERBOSA: si el CV describe el idioma de forma larga —con el nombre del examen y el puntaje, ej. "Inglés: Certificate of Proficiency in English (CPE) – Cambridge. Nivel C2, Grade C, 204 puntos"— EXTRAÉ el idioma y su nivel y devolvelo LIMPIO y CORTO en languages: "Inglés (C2)". NO lo dejes solo en el resumen, NO lo descartes por largo, NO lo muevas a skills. El idioma con nivel SIEMPRE va en el array languages.
 - NOMBRES DE INSTITUCIONES ≠ skills ni idiomas. Hospitales, clínicas, sanatorios, colegios, universidades, institutos y empresas son ENTIDADES: van al contexto de la experiencia o de la educación, JAMÁS a "skills" ni a "languages", aunque su nombre contenga una palabra que parezca un idioma o una tecnología.
   · "Hospital Francés", "Hospital Italiano", "Instituto de Lengua Inglesa", "Colegio Champagnat" son LUGARES donde la persona trabajó o estudió. No son idiomas ni habilidades.
   · Un idioma entra a "languages" SOLO si el CV declara que la PERSONA lo habla (una sección de idiomas, o algo como "Inglés avanzado"). Si la palabra aparece únicamente dentro del nombre de un lugar, NO es un idioma de la persona.
@@ -81,7 +84,7 @@ Devolvé exclusivamente un objeto JSON válido con esta forma exacta, sin texto 
     { "role": "", "company": "", "location": "", "start": "", "end": "", "bullets": [""] }
   ],
   "education": [
-    { "institution": "", "degree": "", "location": "", "start": "", "end": "" }
+    { "institution": "", "degree": "", "location": "", "start": "", "end": "", "grade": "", "details": [""] }
   ],
   "skills": [""],
   "languages": [""],
@@ -195,9 +198,14 @@ export const buildUserMessage = (cvText, lang = 'es') => {
        palabra-por-palabra del cliente producia "Third-Año Economía estudiante". */
     `Devolvé TODO el contenido textual en ${idioma}. Si algo está escrito en otro idioma, ` +
     `traducilo de forma natural y completa — jamás mezclas palabra por palabra. ` +
-    `NO traduzcas: nombres propios de personas, empresas e instituciones, nombres de ` +
-    `tecnologías y herramientas (Python, Power BI, Excel), certificaciones con nombre ` +
-    `oficial, emails ni URLs. Traducir no es reescribir: no agregues, quites ni exageres ` +
+    `NO traduzcas los NOMBRES PROPIOS de personas, empresas, universidades, colegios, ` +
+    `organismos públicos, bolsas, cámaras y entidades locales: son marcas/entidades ` +
+    `jurídicas reales y se dejan tal cual. Ej.: "Bolsa de Comercio del Chaco" queda ` +
+    `"Bolsa de Comercio del Chaco" (NO "Chaco Stock Exchange"), "Universidad de San Andrés" ` +
+    `queda igual. Podés, si ayuda, aclarar entre paréntesis lo que hace ("Bolsa de Comercio ` +
+    `del Chaco (regional stock exchange)"), pero SIN reemplazar el nombre oficial. Tampoco ` +
+    `traduzcas nombres de tecnologías y herramientas (Python, Power BI, Excel), ` +
+    `certificaciones con nombre oficial, emails ni URLs. Traducir no es reescribir: no agregues, quites ni exageres ` +
     `información. Los logros de experiencia van en primera persona del singular y sin ` +
     `pronombre, como se estila en un CV: en español "Apoyé", "Desarrollé", "Guié" — nunca ` +
     `tercera persona como "Apoyó". Respondé solo con el JSON.`

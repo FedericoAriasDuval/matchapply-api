@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { contactLine, dateRange, normalizeLevel, sanitizeCv } from '../src/lib/cvSchema.js';
+import { contactLine, dateRange, normalizeLevel, sanitizeCv, isLanguageTerm } from '../src/lib/cvSchema.js';
 import { scrubCvText } from '../src/lib/cvPrompt.js';
 
 test('scrubCvText: saca emojis de viñeta pero conserva el texto del CV', () => {
@@ -312,4 +312,58 @@ test('idiomas: el nivel se normaliza igual que en skills, sin inflarlo', () => {
   assert.ok(cv.languages.includes('Inglés (avanzado)'), JSON.stringify(cv.languages));
   assert.ok(cv.languages.includes('Italiano (básico)'), JSON.stringify(cv.languages));
   assert.ok(!cv.languages.some((l) => /\b[ABC][12]\b/.test(l)), 'nunca un CEFR inventado');
+});
+
+/* ============================================================================
+   Regresiones del 25/07 (CV de Nicolás): idiomas verbosos, notas de estudios y
+   nombres de instituciones. Ver el prompt del pedido de Federico.
+   ============================================================================ */
+
+test('idiomas: "English C2" / "Inglés C2" NUNCA se pierden (regresión English C2)', () => {
+  const cv = sanitizeCv({ skills: [], languages: ['English C2', 'Inglés C2', 'Spanish - Native'] });
+  const j = JSON.stringify(cv.languages);
+  assert.ok(cv.languages.some((l) => /english/i.test(l)), j);
+  assert.ok(cv.languages.some((l) => /native|spanish/i.test(l)), j);
+});
+
+test('idiomas: forma VERBOSA con examen/puntaje sigue siendo un idioma', () => {
+  // el nombre del idioma va al principio, seguido del examen y el puntaje
+  assert.equal(isLanguageTerm('Inglés: Certificate of Proficiency in English (CPE) – Cambridge, C2, 204 puntos'), true);
+  assert.equal(isLanguageTerm('English - C2 (Cambridge CPE)'), true);
+  assert.equal(isLanguageTerm('Español (Nativo)'), true);
+  const cv = sanitizeCv({ skills: [], languages: ['Inglés: Certificate of Proficiency in English (CPE) – Cambridge, C2, 204 puntos'] });
+  assert.ok(cv.languages.some((l) => /ingl[eé]s|english|cpe|c2/i.test(l)), JSON.stringify(cv.languages));
+});
+
+test('idiomas: NO se traga skills que arrancan con un idioma', () => {
+  assert.equal(isLanguageTerm('English translation'), false);      // es una skill
+  assert.equal(isLanguageTerm('Traducción inglés-español'), false);
+  const cv = sanitizeCv({ skills: ['English translation', 'Traducción inglés-español'], languages: [] });
+  assert.equal(cv.languages.length, 0, JSON.stringify(cv.languages));
+  assert.ok(cv.skills.length >= 1, JSON.stringify(cv.skills));
+});
+
+test('educación: la NOTA/promedio se conserva (regresión Excel 9/10)', () => {
+  const cv = sanitizeCv({
+    education: [
+      { institution: 'Universidad Tecnológica Nacional (UTN)', degree: 'Curso Básico de Excel', grade: '9/10 (sobresaliente)', details: [] },
+      { institution: 'Universidad de San Andrés', degree: 'Licenciatura en Economía', grade: '8,57', details: ['Microeconomía', 'Econometría'] },
+    ],
+    skills: [], languages: [],
+  });
+  assert.equal(cv.education[0].grade, '9/10 (sobresaliente)', JSON.stringify(cv.education[0]));
+  assert.equal(cv.education[1].grade, '8,57');
+  assert.deepEqual(cv.education[1].details, ['Microeconomía', 'Econometría']);
+});
+
+test('instituciones: "Bolsa de Comercio del Chaco" NO se confunde con idioma ni skill', () => {
+  // es una entidad; en experiencia/educación se queda, y nunca migra a languages/skills
+  assert.equal(isLanguageTerm('Bolsa de Comercio del Chaco'), false);
+  const cv = sanitizeCv({
+    experience: [{ role: 'Pasante', company: 'Bolsa de Comercio del Chaco', bullets: ['Primera experiencia en el ámbito financiero, con foco en el mercado bursátil.'] }],
+    education: [{ institution: 'Universidad de San Andrés', degree: 'Licenciatura en Economía' }],
+    skills: [], languages: [],
+  });
+  assert.equal(cv.experience[0].company, 'Bolsa de Comercio del Chaco');
+  assert.ok(!cv.languages.length && !cv.skills.some((s) => /chaco|bolsa/i.test(s)), JSON.stringify(cv));
 });

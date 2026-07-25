@@ -31,7 +31,12 @@ const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** Cuota diaria server-side. El cliente nunca decide esto. */
+/* El fundador (email en FOUNDER_EMAILS) prueba la plataforma sin gastar cuota: ni
+   consume ni se topa. Reportamos left alto para que el front nunca lo frene. */
+const isFounder = (user) => config.founderEmails.includes(String(user?.email ?? '').toLowerCase());
+
 const consumeQuota = async (user) => {
+  if (isFounder(user)) return { used: 0, limit: config.quota.pro, left: 999, pro: true };
   const limit = user.tier === 'pro' ? config.quota.pro : config.quota.free;
   const { rows } = await query(
     `insert into usage_daily (user_id, day, cv_adaptations)
@@ -59,6 +64,7 @@ const consumeQuota = async (user) => {
    no puede costarle un uso al usuario: el 16/07 cinco intentos fallidos
    dejaron una cuenta sin cuota sin haber recibido nada a cambio. */
 const refundQuota = async (user) => {
+  if (isFounder(user)) return;   // no consumió, no hay nada que devolver
   await query(
     `update usage_daily set cv_adaptations = greatest(cv_adaptations - 1, 0)
       where user_id = $1 and day = $2`,
@@ -67,6 +73,7 @@ const refundQuota = async (user) => {
 };
 
 const getQuota = async (user) => {
+  if (isFounder(user)) return { used: 0, limit: config.quota.pro, left: 999, pro: true };
   const limit = user.tier === 'pro' ? config.quota.pro : config.quota.free;
   const { rows } = await query(
     `select cv_adaptations from usage_daily where user_id = $1 and day = $2`,
