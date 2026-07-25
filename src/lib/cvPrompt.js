@@ -345,6 +345,7 @@ Adaptá la dificultad al contexto (primer empleo/pasantía: más contención, ce
 - "score": 0 a 100, realista. 50–65 flojo, 66–79 correcto, 80–89 sólido, 90+ excepcional. No regales ni castigues.
 - "strengths": 2 o 3 fortalezas CONCRETAS de sus respuestas (no del CV): citá qué dijo bien.
 - "improvements": 2 o 3 mejoras accionables y específicas, cada una anclada a una respuesta real.
+Al puntuar y al escribir las mejoras, además del contenido pesá la CLARIDAD y la FLUIDEZ: respuestas vagas o que se van por las ramas, respuestas demasiado cortas para el puesto, y muletillas o relleno que se vean en la transcripción ("eh", "o sea", "este", "like", "you know"). Si la fluidez fue un problema real, que UNA de las mejoras lo diga con un ejemplo concreto de lo que dijo; si habló claro y al grano, no lo fuerces ni lo inventes. Nunca penalices errores de transcripción del dictado (una palabra mal escuchada no es una muletilla).
 
 ## IDIOMA Y FORMA
 - Todo en el idioma pedido, natural (jamás traducción literal).
