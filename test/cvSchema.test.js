@@ -252,6 +252,25 @@ test('idiomas: niveles estilo LinkedIn (working/elementary/limited proficiency)'
   assert.deepEqual(cv.skills, ['Análisis de datos']);
 });
 
+test('idiomas: acreditación LARGA no se descarta por "frase" (CV de Federico, 25/07)', () => {
+  /* "English (C2 Proficient – EF SET, 2026)" tiene 7 palabras. isSkillTerm lo
+     rechazaba (>4 palabras) y se perdía el idioma ENTERO. Ahora el idioma se
+     detecta ANTES del filtro de término corto. */
+  const cv = sanitizeCv({
+    ...dirty,
+    skills: ['Python', 'Excel (Advanced)'],
+    languages: ['Spanish (Native)', 'English (C2 Proficient – EF SET, 2026)'],
+  });
+  assert.deepEqual(cv.languages, ['Spanish (Native)', 'English (C2 Proficient – EF SET, 2026)']);
+  assert.deepEqual(cv.skills, ['Python', 'Excel (Advanced)']);
+});
+
+test('idiomas: acreditación larga se rescata aunque el modelo la meta en skills', () => {
+  const cv = sanitizeCv({ ...dirty, skills: ['Python', 'English (C2 Proficient – EF SET, 2026)'], languages: [] });
+  assert.deepEqual(cv.languages, ['English (C2 Proficient – EF SET, 2026)']);
+  assert.deepEqual(cv.skills, ['Python']);
+});
+
 test('idiomas: un CV con 30+ habilidades NO los pierde (el bug del recorte)', () => {
   /* Iban al final de skills y el slice(0,30) se los comía enteros: justo los
      CVs técnicos más cargados eran los que perdían el idioma. */

@@ -328,20 +328,23 @@ export const sanitizeCv = (input) => {
     .slice(0, 10);
 
   // --- HABILIDADES (+ idiomas): términos, sin duplicados ni frases ---
-  /* normalizeLevel ANTES de isSkillTerm: "Python (lo vi en un curso)" (6 palabras)
-     se reformula a "Python (formación académica)" (3) y recién ahí pasa el filtro
-     de término corto. Al revés, se descartaría por largo y perderíamos la skill. */
-  const terminos = [...cv.skills, ...cv.languages]
+  /* normalizeLevel ANTES de todo: "Python (lo vi en un curso)" (6 palabras) se
+     reformula a "Python (formación académica)" (3) y recién ahí pasa el filtro de
+     término corto. Al revés, se descartaría por largo y perderíamos la skill. */
+  const base = [...cv.skills, ...cv.languages]
     .map(normalizeLevel)
-    .filter(isSkillTerm)
-    .filter((x) => !isEntityName(x));   // "Hospital Francés" es un lugar, no un idioma
+    .filter((x) => x && !isEntityName(x));   // "Hospital Francés" es un lugar, no un idioma
 
-  /* IDIOMAS Y HABILIDADES VIVEN SEPARADOS. Los idiomas salen de donde el modelo
-     los haya puesto (a veces los manda dentro de skills) y se van a SU sección.
-     Cada lista tiene su propio tope: antes los idiomas iban al final de skills y
-     el recorte a 30 se los comía enteros en un CV con muchas técnicas. */
-  const languages = dropSubsumed(dedupe(terminos.filter(isLanguageTerm))).slice(0, 12);
-  const skills = dropSubsumed(dedupe(terminos.filter((x) => !isLanguageTerm(x)))).slice(0, 30);
+  /* IDIOMAS Y HABILIDADES VIVEN SEPARADOS, con filtros DISTINTOS:
+     - un IDIOMA vale aunque sea largo ("English (C2 Proficient – EF SET, 2026)"):
+       parseCv ya lo capó a 60 chars. Antes se le aplicaba isSkillTerm a todo por
+       igual y ese idioma —7 palabras— se descartaba por "frase", y perdíamos el
+       idioma entero (CV de Federico, 25/07). Se detecta ANTES del filtro de skill.
+     - una SKILL sí tiene que ser un término corto (isSkillTerm).
+     El idioma sale de donde el modelo lo haya puesto (a veces dentro de skills) y
+     se va a SU sección; cada lista tiene su propio tope. */
+  const languages = dropSubsumed(dedupe(base.filter(isLanguageTerm))).slice(0, 12);
+  const skills = dropSubsumed(dedupe(base.filter((x) => !isLanguageTerm(x) && isSkillTerm(x)))).slice(0, 30);
 
   // --- INTERESES: ni fechas, ni empresas, ni logros ---
   const interests = dedupe(
