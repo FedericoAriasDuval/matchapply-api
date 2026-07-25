@@ -232,6 +232,26 @@ test('idiomas: se rescatan aunque el modelo los meta en skills', () => {
   assert.deepEqual(cv.skills, ['Python', 'Excel']);
 });
 
+test('idiomas: "Inglés - Professional Proficiency" es idioma, no skill (caso de Facundo, 25/07)', () => {
+  /* "proficiency" no estaba en la lista de niveles: la base quedaba
+     "Inglés proficiency" (dos palabras) y no matcheaba como idioma, así que se
+     quedaba en Habilidades técnicas. Se ve en el CV generado como una skill. */
+  const cv = sanitizeCv({ ...dirty, skills: ['IQVIA FlexView', 'Inglés - Professional Proficiency', 'MS Office'], languages: [] });
+  assert.deepEqual(cv.languages, ['Inglés - Professional Proficiency']);
+  assert.deepEqual(cv.skills, ['IQVIA FlexView', 'MS Office']);
+});
+
+test('idiomas: niveles estilo LinkedIn (working/elementary/limited proficiency)', () => {
+  const cv = sanitizeCv({
+    ...dirty,
+    skills: ['English (Working Proficiency)', 'French (Elementary Proficiency)', 'Análisis de datos'],
+    languages: [],
+  });
+  assert.ok(cv.languages.includes('English (Working Proficiency)'), JSON.stringify(cv.languages));
+  assert.ok(cv.languages.includes('French (Elementary Proficiency)'), JSON.stringify(cv.languages));
+  assert.deepEqual(cv.skills, ['Análisis de datos']);
+});
+
 test('idiomas: un CV con 30+ habilidades NO los pierde (el bug del recorte)', () => {
   /* Iban al final de skills y el slice(0,30) se los comía enteros: justo los
      CVs técnicos más cargados eran los que perdían el idioma. */

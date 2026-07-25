@@ -231,7 +231,7 @@ const IDIOMAS_RX = new RegExp(
 /* Palabras de nivel que acompañan al idioma y no forman parte de su nombre. */
 const NIVEL_RX = new RegExp(
   '\\b([abc][12]|b[áa]sico|b[áa]sica|intermedio|intermedia|avanzado|avanzada|nativo|nativa|fluido|fluida|' +
-  'basic|intermediate|advanced|native|fluent|proficient|bilingue|biling[üu]e|bilingual|' +
+  'basic|intermediate|advanced|native|fluent|proficient|proficiency|working|elementary|limited|bilingue|biling[üu]e|bilingual|' +
   'nociones|conversacional|conversational|profesional|professional|nivel|level|' +
   'courant|interm[ée]diaire|avanc[ée]|natif|maternelle|langue|' +
   'b[áa]sico|avan[çc]ado|nativo|fluente|materna|' +
