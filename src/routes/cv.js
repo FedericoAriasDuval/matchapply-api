@@ -203,7 +203,8 @@ export const readCvRow = (row) => {
 // ---------------------------------------------------------------------------
 cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (req, res, next) => {
   try {
-    const lang = (req.body?.lang ?? 'es').slice(0, 2);
+    // lang al set conocido (un valor raro caía en español igual, pero mejor no guardarlo)
+    const lang = ['es', 'en', 'fr', 'pt', 'it'].includes(req.body?.lang) ? req.body.lang : 'es';
     let sourceText;
     if (req.file) {
       /* El tipo REAL sale de los primeros bytes, no del nombre — y ese tipo es
@@ -214,7 +215,9 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       req.file.originalname = safeFilename(req.file.originalname);
       sourceText = await extractText(req.file, tipoReal);
     } else {
-      sourceText = String(req.body?.text ?? '').trim();
+      // Texto pegado: tope explícito en la ingesta (60k = lo mismo que ve el modelo).
+      // Sin esto se guardaba hasta 1MB (el límite del body) tal cual en source_text.
+      sourceText = String(req.body?.text ?? '').trim().slice(0, 60_000);
     }
     if (sourceText.length < 40) throw badRequest('empty_cv', 'Pegá tu CV o subí un archivo con texto.');
 
@@ -249,14 +252,14 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     }
 
     const quota = await consumeQuota(req.user);
-    let data;
+    let data, doc;
     try {
       data = await structureCv(sourceText, lang);
+      doc = await saveCv(req.user.id, sourceText, data, lang);   // DENTRO del try: si el guardado/cifrado falla, la cuota se devuelve igual (antes quedaba afuera y cobraba un uso perdido)
     } catch (e) {
       await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
-    const doc = await saveCv(req.user.id, sourceText, data, lang);
 
     /* PAYWALL: lo Pro es EDITAR el CV a mano (PUT /cv/:id) y el DOCX.
        El JSON estructurado va a toda cuenta: sin él, el cliente cae al
@@ -323,12 +326,17 @@ cvRouter.put('/:id', authenticate, requirePro, async (req, res, next) => {
     } catch (e) {
       throw badRequest('invalid_cv', 'El CV enviado no tiene el formato esperado.');
     }
+    /* lang validado contra el set conocido. Sin esto, un lang basura o gigante
+       (req.body.lang no pasaba por zod) se guardaba tal cual en cv_documents.lang y
+       de ahí iba al render del PDF/DOCX y de vuelta al frontend en cada GET. null =
+       dejar el idioma que ya tenía (coalesce). */
+    const nextLang = ['es', 'en', 'fr', 'pt', 'it'].includes(req.body?.lang) ? req.body.lang : null;
     const { rows } = await query(
       `update cv_documents set data = $3, edited = true, lang = coalesce($4, lang)
         where id = $1 and user_id = $2
         returning id, lang, edited, updated_at`,
       /* La edicion manual tambien entra CIFRADA: misma promesa que el insert. */
-      [req.params.id, req.user.id, encryptJson(data), req.body?.lang ?? null],
+      [req.params.id, req.user.id, encryptJson(data), nextLang],
     );
     if (!rows[0]) throw badRequest('cv_not_found', 'No encontramos ese CV.');
     res.json({ id: rows[0].id, cv: data, edited: true, updatedAt: rows[0].updated_at });
@@ -396,18 +404,18 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
     const quota = await consumeQuota(req.user);
-    let out;
+    let out, tailored;
     try {
       out = await completeJson({
         system: CV_TAILOR_PROMPT,
         user: buildTailorMessage(doc.data, jobDescription, lang || doc.lang),
       });
+      tailored = sanitizeCv(out.cv ?? {});   // DENTRO del try: si el modelo devolvió un cv inválido, la cuota se devuelve (antes tiraba sin refund)
     } catch (e) {
       await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
 
-    const tailored = sanitizeCv(out.cv ?? {});
     const editable = req.user.tier === 'pro';
 
     res.json({
@@ -448,19 +456,18 @@ cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
     const quota = await consumeQuota(req.user);
-    let out;
+    let letter;
     try {
-      out = await completeJson({
+      const out = await completeJson({
         system: CV_COVER_PROMPT,
         user: buildCoverMessage(doc.data, jobDescription, tone, lang || doc.lang, draft),
       });
+      letter = String(out.letter ?? '').trim().slice(0, 4000);
+      if (!letter) throw badRequest('cover_failed', 'No pudimos generar la carta. Probá de nuevo.');   // DENTRO del try: carta vacía = fallo nuestro, se devuelve la cuota
     } catch (e) {
       await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
-
-    const letter = String(out.letter ?? '').trim().slice(0, 4000);
-    if (!letter) throw badRequest('cover_failed', 'No pudimos generar la carta. Probá de nuevo.');
     res.json({ quota, tone, letter });
   } catch (e) {
     next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Datos inválidos para la carta.') : e);

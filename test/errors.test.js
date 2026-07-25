@@ -115,3 +115,49 @@ test('ningún 4xx del catálogo termina diciendo "se rompió de nuestro lado"', 
   });
   assert.deepEqual(culpables, [], 'estos códigos le mienten al usuario');
 });
+
+/* ---- Auditoría 25/07: errores que caían en 500 "culpa nuestra" cuando en
+   realidad eran del input del usuario. Multer corta ANTES del handler; Postgres
+   tira códigos de integridad que son por lo que mandó el usuario. ---- */
+
+test('un archivo de más de 8 MB es 413, no un 500 "se rompió algo nuestro"', () => {
+  /* multer corta el upload antes del handler: el MulterError nunca entra a un
+     try/catch nuestro y caía en internal_error. La copy de 413 ya existía. */
+  const err = Object.assign(new Error('File too large'), { name: 'MulterError', code: 'LIMIT_FILE_SIZE' });
+  const res = run(err);
+  assert.equal(res.statusCode, 413);
+  assert.equal(res.body.error.code, 'file_too_large');
+  assert.notEqual(res.body.error.message, CULPA_NUESTRA);
+});
+
+test('subir dos archivos (o campo inesperado) es 415, no 500', () => {
+  const err = Object.assign(new Error('Unexpected field'), { name: 'MulterError', code: 'LIMIT_UNEXPECTED_FILE' });
+  const res = run(err);
+  assert.equal(res.statusCode, 415);
+  assert.notEqual(res.body.error.message, CULPA_NUESTRA);
+});
+
+test('una violación unique de Postgres es 409 "ya existe", no un 500', () => {
+  const res = run(Object.assign(new Error('duplicate key'), { code: '23505' }));
+  assert.equal(res.statusCode, 409);
+  assert.notEqual(res.body.error.message, CULPA_NUESTRA);
+});
+
+test('un string-too-long / check de Postgres es 400, no 500', () => {
+  assert.equal(run(Object.assign(new Error('value too long'), { code: '22001' })).statusCode, 400);
+  assert.equal(run(Object.assign(new Error('check violation'), { code: '23514' })).statusCode, 400);
+});
+
+test('un deadlock/serialización de Postgres es 503 "probá de nuevo", no un 500 definitivo', () => {
+  const res = run(Object.assign(new Error('deadlock detected'), { code: '40P01' }));
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.error.code, 'db_busy');
+  /* 503 es 5xx, así que su copy sale del catálogo (no del throw): tiene que existir. */
+  assert.doesNotMatch(res.body.error.message, /rompio/i);
+});
+
+test('un error de Postgres desconocido SIGUE siendo 500 y no filtra la infra', () => {
+  const res = run(Object.assign(new Error('relation "users" does not exist en 10.0.0.1'), { code: '42P01' }));
+  assert.equal(res.statusCode, 500);
+  assert.doesNotMatch(JSON.stringify(res.body), /users|10\.0\.0\.1/);
+});

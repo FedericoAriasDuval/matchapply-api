@@ -383,13 +383,31 @@ billingRouter.post('/redeem', authenticate, licenseLimiter, async (req, res, nex
     /* Una persona ocupa UN cupo en UNA licencia (unique en user_id). Si ya está
        en otra, el insert no hace nada y hay que decirlo: quedarse callado le
        haría creer que canjeó algo que no canjeó. */
+    /* El cupo se vuelve a chequear DENTRO del insert. motivoDeRechazo ya lo miró,
+       pero con un count que se leyó antes y puede quedar viejo: 60 personas canjeando
+       a la vez un código de 50 asientos leían todas "usados < 50" antes de que las
+       otras commitearan, y entraban las 60 — la institución pagaba por 50 y usaban 60.
+       El `where (select count(*)...) < max` hace que solo entren los que, en el
+       instante del insert, encuentran lugar. */
     const { rows: alta } = await query(
-      `insert into org_license_members (license_id, user_id) values ($1, $2)
-       on conflict do nothing returning license_id`,
-      [lic.id, req.user.id],
+      `insert into org_license_members (license_id, user_id)
+         select $1, $2
+          where (select count(*) from org_license_members where license_id = $1) < $3
+       on conflict do nothing
+       returning license_id`,
+      [lic.id, req.user.id, lic.max_users],
     );
     if (!alta[0] && cuenta[0].mio === 0) {
-      throw new HttpError(400, 'license_other', 'Tu cuenta ya está usando otra licencia institucional.');
+      /* No entró y no era miembro: o ya está en OTRA licencia (unique user_id), o el
+         cupo se llenó en la carrera. Distinguimos para no dar el mensaje equivocado. */
+      const { rows: enAlguna } = await query(
+        `select 1 from org_license_members where user_id = $1 limit 1`,
+        [req.user.id],
+      );
+      if (enAlguna[0]) {
+        throw new HttpError(400, 'license_other', 'Tu cuenta ya está usando otra licencia institucional.');
+      }
+      throw new HttpError(409, 'license_full', 'Ese código ya llegó a su cupo de personas. Avisale a quien te lo dio.');
     }
 
     await setTier(req.user.id, 'pro');

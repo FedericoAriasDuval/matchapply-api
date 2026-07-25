@@ -41,11 +41,19 @@ export const consumeCode = async (userId, code, purpose = 'signup') => {
   if (row.attempts >= row.max_attempts) return { ok: false, reason: 'too_many' };
 
   if (!codeMatches(code, row.code_hash)) {
+    /* Incremento CON TOPE atómico. El `where attempts < max_attempts` hace que,
+       aunque lleguen N verificaciones en paralelo, SOLO max_attempts logren
+       incrementar — las demás no tocan fila y caen en too_many. Antes el gate de
+       arriba (attempts >= max) se leía y recién después se incrementaba: N intentos
+       concurrentes leían attempts=0, pasaban el gate y probaban N códigos, esquivando
+       el "5 intentos y se quema". */
     const { rows: upd } = await query(
-      `update verification_codes set attempts = attempts + 1 where id = $1
+      `update verification_codes set attempts = attempts + 1
+        where id = $1 and attempts < max_attempts
         returning attempts, max_attempts`,
       [row.id],
     );
+    if (!upd[0]) return { ok: false, reason: 'too_many', left: 0 };   // otro intento paralelo ya lo llevó al tope
     const left = Math.max(0, upd[0].max_attempts - upd[0].attempts);
     return { ok: false, reason: left === 0 ? 'too_many' : 'wrong', left };
   }

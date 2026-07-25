@@ -73,7 +73,10 @@ reviewsRouter.get(
   '/summary',
   requireAdmin,
   asyncRoute(async (req, res) => {
-    const days = Math.min(Number(req.query.days ?? 30), 365);
+    /* days saneado a entero válido: un ?days=abc daba NaN → 'NaN days'::interval →
+       500, y ?days=-100 daba un intervalo vacío silencioso. Piso 1, techo 365. */
+    const raw = Number(req.query.days);
+    const days = Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), 365) : 30;
 
     const { rows: stats } = await query(
       `select count(*)::int                                   as total,

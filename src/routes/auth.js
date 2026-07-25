@@ -295,12 +295,26 @@ authRouter.post('/login', loginLimiter, async (req, res, next) => {
 
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) {
-      const failed = user.failed_logins + 1;
-      const lock = failed >= config.auth.maxFailedLogins;
-      await query(
-        `update users set failed_logins = $2, locked_until = $3 where id = $1`,
-        [user.id, lock ? 0 : failed, lock ? new Date(Date.now() + config.auth.lockoutMinutes * 60_000) : null],
+      /* Incremento ATÓMICO. Antes se leía failed_logins en el SELECT de arriba y se
+         escribía un valor absoluto calculado en JS. Con bcrypt de por medio (~200ms)
+         N intentos en paralelo leían todos failed_logins=0, calculaban 1 y escribían
+         1: el contador nunca llegaba a 8 y la cuenta NUNCA se bloqueaba. Y el lock
+         por cuenta es la defensa REAL contra fuerza bruta (el freno por IP se aflojó
+         a propósito por el CGNAT argentino) — la carrera lo anulaba entero.
+         Ahora el +1 y la decisión de bloqueo salen del MISMO update. El CASE mira el
+         failed_logins viejo de la fila (semántica de SET en Postgres), así que "+1 >= 8"
+         es el 8º fallo. Al bloquear resetea el contador a 0 para dar 8 intentos frescos
+         cuando venza el lock (misma conducta que antes). */
+      const { rows: upd } = await query(
+        `update users set
+           failed_logins = case when failed_logins + 1 >= $2 then 0 else failed_logins + 1 end,
+           locked_until  = case when failed_logins + 1 >= $2
+                                then now() + ($3 || ' minutes')::interval else locked_until end
+          where id = $1
+          returning locked_until`,
+        [user.id, config.auth.maxFailedLogins, String(config.auth.lockoutMinutes)],
       );
+      const lock = !!(upd[0]?.locked_until && new Date(upd[0].locked_until) > new Date());
       await audit(req, lock ? 'lockout' : 'login_fail', { userId: user.id, email: user.email });
       throw invalid;
     }

@@ -92,6 +92,10 @@ const HUMAN = {
     message: 'No pudimos guardar tus datos en este momento.',
     hint: 'Tu CV sigue en pantalla: no cierres la ventana y proba de nuevo en unos segundos.',
   },
+  db_busy: {
+    message: 'La base esta ocupada un momento.',
+    hint: 'No perdiste nada: proba de nuevo en unos segundos.',
+  },
   internal_error: {
     message: 'Algo se rompio de nuestro lado.',
     hint: 'No es culpa tuya y no perdiste nada. Si vuelve a pasar, escribinos con este codigo.',
@@ -259,6 +263,31 @@ const normalize = (err) => {
   if (err?.code === '22P02') {
     return new HttpError(404, 'not_found', 'No encontramos eso.');
   }
+
+  /* Multer corta ANTES del handler (límite de 8MB / 1 archivo), así que ningún
+     try/catch nuestro lo ve y caía en 500 "se rompió algo de nuestro lado" para
+     alguien que solo subió un PDF de 9MB. La copy amable ya existe (file_too_large /
+     unsupported_file), solo faltaba enrutar el MulterError hacia ella. */
+  if (err?.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') return new HttpError(413, 'file_too_large', 'El archivo supera los 8 MB.');
+    return new HttpError(415, 'unsupported_file', 'No pudimos leer ese archivo. Subí un PDF, DOCX o TXT.');
+  }
+
+  /* Violaciones de integridad de Postgres por el INPUT, no un 500 nuestro:
+     unique 23505 → 409 "ya existe"; el resto de 23xxx (FK/not-null/check) y
+     string-too-long 22001 → 400. */
+  if (err?.code === '23505') {
+    return new HttpError(409, 'already_exists', 'Eso ya existe.');
+  }
+  if (err?.code && /^(23|22001)/.test(String(err.code))) {
+    return new HttpError(400, 'invalid_payload', 'Los datos no son válidos.');
+  }
+  /* Serialización / deadlock (40001 / 40P01): transitorio y reintentable, no un
+     500 definitivo — se le dice "probá de nuevo", no "se rompió algo". */
+  if (err?.code === '40001' || err?.code === '40P01') {
+    return new HttpError(503, 'db_busy', 'La base está ocupada un momento. Probá de nuevo.');
+  }
+
   /* Errores de Postgres (conexion, recursos, esquema): jamas salen hacia afuera. */
   if (err?.code && /^(08|53|57|3D)/.test(String(err.code))) {
     return new HttpError(503, 'db_unavailable', 'Base de datos no disponible.');
