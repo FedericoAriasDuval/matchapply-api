@@ -226,6 +226,17 @@ test('idiomas: sobreviven y salen en SU sección, no dentro de skills', () => {
   assert.ok(cv.skills.includes('Python') && cv.skills.includes('SQL'));
 });
 
+test('summary_suggestion: se conserva y viaja al frontend', () => {
+  const cv = sanitizeCv({ ...dirty, summary: 'Analista de datos.', summary_suggestion: 'Analista de datos con 5 años, foco en SQL y Power BI, orientado a decisiones de negocio.' });
+  assert.equal(cv.summary, 'Analista de datos.');
+  assert.equal(cv.summary_suggestion, 'Analista de datos con 5 años, foco en SQL y Power BI, orientado a decisiones de negocio.');
+});
+
+test('summary_suggestion: si es igual al resumen, se vacía (no ofrece nada)', () => {
+  const cv = sanitizeCv({ ...dirty, summary: 'Igual.', summary_suggestion: 'Igual.' });
+  assert.equal(cv.summary_suggestion, '');
+});
+
 test('idiomas: se rescatan aunque el modelo los meta en skills', () => {
   const cv = sanitizeCv({ ...dirty, skills: ['Python', 'English (Native)', 'Excel'], languages: [] });
   assert.deepEqual(cv.languages, ['English (Native)']);

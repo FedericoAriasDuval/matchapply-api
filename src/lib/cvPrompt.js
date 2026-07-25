@@ -32,6 +32,11 @@ export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums
 ## REGLA 3 — MAPEO ESTRICTO POR SECCIÓN (cada dato en su casa)
 - contact: SOLO email, teléfono, LinkedIn, GitHub, sitio web y ubicación de residencia. Nada de cursos, títulos, skills ni frases.
 - summary: si el CV YA trae un resumen/perfil, usalo (summary_is_generated=false). Si NO trae, REDACTÁ uno de 2 o 3 líneas en el idioma de salida, construido SOLO con lo que el resto del CV ya dice: el rol o los estudios, las herramientas/áreas principales y el objetivo si aparece. Poné summary_is_generated=true. PROHIBIDO inventar cualidades ("proactivo", "apasionado", "orientado a resultados"), métricas o datos que no estén, y prohibidos los adjetivos vacíos. Es una síntesis de hechos reales del CV, no un elogio.
+- summary_suggestion: una versión OPTIMIZADA del resumen para ofrecerle a la persona (el frontend le muestra "tu versión" vs "sugerencia").
+  · Cuando el CV YA trae resumen: proponé una reescritura mejor —3 a 5 oraciones, ~50 a 80 palabras— que gane en impacto, estructura y palabras clave: arrancá por el rol y los años de experiencia si están, seguí con las áreas clave de especialización y las fortalezas/herramientas principales, y cerrá con la propuesta de valor. Alineala con la experiencia más reciente y las skills que YA salen del CV. Mantené la voz de la persona.
+  · MISMA disciplina que summary: SOLO hechos reales del CV. PROHIBIDO inventar cualidades, métricas, años o datos que no estén, y prohibidos los adjetivos vacíos ("proactivo", "apasionado"). Mejorás cómo se dice lo real; no agregás nada que no esté.
+  · Si el resumen actual ya está muy bien y no tenés una mejora honesta, devolvé summary_suggestion = "" (cadena vacía).
+  · Si el CV NO traía resumen, dejá summary_suggestion = "" (el que generaste en "summary" ya es la mejora).
 - experience: SOLO empleos. Cada ítem: role, company, location, start, end, bullets.
   · bullets = logros o responsabilidades profesionales redactados como frases. Nada de listas de tecnologías sueltas, nada de intereses, nada de líneas de educación, nada de datos de contacto, nada de notas del usuario.
   · Si una línea es una enumeración de herramientas ("React, Node, SQL"), va a skills, NO a bullets.
@@ -71,6 +76,7 @@ Devolvé exclusivamente un objeto JSON válido con esta forma exacta, sin texto 
   "contact": { "email": "", "phone": "", "linkedin": "", "github": "", "website": "", "location": "" },
   "summary": "",
   "summary_is_generated": false,
+  "summary_suggestion": "",
   "experience": [
     { "role": "", "company": "", "location": "", "start": "", "end": "", "bullets": [""] }
   ],

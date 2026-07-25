@@ -36,6 +36,7 @@ export const EMPTY_CV = () => ({
   contact: { email: '', phone: '', linkedin: '', github: '', website: '', location: '' },
   summary: '',
   summary_is_generated: false,
+  summary_suggestion: '',
   experience: [],
   education: [],
   skills: [],
@@ -62,6 +63,7 @@ export const parseCv = (input) => {
     },
     summary: s(input.summary, 1200),
     summary_is_generated: bool(input.summary_is_generated),
+    summary_suggestion: s(input.summary_suggestion, 1200),
     experience: arr(
       input.experience,
       (e) =>
@@ -358,6 +360,9 @@ export const sanitizeCv = (input) => {
     contact,
     summary: cv.summary,
     summary_is_generated: cv.summary_is_generated,
+    /* Reescritura sugerida del resumen (misma disciplina: solo hechos del CV).
+       Si es igual al resumen actual, el frontend no ofrece nada. */
+    summary_suggestion: cv.summary_suggestion === cv.summary ? '' : cv.summary_suggestion,
     experience,
     education,
     skills,
