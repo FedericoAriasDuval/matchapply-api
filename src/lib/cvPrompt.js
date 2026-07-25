@@ -117,7 +117,7 @@ Devolvé exclusivamente JSON:
  * identidad de la cuenta (nombre, email, id, tier): el modelo no puede
  * filtrar lo que nunca recibió.
  */
-const LANG_NAMES = { es: 'español', en: 'inglés', fr: 'francés', pt: 'portugués' };
+const LANG_NAMES = { es: 'español', en: 'inglés', fr: 'francés', pt: 'portugués', it: 'italiano' };
 
 /* Limpia el texto del CV antes de mandárselo al modelo. Algunos CV (diseñados en
    Word/Canva) usan EMOJIS de viñeta (💼🚀📊); pdf.js los extrae como pictogramas.
