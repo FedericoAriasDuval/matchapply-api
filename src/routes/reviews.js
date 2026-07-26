@@ -20,6 +20,7 @@ import { asyncRoute, unauthorized } from '../middleware/errors.js';
 import { reviewLimiter } from '../middleware/rateLimit.js';
 import { adminTokenOk } from './admin.js';
 import { completeJson } from '../lib/llm.js';
+import { sendReviewNotification } from '../lib/mailer.js';
 
 export const reviewsRouter = Router();
 
@@ -54,6 +55,11 @@ reviewsRouter.post(
         hashIp(req.ip),
       ],
     );
+    /* Aviso a soporte para poder LEER la reseña sin consultar la base. SIN await y
+       con catch: es nice-to-have, un mail caído no puede tumbar el guardado (que ya
+       ocurrió arriba). Los datos igual quedan en la tabla y en GET /summary. */
+    sendReviewNotification(body).catch((e) => console.warn('[reviews] aviso no enviado:', e?.message));
+
     /* No devolvemos nada: ni un id, ni un listado. No hay nada que mostrar. */
     res.status(201).json({ ok: true });
   }),

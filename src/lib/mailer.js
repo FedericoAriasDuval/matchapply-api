@@ -159,6 +159,56 @@ const soloDireccion = (s) => {
   return (m ? m[1] : String(s ?? '')).trim().toLowerCase();
 };
 
+/* La casilla a la que llegan CONTACTO y RESEÑAS: nosotros mismos. El From ya es
+   support@mavante.com, así que mandarnos a esa misma dirección deja el mensaje en
+   la casilla de soporte, sin env nueva. */
+const SUPPORT_TO = soloDireccion(config.mail.from);
+const notaHtml = (head, cuerpo) => `
+<div style="font-family:'Manrope',Helvetica,Arial,sans-serif;color:#15294d;font-size:14.5px;line-height:1.6;max-width:520px">
+  <p style="margin:0 0 10px">${head}</p>
+  <blockquote style="margin:0;padding:12px 16px;border-left:3px solid #0b5fff;background:#f1f5f9;border-radius:4px;white-space:pre-wrap">${cuerpo}</blockquote>
+</div>`;
+
+/**
+ * Mensaje del formulario de CONTACTO → a soporte, con Reply-To al usuario para
+ * poder responderle directo. Sin SMTP (dev) loguea y no falla.
+ */
+export const sendContactEmail = async ({ name, email, message, lang = 'es' } = {}) => {
+  if (!transporter) {
+    console.log(`[mailer:dev] contacto de ${name} <${email}> (${lang}): ${String(message).slice(0, 140)}`);
+    return { delivered: false, dev: true };
+  }
+  await transporter.sendMail({
+    from: config.mail.from,
+    to: SUPPORT_TO,
+    replyTo: `${String(name).replace(/[\r\n"<>]/g, ' ').slice(0, 80)} <${email}>`,
+    subject: `Contacto Mavante — ${String(name).replace(/[\r\n]/g, ' ').slice(0, 80)}`,
+    text: `${name} <${email}> (${lang}):\n\n${message}`,
+    html: notaHtml(`<b>${escape(name)}</b> &lt;${escape(email)}&gt; escribió desde Mavante (${escape(lang)}):`, escape(message)),
+  });
+  return { delivered: true };
+};
+
+/**
+ * Aviso de RESEÑA nueva → a soporte. Es "nice to have": quien la dispara lo hace
+ * SIN await y tragando el error, para que un mail caído jamás tumbe el guardado de
+ * la reseña en la base. Sin SMTP (dev) no hace nada.
+ */
+export const sendReviewNotification = async ({ stars, comment = '', name = '', page = '', lang = 'es' } = {}) => {
+  if (!transporter) return { delivered: false, dev: true };
+  const n = Math.max(1, Math.min(5, Number(stars) || 0));
+  const estrellas = '★'.repeat(n) + '☆'.repeat(5 - n);
+  const quien = name ? escape(name) : '(anónimo)';
+  await transporter.sendMail({
+    from: config.mail.from,
+    to: SUPPORT_TO,
+    subject: `Nueva reseña ${estrellas} — Mavante`,
+    text: `${estrellas} · ${quien} · ${lang} · ${page || '—'}\n\n${comment || '(sin comentario)'}`,
+    html: notaHtml(`<b>${estrellas}</b> · ${quien} · ${escape(lang)} · ${escape(page || '—')}`, comment ? escape(comment) : '<i>(sin comentario)</i>'),
+  });
+  return { delivered: true };
+};
+
 export const verifyMailer = async () => {
   if (!transporter) return false;
 

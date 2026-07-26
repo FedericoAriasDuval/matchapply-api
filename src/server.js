@@ -16,6 +16,7 @@ import { billingRouter, billingWebhook, availableMethods, lifetimeAvailable, lif
 import { adminRouter } from './routes/admin.js';
 import { cvRouter } from './routes/cv.js';
 import { reviewsRouter } from './routes/reviews.js';
+import { contactRouter } from './routes/contact.js';
 import { statsRouter } from './routes/stats.js';
 import { featuredRouter } from './routes/featured.js';
 import { referralsRouter } from './routes/referrals.js';
@@ -96,6 +97,7 @@ app.use('/auth', oauthRouter);
 app.use('/cv', cvRouter);
 app.use('/reviews', reviewsRouter);   // POST publico · GET /summary solo con ADMIN_TOKEN
 app.use('/reviews', featuredRouter);  // GET /reviews/featured: solo testimonios REALES
+app.use('/contact', contactRouter);   // POST publico: mensaje de contacto -> mail a soporte
 app.use('/stats', statsRouter);       // numeros propios, sin inflar
 app.use('/referrals', referralsRouter);// el credito se paga al verificar, no al hacer clic
 app.use('/billing', billingRouter);
