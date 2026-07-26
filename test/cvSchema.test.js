@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { contactLine, dateRange, normalizeLevel, sanitizeCv, isLanguageTerm, rescueEducationGrades } from '../src/lib/cvSchema.js';
+import { contactLine, dateRange, normalizeLevel, sanitizeCv, isLanguageTerm, rescueEducationGrades, normalizeLocaleTerms } from '../src/lib/cvSchema.js';
 import { scrubCvText } from '../src/lib/cvPrompt.js';
 
 test('scrubCvText: saca emojis de viñeta pero conserva el texto del CV', () => {
@@ -443,4 +443,79 @@ test('rescueEducationGrades: sin educación o sin texto, no rompe', () => {
   assert.doesNotThrow(() => rescueEducationGrades({ education: [] }, NICOLAS_SRC));
   assert.doesNotThrow(() => rescueEducationGrades({ education: [{ institution: 'X', grade: '' }] }, ''));
   assert.doesNotThrow(() => rescueEducationGrades(null, NICOLAS_SRC));
+});
+
+// ---------------------------------------------------------------------------
+// normalizeLocaleTerms — secundario (calco) + unidad del puntaje (CV de Nicolás)
+// ---------------------------------------------------------------------------
+
+test('normalizeLocaleTerms: "Secondary School Diploma" -> "High School Diploma" (inglés)', () => {
+  const cv = { education: [{ degree: 'Secondary School Diploma', institution: 'Colegio Integral Carlos Primo López Piacentini' }] };
+  normalizeLocaleTerms(cv, 'en');
+  assert.equal(cv.education[0].degree, 'High School Diploma');
+  assert.equal(cv.education[0].institution, 'Colegio Integral Carlos Primo López Piacentini');   // nombre propio intacto
+});
+
+test('normalizeLocaleTerms: preserva la orientación del secundario', () => {
+  const cv = { education: [{ degree: 'Secondary School Diploma in Social Sciences' }] };
+  normalizeLocaleTerms(cv, 'en');
+  assert.equal(cv.education[0].degree, 'High School Diploma in Social Sciences');
+});
+
+test('normalizeLocaleTerms: NO toca "post-secondary" (es terciario, no secundario)', () => {
+  const cv = { education: [{ degree: 'Post-Secondary Education Certificate' }] };
+  normalizeLocaleTerms(cv, 'en');
+  assert.equal(cv.education[0].degree, 'Post-Secondary Education Certificate');
+});
+
+test('normalizeLocaleTerms: término del secundario en fr / pt / it', () => {
+  const fr = { education: [{ degree: "Diplôme d'études secondaires" }] };
+  normalizeLocaleTerms(fr, 'fr');
+  assert.equal(fr.education[0].degree, 'Diplôme du baccalauréat');
+
+  const pt = { education: [{ degree: 'Diploma de escola secundária' }] };
+  normalizeLocaleTerms(pt, 'pt');
+  assert.equal(pt.education[0].degree, 'Diploma do ensino médio');
+
+  const it = { education: [{ degree: 'Diploma di scuola secondaria di secondo grado' }] };
+  normalizeLocaleTerms(it, 'it');
+  assert.equal(it.education[0].degree, 'Diploma di scuola superiore');
+});
+
+test('normalizeLocaleTerms: en español NO cambia el término (ya es correcto)', () => {
+  const cv = { education: [{ degree: 'Bachillerato Secundario' }] };
+  normalizeLocaleTerms(cv, 'es');
+  assert.equal(cv.education[0].degree, 'Bachillerato Secundario');
+});
+
+test('normalizeLocaleTerms: "204 puntos" -> unidad del idioma de salida', () => {
+  const en = { languages: ['English (C2 · Cambridge CPE · Grade C · 204 puntos)'], education: [] };
+  normalizeLocaleTerms(en, 'en');
+  assert.ok(en.languages[0].endsWith('204 points)'), en.languages[0]);
+
+  const pt = { languages: ['Inglês (C2 · 204 puntos)'], education: [] };
+  normalizeLocaleTerms(pt, 'pt');
+  assert.ok(pt.languages[0].includes('204 pontos'), pt.languages[0]);
+
+  const it = { languages: ['Inglese (C2 · 204 puntos)'], education: [] };
+  normalizeLocaleTerms(it, 'it');
+  assert.ok(it.languages[0].includes('204 punti'), it.languages[0]);
+});
+
+test('normalizeLocaleTerms: el puntaje se normaliza también en el resumen y los detalles', () => {
+  const cv = { summary: 'Certificación CPE con 204 puntos.', education: [{ details: ['Examen final: 180 puntos'] }] };
+  normalizeLocaleTerms(cv, 'en');
+  assert.ok(cv.summary.includes('204 points'), cv.summary);
+  assert.equal(cv.education[0].details[0], 'Examen final: 180 points');
+});
+
+test('normalizeLocaleTerms: NO toca "puntos" cuando no es un puntaje', () => {
+  const cv = { summary: 'Mis puntos fuertes son el análisis y la comunicación.', education: [] };
+  normalizeLocaleTerms(cv, 'en');
+  assert.ok(cv.summary.includes('puntos fuertes'), 'no debe tocar "puntos fuertes"');
+});
+
+test('normalizeLocaleTerms: nada raro no rompe', () => {
+  assert.doesNotThrow(() => normalizeLocaleTerms(null, 'en'));
+  assert.doesNotThrow(() => normalizeLocaleTerms({}, 'zz'));
 });

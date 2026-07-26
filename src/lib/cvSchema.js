@@ -454,6 +454,83 @@ export const rescueEducationGrades = (cv, sourceText) => {
   return cv;
 };
 
+/**
+ * RED DETERMINÍSTICA #2: término del SECUNDARIO y unidad del PUNTAJE.
+ *
+ * POR QUÉ (26/07/2026, mismo CV): el prompt YA fija el término estándar por idioma
+ * y YA pide traducir la unidad del puntaje, y el modelo igual devolvía "Secondary
+ * School Diploma" (calco, en vez de "High School Diploma") y "204 puntos" en un CV
+ * en inglés. Misma lección que con el promedio: al modelo no se le ruega, se lo
+ * corrige. Esto ENFORZA una decisión de producto que ya está escrita en el prompt.
+ *
+ * 1) SECUNDARIO: reemplaza SOLO los calcos conocidos por el término local (en:
+ *    "High School", fr: "baccalauréat/lycée", pt: "ensino médio", it: "scuola
+ *    superiore"), preservando lo que rodea (una orientación no se pierde). El
+ *    español ya usa el término correcto, no se toca. Nombres propios de colegios
+ *    (en su idioma original) no matchean estos patrones en inglés/francés/etc.
+ * 2) PUNTAJE: normaliza la unidad ("204 puntos") al idioma de salida, en cualquier
+ *    dirección, y SOLO cuando va pegada a un número (no toca "puntos fuertes").
+ */
+/* Ordenado: la frase específica ("diploma de …") antes que la palabra suelta, para
+   que no quede a medias. El calco inglés ("secondary school") se ataja en los 4. */
+const SECONDARY_FIXES = {
+  es: [],   // "Secundario" / "Bachillerato" ya es el término correcto en español
+  en: [
+    // "post-secondary" es TERCIARIO (universidad): no lo pisamos.
+    [/(?<!post[- ])\bsecondary school\b/gi, 'High School'],
+    [/(?<!post[- ])\bsecondary education\b/gi, 'High School'],
+  ],
+  fr: [
+    [/\bdipl[oô]me d['’]\s?[ée]tudes secondaires\b/gi, 'Diplôme du baccalauréat'],
+    [/\bdipl[oô]me d['’]\s?[ée]cole secondaire\b/gi, 'Diplôme du baccalauréat'],
+    [/\b[ée]cole secondaire\b/gi, 'Lycée'],
+    [/\b[ée]tudes secondaires\b/gi, 'Baccalauréat'],
+    [/\benseignement secondaire\b/gi, 'Baccalauréat'],
+    [/\bsecondary school\b/gi, 'Baccalauréat'],
+  ],
+  pt: [
+    [/\bdiploma de escola secund[aá]ria\b/gi, 'Diploma do ensino médio'],
+    [/\bescola secund[aá]ria\b/gi, 'Ensino médio'],
+    [/\bsecondary school\b/gi, 'Ensino médio'],
+  ],
+  it: [
+    [/\bdiploma di scuola secondaria(?: di secondo grado)?\b/gi, 'Diploma di scuola superiore'],
+    [/\bscuola secondaria(?: di secondo grado)?\b/gi, 'Scuola superiore'],
+    [/\bsecondary school\b/gi, 'Scuola superiore'],
+  ],
+};
+
+// Unidad del puntaje de una certificación, por idioma de salida.
+const SCORE_UNIT = { es: 'puntos', en: 'points', fr: 'points', pt: 'pontos', it: 'punti' };
+const SCORE_UNIT_RX = /(\d+)\s*(puntos|points|pontos|punti)\b/gi;
+
+export const normalizeLocaleTerms = (cv, lang) => {
+  if (!cv) return cv;
+  const L = ['es', 'en', 'fr', 'pt', 'it'].includes(lang) ? lang : 'es';
+
+  const fixes = SECONDARY_FIXES[L] || [];
+  const fixTerm = (str) => {
+    let out = String(str ?? '');
+    for (const [re, rep] of fixes) out = out.replace(re, rep);
+    return out;
+  };
+  const unit = SCORE_UNIT[L] || 'points';
+  const fixScore = (str) => String(str ?? '').replace(SCORE_UNIT_RX, (_m, n) => `${n} ${unit}`);
+
+  if (typeof cv.summary === 'string') cv.summary = fixScore(cv.summary);
+  if (Array.isArray(cv.languages)) cv.languages = cv.languages.map(fixScore);
+  if (Array.isArray(cv.education)) {
+    for (const e of cv.education) {
+      if (!e) continue;
+      if (e.degree) e.degree = fixTerm(e.degree);
+      if (e.institution) e.institution = fixTerm(e.institution);
+      if (e.grade) e.grade = fixScore(e.grade);
+      if (Array.isArray(e.details)) e.details = e.details.map(fixScore);
+    }
+  }
+  return cv;
+};
+
 /** Línea de contacto compacta, separada por " | " (va debajo del nombre). */
 export const contactLine = (cv) =>
   [

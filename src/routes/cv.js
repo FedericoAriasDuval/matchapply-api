@@ -9,7 +9,7 @@ import { aiLimiter } from '../middleware/rateLimit.js';
 import { badRequest, forbidden, tooMany } from '../middleware/errors.js';
 import { completeJson } from '../lib/llm.js';
 import { CV_SYSTEM_PROMPT, CV_TAILOR_PROMPT, CV_COVER_PROMPT, CV_INTERVIEW_PROMPT, buildTailorMessage, buildCoverMessage, buildInterviewMessage, buildUserMessage } from '../lib/cvPrompt.js';
-import { CvValidationError, sanitizeCv, rescueEducationGrades } from '../lib/cvSchema.js';
+import { CvValidationError, sanitizeCv, rescueEducationGrades, normalizeLocaleTerms } from '../lib/cvSchema.js';
 import { extractText } from '../lib/extract.js';
 import { cvCache } from '../lib/cache.js';
 import { safeFilename, validateUpload } from '../lib/upload.js';
@@ -146,6 +146,9 @@ const structureCvUncached = async (sourceText, lang) => {
        Antes de devolver, releemos el texto original y reinyectamos la nota que el
        modelo dejó vacía. Determinístico: no depende del humor del modelo. */
     rescueEducationGrades(cv, sourceText);
+    /* Y el término local del secundario ("High School", no el calco "Secondary
+       School") + la unidad del puntaje en el idioma de salida ("204 points"). */
+    normalizeLocaleTerms(cv, lang);
     /* Una traza también cuando SALE BIEN pero sale flaco: un CV que vuelve sin
        experiencia ni skills es exactamente el que produce "no se detectan las
        secciones estándar" en la pantalla, y hasta ahora no dejaba rastro. */
@@ -253,6 +256,7 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
          determinístico y gratis, sin llamar al modelo ni cobrar cuota. Así la nota
          reaparece al re-subir el mismo CV, no recién al cambiarle una coma. */
       rescueEducationGrades(guardado.data, sourceText);
+      normalizeLocaleTerms(guardado.data, guardado.lang);   // término del secundario + unidad del puntaje
       const editable = req.user.tier === 'pro';
       return res.json({
         id: guardado.id,
