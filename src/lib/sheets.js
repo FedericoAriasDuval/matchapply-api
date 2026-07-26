@@ -135,3 +135,33 @@ export const sheetsSelfTest = () =>
   appendSafe(config.sheets.feedbackId, 'Contacto', [ahora(), 'test@mavante.com', 'Prueba de conexión', 'Si ves esta fila, Sheets quedó conectado. Borrala.', 'es'], 'self-test');
 
 export const sheetsEnabled = () => config.sheets.enabled;
+
+/** Estado de configuración SIN secretos (para /health): revela si prendió y si las
+    piezas llegaron, sin exponer la clave. keyLen ~1700 = clave OK; 0 = no llegó. */
+export const sheetsStatus = () => ({
+  enabled: config.sheets.enabled,
+  feedbackId: Boolean(config.sheets.feedbackId),
+  financeId: Boolean(config.sheets.financeId),
+  saEmailTail: config.sheets.saEmail ? config.sheets.saEmail.slice(-24) : '',
+  keyLen: config.sheets.saKey.length,
+  keyLooksPem: config.sheets.saKey.includes('BEGIN PRIVATE KEY') && config.sheets.saKey.includes('\n'),
+});
+
+/** Diagnóstico NO destructivo: LEE los metadatos del sheet Feedback (auth + acceso +
+    nombres de pestañas) sin escribir nada. Devuelve el error exacto si algo falla —
+    la forma de saber si el problema es la clave (401), el compartir (403), el ID (404)
+    o el nombre de la pestaña. */
+export const sheetsDiag = async () => {
+  if (!config.sheets.enabled) return { enabled: false, motivo: 'config.sheets.enabled=false — falta alguna de las 4 env (o mal nombradas)' };
+  if (!config.sheets.feedbackId) return { enabled: true, motivo: 'sin SHEET_FEEDBACK_ID' };
+  try {
+    const token = await getToken();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${config.sheets.feedbackId}?fields=properties.title,sheets.properties.title`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return { enabled: true, ok: false, status: res.status, error: (await res.text()).slice(0, 220) };
+    const j = await res.json();
+    return { enabled: true, ok: true, title: j.properties?.title, tabs: (j.sheets || []).map((s) => s.properties?.title) };
+  } catch (e) {
+    return { enabled: true, ok: false, error: String(e.message).slice(0, 220) };
+  }
+};

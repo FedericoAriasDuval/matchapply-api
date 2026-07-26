@@ -8,6 +8,7 @@ import { verifyMailer } from './lib/mailer.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { announceEncryption, encryptionEnabled } from './lib/crypto.js';
 import { cvQueue } from './lib/queue.js';
+import { sheetsStatus, sheetsDiag } from './lib/sheets.js';
 import { cerrarOrdenado } from './lib/shutdown.js';
 import { llmHealth } from './lib/llm.js';
 import { cvCache } from './lib/cache.js';
@@ -52,10 +53,10 @@ app.use(cookieParser());
  * No alcanza con "ok:true": necesitás ver la FILA, el BREAKER y la CACHÉ, que son
  * las tres cosas que se rompen bajo carga. Sin esto volás a ciegas.
  */
-app.get('/health', async (_req, res) => {
+app.get('/health', async (req, res) => {
   try {
     await pool.query('select 1');
-    res.json({
+    const body = {
       ok: true,
       env: config.env,
       llm: config.llm.enabled,
@@ -73,7 +74,13 @@ app.get('/health', async (_req, res) => {
       cache: cvCache.stats,
       uptimeSec: Math.round(process.uptime()),
       memMB: Math.round(process.memoryUsage().rss / 1048576),
-    });
+      sheets: sheetsStatus(),   // estado de la sync a Google Sheets (sin secretos)
+    };
+    /* ?sheets=1 hace UNA lectura de metadatos del sheet Feedback (no escribe nada):
+       revela el error exacto si algo del setup falló. Diagnóstico puntual, no en cada
+       health-check (una llamada a la API de Sheets no va en el liveness que corre siempre). */
+    if (req.query.sheets) body.sheetsDiag = await sheetsDiag();
+    res.json(body);
   } catch {
     res.status(503).json({ ok: false, hint: 'La base de datos no responde.' });
   }
