@@ -51,6 +51,7 @@ export const CV_SYSTEM_PROMPT = `Sos el motor de estructuración de currículums
   · SI EL CV DECLARA IDIOMAS, ES OBLIGATORIO DEVOLVERLOS. No los omitas, no los resumas y no los muevas a "skills". Un CV al que se le borra el idioma pierde, muchas veces, el dato que decide la búsqueda.
   · UN IDIOMA SE DEVUELVE AUNQUE COINCIDA CON EL IDIOMA DE SALIDA. Si el CV declara "English (C2)" y estás devolviendo el CV en inglés, "English (C2)" VA en languages igual: NUNCA lo saques por "obvio" ni porque el documento ya esté en ese idioma. Un CV en inglés que declara inglés C2 tiene que seguir mostrando ese C2. Lo mismo para cualquier idioma en cualquier idioma de salida.
   · Copiá el nivel que el CV escribió, incluido un CEFR que YA esté escrito (C2, B1), y su acreditación si la trae ("C2 Proficient – EF SET, 2026"). No lo inventes si no está, no lo subas y no lo bajes.
+  · EL NOMBRE DEL IDIOMA Y SU NIVEL VAN EN EL IDIOMA DE SALIDA, homogéneos con el resto del CV: en un CV en inglés "Español (nativo)" se devuelve "Spanish (native)", en italiano "Spagnolo (madrelingua)", en francés "Espagnol (natif)". Preservás el VALOR del nivel (no lo inflás ni inventás), pero lo ESCRIBÍS en el idioma de salida. Un código CEFR (C2, B1) se deja igual en cualquier idioma. "Español (nativo)" en un CV en inglés es un error: es Spanglish.
   · FORMA VERBOSA: si el CV describe el idioma de forma larga —con el nombre del examen y el puntaje, ej. "Inglés: Certificate of Proficiency in English (CPE) – Cambridge. Nivel C2, Grade C, 204 puntos"— EXTRAÉ el idioma y su nivel y devolvelo LIMPIO y CORTO en languages: "Inglés (C2)". NO lo dejes solo en el resumen, NO lo descartes por largo, NO lo muevas a skills. El idioma con nivel SIEMPRE va en el array languages.
 - NOMBRES DE INSTITUCIONES ≠ skills ni idiomas. Hospitales, clínicas, sanatorios, colegios, universidades, institutos y empresas son ENTIDADES: van al contexto de la experiencia o de la educación, JAMÁS a "skills" ni a "languages", aunque su nombre contenga una palabra que parezca un idioma o una tecnología.
   · "Hospital Francés", "Hospital Italiano", "Instituto de Lengua Inglesa", "Colegio Champagnat" son LUGARES donde la persona trabajó o estudió. No son idiomas ni habilidades.
@@ -195,9 +196,31 @@ export const buildUserMessage = (cvText, lang = 'es') => {
     `<cv_text>\n${fence(scrubCvText(cvText)).slice(0, 60_000)}\n</cv_text>\n\n` +
     `Estructurá este CV siguiendo tus reglas. ` + NO_ORDENES +
     /* La traduccion es tarea del modelo, no de un diccionario: el glosario
-       palabra-por-palabra del cliente producia "Third-Año Economía estudiante". */
-    `Devolvé TODO el contenido textual en ${idioma}. Si algo está escrito en otro idioma, ` +
-    `traducilo de forma natural y completa — jamás mezclas palabra por palabra. ` +
+       palabra-por-palabra del cliente producia "Third-Año Economía estudiante".
+       Reforzado (26/07): el modelo dejaba HIBRIDOS ("Currently me desempeño como",
+       "habilidades of communication", "3er" en ingles, "Español (nativo)" en un CV
+       en ingles). Se le exige traduccion ATOMICA del 100% y un auto-chequeo final. */
+    `Devolvé TODO el contenido de texto libre en ${idioma}, de principio a fin y de forma HOMOGÉNEA: ` +
+    `resumen, logros, viñetas, descripciones, títulos de cursos, habilidades e idiomas. ` +
+    `Si algo viene en otro idioma, traducilo de forma natural y completa. ` +
+    `PROHIBIDO dejar CUALQUIER palabra del idioma de origen: ni un conector ("con", "de", "así como"), ` +
+    `ni un verbo ("realizo", "desempeño", "colaboro"), ni un sustantivo o adjetivo suelto ("persona ambiciosa", ` +
+    `"revisión bibliográfica", "Razonamiento analítico", "Emprendedurismo"). Nada de híbridos tipo ` +
+    `"habilidades of communication", "Currently me desempeño como" ni "project académico": una frase o está ENTERA ` +
+    `en ${idioma} o está mal. Traducila completa. ` +
+    `Adaptá las convenciones locales de ${idioma}: los ORDINALES ("3er año" es "3rd year" en inglés, "3.º año" en ` +
+    `español, "3ème année" en francés), las fechas, y la etiqueta de cada IDIOMA con su NOMBRE y su NIVEL en ` +
+    `${idioma} ("Español (nativo)" en un CV en inglés es "Spanish (native)"; en italiano "Spagnolo (madrelingua)") ` +
+    `— salvo un código CEFR (C2, B1), que se deja igual. ` +
+    `ANTES DE RESPONDER, releé cada campo de texto libre: si quedó UNA sola palabra en el idioma equivocado, traducila. ` +
+    /* Puntos concretos del CV de Nicolás (26/07): término educativo estándar, promedios,
+       texto del certificado y naturalidad — en los 4 idiomas de salida, no solo inglés. */
+    `En la sección de ESTUDIOS usá el TÉRMINO ESTÁNDAR de cada nivel educativo en ${idioma}, no un calco literal: ` +
+    `"Colegio Secundario" / "Diploma del Colegio Secundario" es "High School" / "High School Diploma" en inglés (NUNCA "Secondary School Diploma"), ` +
+    `"lycée" / "diplôme du baccalauréat" en francés, "ensino médio" en portugués, "diploma di scuola superiore" en italiano. ` +
+    `Preservá SIEMPRE los PROMEDIOS y CALIFICACIONES en education.grade (GPA, "Promedio: 8,57", "9/10", "average grade"): son datos de valor, NUNCA los descartes ni los filtres. ` +
+    `En la sección de IDIOMAS traducí también la aclaración del certificado (puntaje y su unidad): "204 puntos" es "204 points" en inglés y francés, "204 pontos" en portugués, "204 punti" en italiano — nunca dejes esa unidad en el idioma de origen. ` +
+    `Que cada logro y descripción suene como lo escribiría un profesional NATIVO del idioma, no como un calco: adaptá los giros y las preposiciones ("pasantía institucional a través del Colegio" → "internship through my school" / "school-organized internship"), sin inventar ni agregar nada. ` +
     `NO traduzcas los NOMBRES PROPIOS de personas, empresas, universidades, colegios, ` +
     `organismos públicos, bolsas, cámaras y entidades locales: son marcas/entidades ` +
     `jurídicas reales y se dejan tal cual. Ej.: "Bolsa de Comercio del Chaco" queda ` +
@@ -226,8 +249,9 @@ export const buildTailorMessage = (cvJson, jobDescription, lang = 'es') => {
     `<cv_json>\n${JSON.stringify(cvJson)}\n</cv_json>\n\n` +
     `<job_description>\n${fence(String(jobDescription ?? '')).slice(0, 20_000)}\n</job_description>\n\n` +
     `Adaptá el CV al puesto siguiendo tus reglas. ` + NO_ORDENES +
-    `TODO el texto que devuelvas (el resumen adaptado y cada motivo) va en ${idioma}, ` +
-    `sin importar en qué idioma estén el CV o el aviso. Respondé solo con el JSON.`
+    `TODO el texto que devuelvas (el resumen adaptado y cada motivo) va en ${idioma}, de forma HOMOGÉNEA ` +
+    `y completa, sin importar en qué idioma estén el CV o el aviso: no dejes NINGUNA palabra del idioma de ` +
+    `origen (ni conectores ni verbos), nada de híbridos tipo "habilidades of communication". Respondé solo con el JSON.`
   );
 };
 
