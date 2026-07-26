@@ -39,6 +39,18 @@ test('un 401 no se echa la culpa: le dice a la persona que inicie sesión', () =
   assert.match(res.body.error.hint, /sesion/i, 'el hint tiene que decir QUÉ hacer');
 });
 
+test('un ZodError (body inválido) es 400, no 500: es dato del cliente, no culpa nuestra', () => {
+  /* Lo que tira schema.parse cuando el body no cumple: nombre "ZodError" + issues[]. */
+  const zodish = Object.assign(new Error('validation'), {
+    name: 'ZodError',
+    issues: [{ path: ['email'], message: 'Invalid email' }],
+  });
+  const res = run(zodish);
+  assert.equal(res.statusCode, 400, 'un body mal armado es culpa del cliente, no un 500 nuestro');
+  assert.equal(res.body.error.code, 'invalid_payload');
+  assert.notEqual(res.body.error.message, CULPA_NUESTRA);
+});
+
 test('pro_required explica el límite sin sonar a falla técnica', () => {
   const res = run(forbidden('pro_required', 'Esta función es exclusiva de Mavante Pro.', { upgrade: true }));
   assert.equal(res.statusCode, 403);

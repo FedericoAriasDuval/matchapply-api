@@ -243,6 +243,16 @@ const normalize = (err) => {
   if (err instanceof TimeoutError) return new HttpError(504, 'cv_timeout', 'Se agoto el tiempo.');
   if (err instanceof HttpError) return err;
 
+  /* Zod (schema.parse) tira un ZodError cuando el body NO cumple el contrato: es un
+     pedido MAL ARMADO del cliente (400), no una falla nuestra (500). Sin este caso,
+     TODA ruta que valida con zod —contacto, reseñas, tailor, entrevista— devolvía
+     "se rompió algo nuestro" ante un dato faltante o mal tipado, mandando a la
+     persona a esperar en vez de a corregir. Se detecta por nombre/issues para no
+     acoplar este middleware a la librería. */
+  if (err?.name === 'ZodError' || Array.isArray(err?.issues)) {
+    return new HttpError(400, 'invalid_payload', 'Revisá los datos: algo llegó incompleto o con formato inválido.');
+  }
+
   /* El pedido llegó cortado o mal armado. Lo tira body-parser ANTES de que
      ninguna ruta lo vea, así que ningún try/catch nuestro lo agarra y caía en
      internal_error: le decíamos "se rompió algo de nuestro lado" a alguien cuyo
