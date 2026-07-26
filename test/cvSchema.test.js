@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { contactLine, dateRange, normalizeLevel, sanitizeCv, isLanguageTerm } from '../src/lib/cvSchema.js';
+import { contactLine, dateRange, normalizeLevel, sanitizeCv, isLanguageTerm, rescueEducationGrades } from '../src/lib/cvSchema.js';
 import { scrubCvText } from '../src/lib/cvPrompt.js';
 
 test('scrubCvText: saca emojis de viñeta pero conserva el texto del CV', () => {
@@ -366,4 +366,81 @@ test('instituciones: "Bolsa de Comercio del Chaco" NO se confunde con idioma ni 
   });
   assert.equal(cv.experience[0].company, 'Bolsa de Comercio del Chaco');
   assert.ok(!cv.languages.length && !cv.skills.some((s) => /chaco|bolsa/i.test(s)), JSON.stringify(cv));
+});
+
+// ---------------------------------------------------------------------------
+// rescueEducationGrades — la red de seguridad del PROMEDIO (CV de Nicolás, 26/07)
+// ---------------------------------------------------------------------------
+
+/* Texto ORIGINAL en español, tal cual llega al parser. */
+const NICOLAS_SRC = [
+  'NICOLÁS EZEQUIEL BENITEZ',
+  'Estudiante de Economía con sólido desempeño académico (promedio 8,57) e inglés C2.',
+  'EDUCACIÓN',
+  'Universidad de San Andrés 2024 – Presente',
+  'Licenciatura en Economía – 3er año en curso',
+  '• Promedio actual: 8,57.',
+  '• Materias destacadas: Microeconomía, Macroeconomía, Econometría.',
+  'Colegio Integral Carlos Primo López Piacentini 2019 – 2023',
+  'Bachillerato Secundario',
+  '• Promedio de egreso: 9,63.',
+  'IDIOMAS Y CERTIFICACIONES',
+  '• Inglés: CPE – Cambridge. Nivel C2, Grade C, 204 puntos.',
+  '• Excel: Curso Básico de Excel – Universidad Tecnológica Nacional (UTN). Calificación: 9/10.',
+].join('\n');
+
+test('rescueEducationGrades: reinyecta el promedio que el modelo tiró (salida traducida)', () => {
+  // El modelo devolvió la educación en INGLÉS y sin ninguna nota (el bug de Federico).
+  const cv = {
+    education: [
+      { institution: 'Universidad de San Andrés', degree: "Bachelor's Degree in Economics", grade: '', details: [] },
+      { institution: 'Colegio Integral Carlos Primo López Piacentini', degree: 'High School Diploma', grade: '', details: [] },
+      { institution: 'Universidad Tecnológica Nacional (UTN)', degree: 'Basic Excel Course', grade: '', details: [] },
+    ],
+  };
+  rescueEducationGrades(cv, NICOLAS_SRC);
+  assert.equal(cv.education[0].grade, '8,57', JSON.stringify(cv.education[0]));
+  assert.equal(cv.education[1].grade, '9,63', JSON.stringify(cv.education[1]));
+  assert.equal(cv.education[2].grade, '9/10', JSON.stringify(cv.education[2]));
+});
+
+test('rescueEducationGrades: NO pisa una nota que el modelo sí trajo', () => {
+  const cv = { education: [{ institution: 'Universidad de San Andrés', degree: 'Economía', grade: 'con distinción', details: [] }] };
+  rescueEducationGrades(cv, NICOLAS_SRC);
+  assert.equal(cv.education[0].grade, 'con distinción');   // intacta
+});
+
+test('rescueEducationGrades: NO inventa notas donde no las hay (sin falsos positivos)', () => {
+  // "204 puntos" y "3er año" son números pegados a la institución, pero NINGUNO es una nota.
+  const src = [
+    'Universidad de San Andrés 2024 – Presente',
+    'Licenciatura en Economía – 3er año en curso, 40 materias aprobadas.',
+    'Inglés C2, 204 puntos.',
+  ].join('\n');
+  const cv = { education: [{ institution: 'Universidad de San Andrés', degree: 'Economía', grade: '', details: [] }] };
+  rescueEducationGrades(cv, src);
+  assert.equal(cv.education[0].grade, '', 'no debe agarrar 3, 40 ni 204 como si fueran nota');
+});
+
+test('rescueEducationGrades: cada nota queda en SU estudio (no se cruzan)', () => {
+  // dos universidades con notas distintas, en orden: la de cada una tiene que ser la suya
+  const src = [
+    'Universidad Alfa. Promedio: 7,10.',
+    'Universidad Beta. Promedio: 9,90.',
+  ].join('\n');
+  const cv = { education: [
+    { institution: 'Universidad Beta', degree: 'X', grade: '', details: [] },   // desordenada a propósito
+    { institution: 'Universidad Alfa', degree: 'Y', grade: '', details: [] },
+  ] };
+  rescueEducationGrades(cv, src);
+  const beta = cv.education.find((e) => e.institution === 'Universidad Beta');
+  const alfa = cv.education.find((e) => e.institution === 'Universidad Alfa');
+  assert.equal(alfa.grade, '7,10');
+  assert.equal(beta.grade, '9,90');
+});
+
+test('rescueEducationGrades: sin educación o sin texto, no rompe', () => {
+  assert.doesNotThrow(() => rescueEducationGrades({ education: [] }, NICOLAS_SRC));
+  assert.doesNotThrow(() => rescueEducationGrades({ education: [{ institution: 'X', grade: '' }] }, ''));
+  assert.doesNotThrow(() => rescueEducationGrades(null, NICOLAS_SRC));
 });

@@ -387,6 +387,73 @@ export const sanitizeCv = (input) => {
   };
 };
 
+/**
+ * RED DE SEGURIDAD DETERMINÍSTICA: rescatar el PROMEDIO que el modelo tira.
+ *
+ * POR QUÉ (26/07/2026 — "Mavante sigue borrando los promedios de la gente"): el
+ * prompt y el schema YA piden preservar education.grade, y aun así el modelo
+ * devolvía la educación SIN la nota ("Promedio actual: 8,57", "Promedio de egreso:
+ * 9,63", "Calificación: 9/10" desaparecían). Reforzar el prompt ya falló: un modelo
+ * NO es determinístico y este dato es demasiado importante para dejarlo a su humor.
+ *
+ * Entonces no le creemos. Releemos el TEXTO ORIGINAL y, para cada estudio al que el
+ * modelo le dejó el grade vacío, buscamos la nota que le corresponde y la
+ * reinyectamos. El anclaje es la INSTITUCIÓN (nombre propio que el modelo SÍ
+ * conserva, hasta cuando traduce): la nota se busca solo en la ventana de texto
+ * entre una institución y la siguiente, y solo se acepta si está pegada a una
+ * PALABRA CLAVE de nota (promedio, calificación, GPA, average, media, moyenne…),
+ * nunca un número suelto — así no confundimos un año, un puntaje ni una cantidad.
+ *
+ * Funciona aunque el CV salga traducido: el texto fuente sigue en su idioma
+ * original y una nota ("8,57", "9/10") es idéntica en cualquier idioma de salida.
+ * Solo RELLENA lo vacío: si el modelo ya trajo la nota, no la toca.
+ */
+const flattenForSearch = (str) =>
+  String(str ?? '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');   // sin tildes: "Andrés" == "andres"
+
+/* Palabra clave de nota (el texto de trabajo va sin acentos, así que van sin tildes:
+   "calificacion", "media"). "grade" suelto NO alcanza como valor: exige un número. */
+const GRADE_KW =
+  '(?:promedios?(?:\\s+(?:actual|de\\s+egreso|general|final|ponderado))?' +
+  '|nota(?:\\s+final)?|calificacion|g\\.?p\\.?a\\.?|grade\\s+point\\s+average' +
+  '|average(?:\\s+grade)?|media(?:\\s+ponderata)?|moyenne|voto|overall)';
+/* Valor de nota: fracción ("9/10", "3.8/4.0") o decimal ("8,57"). Enteros sueltos
+   NO — un "3" o un "2024" pegado a una palabra ambigua sería un falso positivo. */
+const GRADE_VAL =
+  '(\\d{1,3}(?:[.,]\\d{1,2})?\\s*\\/\\s*\\d{1,3}(?:[.,]\\d{1,2})?|\\d{1,2}[.,]\\d{1,2})';
+/* Separador corto entre la palabra y el número: espacio, ":", "=", guion. SIN punto,
+   para que "media." (fin de oración) no salte a un número de la frase siguiente. */
+const GRADE_RX = new RegExp(`${GRADE_KW}[\\s:=\\-–—]{0,4}${GRADE_VAL}`, 'i');
+
+export const rescueEducationGrades = (cv, sourceText) => {
+  if (!cv || !Array.isArray(cv.education) || !cv.education.length) return cv;
+  const flat = flattenForSearch(sourceText);
+  if (!flat) return cv;
+
+  // Ubicar cada estudio por su institución (nombre propio); si no hay, por el título.
+  const located = cv.education
+    .map((e, idx) => {
+      const anchor = flattenForSearch(e.institution || e.degree);
+      const pos = anchor.length >= 4 ? flat.indexOf(anchor) : -1;
+      return { e, idx, pos };
+    })
+    .filter((x) => x.pos >= 0)
+    .sort((a, b) => a.pos - b.pos);
+
+  for (let i = 0; i < located.length; i += 1) {
+    const cur = located[i];
+    if (cur.e.grade && String(cur.e.grade).trim()) continue;   // el modelo ya la trajo: no se pisa
+    const end = i + 1 < located.length ? located[i + 1].pos : flat.length;
+    const m = GRADE_RX.exec(flat.slice(cur.pos, end));          // primera nota en LA ventana de ese estudio
+    if (m && m[1]) cur.e.grade = m[1].replace(/\s+/g, '');      // "9 / 10" -> "9/10"
+  }
+  return cv;
+};
+
 /** Línea de contacto compacta, separada por " | " (va debajo del nombre). */
 export const contactLine = (cv) =>
   [

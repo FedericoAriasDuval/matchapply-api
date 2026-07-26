@@ -9,7 +9,7 @@ import { aiLimiter } from '../middleware/rateLimit.js';
 import { badRequest, forbidden, tooMany } from '../middleware/errors.js';
 import { completeJson } from '../lib/llm.js';
 import { CV_SYSTEM_PROMPT, CV_TAILOR_PROMPT, CV_COVER_PROMPT, CV_INTERVIEW_PROMPT, buildTailorMessage, buildCoverMessage, buildInterviewMessage, buildUserMessage } from '../lib/cvPrompt.js';
-import { CvValidationError, sanitizeCv } from '../lib/cvSchema.js';
+import { CvValidationError, sanitizeCv, rescueEducationGrades } from '../lib/cvSchema.js';
 import { extractText } from '../lib/extract.js';
 import { cvCache } from '../lib/cache.js';
 import { safeFilename, validateUpload } from '../lib/upload.js';
@@ -142,6 +142,10 @@ const structureCvUncached = async (sourceText, lang) => {
   }
   try {
     const cv = sanitizeCv(raw);
+    /* RED DE SEGURIDAD: el modelo suele tirar el PROMEDIO aunque el prompt lo exija.
+       Antes de devolver, releemos el texto original y reinyectamos la nota que el
+       modelo dejó vacía. Determinístico: no depende del humor del modelo. */
+    rescueEducationGrades(cv, sourceText);
     /* Una traza también cuando SALE BIEN pero sale flaco: un CV que vuelve sin
        experiencia ni skills es exactamente el que produce "no se detectan las
        secciones estándar" en la pantalla, y hasta ahora no dejaba rastro. */
@@ -243,6 +247,12 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       ? readCvRow(cached[0])
       : null;
     if (guardado) {
+      /* Un CV parseado ANTES de esta red (era grade-less) sigue guardado sin la
+         nota. La rescatamos también acá, sobre el texto de este mismo pedido (que
+         por definición coincide con el guardado — por eso pegó la caché): es
+         determinístico y gratis, sin llamar al modelo ni cobrar cuota. Así la nota
+         reaparece al re-subir el mismo CV, no recién al cambiarle una coma. */
+      rescueEducationGrades(guardado.data, sourceText);
       const editable = req.user.tier === 'pro';
       return res.json({
         id: guardado.id,
