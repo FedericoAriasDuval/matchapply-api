@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { asyncRoute } from '../middleware/errors.js';
 import { reviewLimiter } from '../middleware/rateLimit.js';
 import { sendContactEmail } from '../lib/mailer.js';
+import { appendContactRow } from '../lib/sheets.js';
 
 export const contactRouter = Router();
 
@@ -31,6 +32,9 @@ contactRouter.post(
   reviewLimiter, // mismo perfil de abuso que las reseñas: form público de baja frecuencia
   asyncRoute(async (req, res) => {
     const body = schema.parse(req.body);
+    /* Espejo a la planilla ANTES del mail: así la fila queda aunque el SMTP falle.
+       Fire-and-forget, nunca rompe la respuesta. */
+    appendContactRow(body).catch(() => {});
     await sendContactEmail(body);
     res.status(201).json({ ok: true });
   }),

@@ -6,6 +6,7 @@ import { config } from '../config.js';
 import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { licenseLimiter, webhookLimiter } from '../middleware/rateLimit.js';
+import { appendIncomeRow } from '../lib/sheets.js';
 import { HttpError } from '../middleware/errors.js';
 import {
   ESTADOS_VIVOS, PROVIDERS_CON_VENCIMIENTO, PROVIDERS_DE_POR_VIDA,
@@ -474,6 +475,24 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
       const userId = pay.external_reference;
       const plan = String(pay.metadata?.plan || '').toLowerCase();
       const unico = PAGO_UNICO[plan];
+      /* Ingreso a la planilla de Finanzas: cualquier pago APROBADO (único o cuota
+         recurrente), con bruto/comisión/neto que da la API de MP. Fire-and-forget:
+         un fallo de Sheets JAMÁS puede tumbar la confirmación del pago. */
+      if (pay.status === 'approved') {
+        const comision = Array.isArray(pay.fee_details)
+          ? pay.fee_details.reduce((s, f) => s + (Number(f.amount) || 0), 0)
+          : '';
+        appendIncomeRow({
+          txnId: pay.id,
+          email: pay.payer?.email || '',
+          plan: plan || 'suscripción',
+          gross: pay.transaction_amount ?? '',
+          fee: comision,
+          net: pay.transaction_details?.net_received_amount ?? '',
+          currency: pay.currency_id || 'ARS',
+          provider: 'mercadopago',
+        }).catch(() => {});
+      }
       if (userId && unico && pay.status === 'approved') {
         /* El acceso CON vencimiento (pase semanal) se anota en
            current_period_end, y lib/tier.js lo hace cumplir en cada request.
@@ -524,6 +543,32 @@ async function handlePaddleWebhook(req, res) {
     const userId = d.customData?.userId;
     const status = d.status;
     const periodEnd = d.currentBillingPeriod?.endsAt ?? null;
+
+    /* Ingreso a Finanzas: TODA transacción completada (única o cuota recurrente),
+       con bruto/comisión/neto de d.details.totals. Paddle informa en la unidad
+       mínima (centavos) como string → se divide por 100 (USD, 2 decimales). El email
+       se cruza por el userId. Fire-and-forget: no toca la confirmación del pago. */
+    if (type === 'transaction.completed') {
+      const tot = d.details?.totals || {};
+      const aUnidad = (v) => (v == null || v === '' ? '' : Number(v) / 100);
+      let email = '';
+      if (userId) {
+        try {
+          const u = await query('select email from users where id = $1', [userId]);
+          email = u.rows[0]?.email || '';
+        } catch { /* sin email si la consulta falla */ }
+      }
+      appendIncomeRow({
+        txnId: d.id,
+        email,
+        plan: String(d.customData?.plan || (d.subscriptionId ? 'suscripción' : '')).toLowerCase(),
+        gross: aUnidad(tot.grandTotal ?? tot.total),
+        fee: aUnidad(tot.fee),
+        net: aUnidad(tot.earnings),
+        currency: tot.currencyCode || 'USD',
+        provider: 'paddle',
+      }).catch(() => {});
+    }
 
     /* ── PAGO ÚNICO (de por vida o pase semanal) ──────────────────────────────
        Un pago único NO genera eventos subscription.*: genera transaction.*.

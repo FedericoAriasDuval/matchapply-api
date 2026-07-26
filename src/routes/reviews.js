@@ -21,6 +21,7 @@ import { reviewLimiter } from '../middleware/rateLimit.js';
 import { adminTokenOk } from './admin.js';
 import { completeJson } from '../lib/llm.js';
 import { sendReviewNotification } from '../lib/mailer.js';
+import { appendReviewRow } from '../lib/sheets.js';
 
 export const reviewsRouter = Router();
 
@@ -59,6 +60,20 @@ reviewsRouter.post(
        con catch: es nice-to-have, un mail caído no puede tumbar el guardado (que ya
        ocurrió arriba). Los datos igual quedan en la tabla y en GET /summary. */
     sendReviewNotification(body).catch((e) => console.warn('[reviews] aviso no enviado:', e?.message));
+
+    /* Espejo a la planilla (fire-and-forget). Si el reviewer estaba logueado se
+       cruza su email (decisión de Federico, 26/07); anónimo va sin email. La
+       consulta y el append tragan su error: nunca tumban el guardado ni la respuesta. */
+    (async () => {
+      let email = '';
+      if (req.user?.id) {
+        try {
+          const u = await query('select email from users where id = $1', [req.user.id]);
+          email = u.rows[0]?.email || '';
+        } catch { /* sin email si la consulta falla */ }
+      }
+      await appendReviewRow({ ...body, email });
+    })().catch(() => {});
 
     /* No devolvemos nada: ni un id, ni un listado. No hay nada que mostrar. */
     res.status(201).json({ ok: true });

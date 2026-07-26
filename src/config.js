@@ -49,6 +49,20 @@ export const config = {
     enabled: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
   },
 
+  /* Sincronización a Google Sheets (reseñas/contacto → planilla Feedback; pagos →
+     planilla Finanzas). Cuenta de SERVICIO: la clave suele venir con "\n" literales
+     en el env, se convierten a saltos reales. Vacío = APAGADO (todo no-op). */
+  sheets: {
+    saEmail: process.env.GOOGLE_SA_EMAIL ?? '',
+    saKey: (process.env.GOOGLE_SA_KEY ?? '').replace(/\\n/g, '\n'),
+    feedbackId: process.env.SHEET_FEEDBACK_ID ?? '',
+    financeId: process.env.SHEET_FINANCE_ID ?? '',
+    enabled: Boolean(
+      process.env.GOOGLE_SA_EMAIL && process.env.GOOGLE_SA_KEY &&
+      (process.env.SHEET_FEEDBACK_ID || process.env.SHEET_FINANCE_ID),
+    ),
+  },
+
   llm: {
     /* Proveedor activo. 'anthropic' (default, lo que corre hoy) | 'gemini'.
        Para pasar a Gemini: setear LLM_PROVIDER=gemini + GEMINI_API_KEY en el env.
