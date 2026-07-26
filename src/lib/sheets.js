@@ -151,37 +151,23 @@ export const sheetsStatus = () => ({
     nombres de pestañas) sin escribir nada. Devuelve el error exacto si algo falla —
     la forma de saber si el problema es la clave (401), el compartir (403), el ID (404)
     o el nombre de la pestaña. */
-export const sheetsDiag = async (doWrite = false) => {
+/* SOLO LECTURA de metadatos (auth + acceso + nombres de pestañas): no escribe nada.
+   La prueba de ESCRITURA que vivió acá el 26/07 confirmó que el append funciona
+   (status 200) y que el problema era mirar otra planilla; se sacó para no dejar un
+   endpoint público que escriba filas en la hoja. */
+export const sheetsDiag = async () => {
   if (!config.sheets.enabled) return { enabled: false, motivo: 'config.sheets.enabled=false — falta alguna de las 4 env (o mal nombradas)' };
   if (!config.sheets.feedbackId) return { enabled: true, motivo: 'sin SHEET_FEEDBACK_ID' };
-  const out = { enabled: true };
   try {
     const token = await getToken();
-    // LECTURA de metadatos (auth + acceso + nombres de pestañas)
-    const rget = await fetch(
+    const res = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${config.sheets.feedbackId}?fields=properties.title,sheets.properties.title`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    if (!rget.ok) { out.read = { ok: false, status: rget.status, error: (await rget.text()).slice(0, 220) }; return out; }
-    const j = await rget.json();
-    out.read = { ok: true, title: j.properties?.title, tabs: (j.sheets || []).map((s) => s.properties?.title) };
-    // ESCRITURA de prueba (solo si se pide): revela el error EXACTO del append.
-    if (doWrite) {
-      const range = encodeURIComponent('Contacto!A1');
-      const rput = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${config.sheets.feedbackId}/values/${range}` +
-          ':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS',
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ values: [[ahora(), 'diag@mavante.com', 'DIAGNÓSTICO DE ESCRITURA', 'Si ves esta fila, el append funciona. Borrala.', 'es']] }),
-        },
-      );
-      out.write = { ok: rput.ok, status: rput.status, body: (await rput.text()).slice(0, 320) };
-    }
-    return out;
+    if (!res.ok) return { enabled: true, ok: false, status: res.status, error: (await res.text()).slice(0, 220) };
+    const j = await res.json();
+    return { enabled: true, ok: true, title: j.properties?.title, tabs: (j.sheets || []).map((s) => s.properties?.title) };
   } catch (e) {
-    out.error = String(e.message).slice(0, 220);
-    return out;
+    return { enabled: true, ok: false, error: String(e.message).slice(0, 220) };
   }
 };

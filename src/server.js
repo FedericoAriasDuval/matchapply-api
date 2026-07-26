@@ -79,7 +79,7 @@ app.get('/health', async (req, res) => {
     /* ?sheets=1 hace UNA lectura de metadatos del sheet Feedback (no escribe nada):
        revela el error exacto si algo del setup falló. Diagnóstico puntual, no en cada
        health-check (una llamada a la API de Sheets no va en el liveness que corre siempre). */
-    if (req.query.sheets) body.sheetsDiag = await sheetsDiag(req.query.sheets === 'write');
+    if (req.query.sheets) body.sheetsDiag = await sheetsDiag();
     res.json(body);
   } catch {
     res.status(503).json({ ok: false, hint: 'La base de datos no responde.' });
