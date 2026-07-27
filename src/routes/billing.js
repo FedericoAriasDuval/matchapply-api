@@ -7,6 +7,7 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { licenseLimiter, webhookLimiter } from '../middleware/rateLimit.js';
 import { appendIncomeRow } from '../lib/sheets.js';
+import { clasificarMpHook } from '../lib/mpHook.js';
 import { HttpError } from '../middleware/errors.js';
 import {
   ESTADOS_VIVOS, PROVIDERS_CON_VENCIMIENTO, PROVIDERS_DE_POR_VIDA,
@@ -429,87 +430,121 @@ billingRouter.post('/redeem', authenticate, licenseLimiter, async (req, res, nex
 
 /* ═══════════════════════════════ Mercado Pago ═══════════════════════════════ */
 
+/* ── DIAGNÓSTICO del webhook de MP ────────────────────────────────────────────
+   Ring buffer en memoria con los últimos avisos de MP (sin datos sensibles: solo
+   tipo, id de MP, nuestro userId, estado y qué hicimos). POR QUÉ: cuando un pago
+   no activa Pro no hay que adivinar — se lee `GET /health?mphook=<ADMIN_TOKEN>` y
+   se ve EXACTAMENTE qué mandó MP y por qué. Se borra en cada deploy (es debug). */
+const MP_HOOK_LOG = [];
+const mpHookPush = (e) => {
+  MP_HOOK_LOG.push({ ts: new Date().toISOString(), ...e });
+  if (MP_HOOK_LOG.length > 40) MP_HOOK_LOG.shift();
+};
+export const getMpHookLog = () => MP_HOOK_LOG.slice().reverse();
+
+/* NUESTRO userId a partir de un preapproval (suscripción) de MP: primero la base
+   —rápido, sin llamar a MP—; si todavía no está esa fila, se lo pregunta a MP. */
+async function userIdDePreapproval(preapprovalId) {
+  if (!preapprovalId) return null;
+  const { rows } = await query(
+    `select user_id from subscriptions where subscription_id = $1 and provider = 'mercadopago'`,
+    [preapprovalId],
+  );
+  if (rows[0]?.user_id) return rows[0].user_id;
+  try {
+    const r = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
+      headers: { Authorization: `Bearer ${mpToken}` },
+    });
+    if (r.ok) return (await r.json()).external_reference || null;
+  } catch { /* si MP no responde, seguimos sin userId (queda en el log) */ }
+  return null;
+}
+
+/* Un pago APROBADO de MP: anota el ingreso en Finanzas y —si sabemos de quién es—
+   activa Pro. LA PLATA QUE ENTRA ES LA SEÑAL MÁS FUERTE: si pagó, tiene Pro, sin
+   depender de que llegue (y llegue bien) el aviso de estado de la suscripción. */
+async function acreditarPagoMp(pay, userIdHint) {
+  if (pay?.status !== 'approved') return { action: `pago-${pay?.status || 'sin-estado'}`, userId: userIdHint || null };
+  const plan = String(pay.metadata?.plan || '').toLowerCase();
+  const comision = Array.isArray(pay.fee_details)
+    ? pay.fee_details.reduce((s, f) => s + (Number(f.amount) || 0), 0)
+    : '';
+  appendIncomeRow({
+    txnId: pay.id, email: pay.payer?.email || '', plan: plan || 'suscripción',
+    gross: pay.transaction_amount ?? '', fee: comision,
+    net: pay.transaction_details?.net_received_amount ?? '',
+    currency: pay.currency_id || 'ARS', provider: 'mercadopago',
+  }).catch(() => {});   // Sheets nunca puede tumbar la confirmación del pago
+  const userId = userIdHint || pay.external_reference || null;
+  if (!userId) return { action: 'ingreso-sin-usuario', userId: null };
+  if (PAGO_UNICO[plan]) {   // pago único (de por vida / pase semanal): su propia lógica
+    await otorgarPagoUnico({ userId, plan, proveedor: 'mercadopago', customerId: pay.payer?.id ? String(pay.payer.id) : null, refId: String(pay.id) });
+    return { action: `pago-unico-${plan}`, userId };
+  }
+  if (!(await esDePorVida(userId))) await setTier(userId, 'pro');   // cuota de la suscripción → Pro
+  return { action: 'pro-por-pago', userId };
+}
+
 /**
  * POST /billing/mp-webhook — aviso de MP. NO confía en el body: usa el id como
- * disparador y RE-CONSULTA el preapproval a la API de MP (fuente autoritativa),
- * así un aviso falsificado no puede activar un Pro.
- * Se monta dentro del router (body JSON ya parseado por el server).
+ * disparador y RE-CONSULTA el recurso a la API de MP (fuente autoritativa), así un
+ * aviso falsificado no puede activar un Pro. Se monta dentro del router (body ya
+ * parseado). Cada aviso queda en el ring buffer de diagnóstico.
  */
 billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
   if (!mpToken) return res.sendStatus(503);
+  const type = String(req.query.type || req.query.topic || req.body?.type || req.body?.action || '');
+  const id = req.query['data.id'] || req.query.id || req.body?.data?.id || req.body?.id;
+  const kind = clasificarMpHook(type);
+  let action = 'sin-accion', status = '', userId = null, note = '';
   try {
-    const type = String(req.query.type || req.query.topic || req.body?.type || req.body?.action || '');
-    const id = req.query['data.id'] || req.query.id || req.body?.data?.id;
-    if (id && /preapproval|subscription/i.test(type)) {
-      const r = await fetch(`https://api.mercadopago.com/preapproval/${id}`, {
-        headers: { Authorization: `Bearer ${mpToken}` },
-      });
-      if (!r.ok) return res.sendStatus(502);  // transitorio → MP reintenta
+    if (id && kind === 'authpay') {
+      /* Cuota programada de una suscripción. El authorized_payment trae el
+         preapproval (→ nuestro userId) y el pago real (→ estado + montos). */
+      const r = await fetch(`https://api.mercadopago.com/authorized_payments/${id}`, { headers: { Authorization: `Bearer ${mpToken}` } });
+      if (!r.ok) { mpHookPush({ type, kind, id, action: 'authpay-fetch-fail', note: `MP ${r.status}` }); return res.sendStatus(502); }
+      const ap = await r.json();
+      userId = await userIdDePreapproval(ap.preapproval_id);
+      const payId = ap.payment?.id || ap.payment_id;
+      if (payId) {
+        const pr = await fetch(`https://api.mercadopago.com/v1/payments/${payId}`, { headers: { Authorization: `Bearer ${mpToken}` } });
+        if (!pr.ok) { mpHookPush({ type, kind, id, userId, action: 'authpay-pago-fetch-fail', note: `MP ${pr.status}` }); return res.sendStatus(502); }
+        const pay = await pr.json();
+        status = pay.status || '';
+        const r2 = await acreditarPagoMp(pay, userId);
+        action = `authpay:${r2.action}`; userId = r2.userId || userId;
+      } else {
+        status = ap.status || ''; action = 'authpay-sin-pago';
+      }
+    } else if (id && kind === 'preapproval') {
+      const r = await fetch(`https://api.mercadopago.com/preapproval/${id}`, { headers: { Authorization: `Bearer ${mpToken}` } });
+      if (!r.ok) { mpHookPush({ type, kind, id, action: 'preapproval-fetch-fail', note: `MP ${r.status}` }); return res.sendStatus(502); }
       const pre = await r.json();
-      const userId = pre.external_reference;
-      if (userId) {
-        /* Misma guarda que en Paddle, y acá es todavía más necesaria: cuando
-           alguien se pasa al plan de por vida le DAMOS DE BAJA la mensual, y esa
-           baja vuelve como este mismo aviso. Sin la guarda, el sistema le sacaría
-           el Pro a alguien treinta segundos después de venderle el acceso
-           definitivo. "Para siempre" tiene que aguantar nuestros propios actos. */
-        if (await esDePorVida(userId)) {
-          console.log('[billing] aviso de MP', pre.status, 'ignorado: el usuario tiene plan de por vida');
-        } else {
-          const active = pre.status === 'authorized';
-          await setTier(userId, active ? 'pro' : 'free');
-          await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, pre.status ?? 'pending', null);
-        }
+      userId = pre.external_reference || null; status = pre.status || '';
+      if (!userId) { action = 'preapproval-sin-external_reference'; }
+      else if (await esDePorVida(userId)) { action = 'ignorado-de-por-vida'; }   // "para siempre" aguanta nuestros propios avisos
+      else {
+        await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, status || 'pending', null);
+        if (status === 'authorized') { await setTier(userId, 'pro'); action = 'pro-por-preapproval'; }
+        else if (status === 'cancelled' || status === 'paused') { await setTier(userId, 'free'); action = `free-por-${status}`; }
+        else { action = `preapproval-${status || 'sin-estado'}-sin-cambio`; }   // "pending": NO se baja a free (evita la carrera que apagaba el Pro)
       }
-    } else if (id && /payment/i.test(type)) {
-      /* PAGO ÚNICO de por vida (Checkout Pro). Se re-consulta a la API de MP
-         (fuente autoritativa): un aviso falsificado no puede activar nada. Solo
-         un pago APROBADO y marcado como lifetime en metadata acredita el acceso.
-         Una cuota de la suscripción mensual NO trae metadata.plan=lifetime, así
-         que este camino no la toca. */
-      const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
-        headers: { Authorization: `Bearer ${mpToken}` },
-      });
-      if (!r.ok) return res.sendStatus(502);   // transitorio → MP reintenta
+    } else if (id && kind === 'payment') {
+      const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, { headers: { Authorization: `Bearer ${mpToken}` } });
+      if (!r.ok) { mpHookPush({ type, kind, id, action: 'payment-fetch-fail', note: `MP ${r.status}` }); return res.sendStatus(502); }
       const pay = await r.json();
-      const userId = pay.external_reference;
-      const plan = String(pay.metadata?.plan || '').toLowerCase();
-      const unico = PAGO_UNICO[plan];
-      /* Ingreso a la planilla de Finanzas: cualquier pago APROBADO (único o cuota
-         recurrente), con bruto/comisión/neto que da la API de MP. Fire-and-forget:
-         un fallo de Sheets JAMÁS puede tumbar la confirmación del pago. */
-      if (pay.status === 'approved') {
-        const comision = Array.isArray(pay.fee_details)
-          ? pay.fee_details.reduce((s, f) => s + (Number(f.amount) || 0), 0)
-          : '';
-        appendIncomeRow({
-          txnId: pay.id,
-          email: pay.payer?.email || '',
-          plan: plan || 'suscripción',
-          gross: pay.transaction_amount ?? '',
-          fee: comision,
-          net: pay.transaction_details?.net_received_amount ?? '',
-          currency: pay.currency_id || 'ARS',
-          provider: 'mercadopago',
-        }).catch(() => {});
-      }
-      if (userId && unico && pay.status === 'approved') {
-        /* El acceso CON vencimiento (pase semanal) se anota en
-           current_period_end, y lib/tier.js lo hace cumplir en cada request.
-           El de por vida va sin fecha: no vence nunca. */
-        await otorgarPagoUnico({
-          userId,
-          plan,
-          proveedor: 'mercadopago',
-          customerId: pay.payer?.id ? String(pay.payer.id) : null,
-          refId: String(pay.id),
-        });
-      }
+      status = pay.status || '';
+      const r2 = await acreditarPagoMp(pay, null);
+      action = `payment:${r2.action}`; userId = r2.userId || null;
+    } else {
+      action = id ? `tipo-no-reconocido(${type})` : 'sin-id';
     }
+    mpHookPush({ type, kind, id, userId, status, action, note });
     res.sendStatus(200);
   } catch (e) {
+    mpHookPush({ type, kind, id, userId, status, action: 'error', note: e.message });
     console.error('[billing] mp webhook:', e.message);
-    res.sendStatus(500);  // MP reintenta ante error real
+    res.sendStatus(500);  // MP reintenta ante un error real
   }
 });
 

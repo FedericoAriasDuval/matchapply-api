@@ -13,8 +13,8 @@ import { cerrarOrdenado } from './lib/shutdown.js';
 import { llmHealth } from './lib/llm.js';
 import { cvCache } from './lib/cache.js';
 import { authRouter } from './routes/auth.js';
-import { billingRouter, billingWebhook, availableMethods, lifetimeAvailable, lifetimeMethods, weekMethods } from './routes/billing.js';
-import { adminRouter } from './routes/admin.js';
+import { billingRouter, billingWebhook, availableMethods, lifetimeAvailable, lifetimeMethods, weekMethods, getMpHookLog } from './routes/billing.js';
+import { adminRouter, adminTokenOk } from './routes/admin.js';
 import { cvRouter } from './routes/cv.js';
 import { reviewsRouter } from './routes/reviews.js';
 import { contactRouter } from './routes/contact.js';
@@ -80,6 +80,10 @@ app.get('/health', async (req, res) => {
        revela el error exacto si algo del setup falló. Diagnóstico puntual, no en cada
        health-check (una llamada a la API de Sheets no va en el liveness que corre siempre). */
     if (req.query.sheets) body.sheetsDiag = await sheetsDiag();
+    /* ?mphook=<ADMIN_TOKEN> muestra los últimos avisos de Mercado Pago (tipo, id,
+       userId, estado, qué hicimos): para diagnosticar un pago que no activó Pro
+       sin tener que leer los logs de Render. Gateado con el token de fundador. */
+    if (req.query.mphook && adminTokenOk(String(req.query.mphook))) body.mpHook = getMpHookLog();
     res.json(body);
   } catch {
     res.status(503).json({ ok: false, hint: 'La base de datos no responde.' });
