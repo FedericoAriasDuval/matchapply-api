@@ -539,6 +539,14 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
   const type = String(req.query.type || req.query.topic || req.body?.type || req.body?.action || '');
   const id = req.query['data.id'] || req.query.id || req.body?.data?.id || req.body?.id;
   const kind = clasificarMpHook(type);
+  /* Notificación de PRUEBA del panel de MP (botón "Simular"): viene con live_mode:false
+     y un id inventado ("123456"). Se acusa 200 sin procesar — si la re-consultáramos a
+     MP daría 404 → 502 y el panel la marca "falló" (confuso, aunque la conexión anduvo).
+     El pago REAL viene con live_mode:true y se procesa normal. */
+  if (req.body?.live_mode === false) {
+    mpHookPush({ type, kind, id, action: 'prueba-mp-ack', note: 'live_mode:false' });
+    return res.sendStatus(200);
+  }
   let action = 'sin-accion', status = '', userId = null, note = '';
   try {
     if (id && kind === 'authpay') {
