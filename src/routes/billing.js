@@ -7,7 +7,7 @@ import { query } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { licenseLimiter, webhookLimiter } from '../middleware/rateLimit.js';
 import { appendIncomeRow } from '../lib/sheets.js';
-import { clasificarMpHook } from '../lib/mpHook.js';
+import { clasificarMpHook, parseRefMp } from '../lib/mpHook.js';
 import { HttpError } from '../middleware/errors.js';
 import {
   ESTADOS_VIVOS, PROVIDERS_CON_VENCIMIENTO, PROVIDERS_DE_POR_VIDA,
@@ -162,6 +162,9 @@ async function otorgarPagoUnico({ userId, plan, proveedor, customerId, refId }) 
     [userId],
   );
   const actual = rows[0];
+  /* IDEMPOTENCIA: si la fila ya apunta a ESTE mismo pago (refId), ya lo acreditamos.
+     Un aviso duplicado de MP no puede volver a sumar 7 días ni pisar la fila. */
+  if (refId && actual?.subscription_id && String(actual.subscription_id) === String(refId)) return;
   const prov = actual?.provider;
   const dePorVida = PROVIDERS_DE_POR_VIDA.has(prov);
   const mensualViva =
@@ -234,10 +237,11 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
           headers: { Authorization: `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             items: [{ title: unico.titulo, quantity: 1, unit_price: monto, currency_id: 'ARS' }],
-            /* external_reference (userId) va también en el pago: el webhook activa por ahí.
-               metadata.plan distingue ESTE pago único de una cuota de la suscripción,
-               y le dice al webhook cuánto acceso otorgar. */
-            external_reference: req.user.id,
+            /* external_reference lleva "userId|plan": MP NO copia el metadata de la
+               preference al payment, pero SÍ propaga el external_reference, así que el
+               plan (lifetime/week) viaja confiable hasta el webhook. metadata queda de
+               respaldo. Es lo que distingue ESTE pago único de una cuota de suscripción. */
+            external_reference: `${req.user.id}|${planUnico}`,
             metadata: { plan: planUnico },
             payer: { email: req.user.email },
             back_urls: { success: `${config.appUrl}/#herramientas?upgraded=1` },
@@ -433,14 +437,27 @@ billingRouter.post('/redeem', authenticate, licenseLimiter, async (req, res, nex
 /* ── DIAGNÓSTICO del webhook de MP ────────────────────────────────────────────
    Ring buffer en memoria con los últimos avisos de MP (sin datos sensibles: solo
    tipo, id de MP, nuestro userId, estado y qué hicimos). POR QUÉ: cuando un pago
-   no activa Pro no hay que adivinar — se lee `GET /health?mphook=<ADMIN_TOKEN>` y
-   se ve EXACTAMENTE qué mandó MP y por qué. Se borra en cada deploy (es debug). */
+   no activa Pro no hay que adivinar — se lee `GET /admin/mp-webhook-log` (header
+   x-admin-token) y se ve EXACTAMENTE qué mandó MP. Se borra en cada deploy. */
 const MP_HOOK_LOG = [];
 const mpHookPush = (e) => {
   MP_HOOK_LOG.push({ ts: new Date().toISOString(), ...e });
   if (MP_HOOK_LOG.length > 40) MP_HOOK_LOG.shift();
 };
 export const getMpHookLog = () => MP_HOOK_LOG.slice().reverse();
+
+/* IDEMPOTENCIA: MP manda avisos DUPLICADOS, y ante un 5xx REINTENTA. Sin dedupe,
+   cada duplicado sumaba otra fila de ingreso en Finanzas (y en el pase semanal,
+   otros 7 días). Guardamos los ids de pago ya contabilizados (en memoria; se limpia
+   en el deploy, y MP manda los duplicados juntos, así que alcanza para el caso real). */
+const PAGOS_CONTABILIZADOS = new Set();
+const yaContabilizado = (payId) => {
+  const k = String(payId);
+  if (PAGOS_CONTABILIZADOS.has(k)) return true;
+  PAGOS_CONTABILIZADOS.add(k);
+  if (PAGOS_CONTABILIZADOS.size > 5000) PAGOS_CONTABILIZADOS.clear();   // tope de memoria
+  return false;
+};
 
 /* NUESTRO userId a partir de un preapproval (suscripción) de MP: primero la base
    —rápido, sin llamar a MP—; si todavía no está esa fila, se lo pregunta a MP. */
@@ -460,29 +477,30 @@ async function userIdDePreapproval(preapprovalId) {
   return null;
 }
 
-/* Un pago APROBADO de MP: anota el ingreso en Finanzas y —si sabemos de quién es—
-   activa Pro. LA PLATA QUE ENTRA ES LA SEÑAL MÁS FUERTE: si pagó, tiene Pro, sin
-   depender de que llegue (y llegue bien) el aviso de estado de la suscripción. */
+/* Un pago APROBADO de MP: anota el ingreso (UNA sola vez) y —si sabemos de quién
+   es— activa Pro. LA PLATA QUE ENTRA ES LA SEÑAL MÁS FUERTE: si pagó, tiene Pro.
+   `resuelto:false` = pago aprobado pero no supimos de quién es → el webhook pide
+   reintento, para que no quede plata cobrada sin acceso. */
 async function acreditarPagoMp(pay, userIdHint) {
-  if (pay?.status !== 'approved') return { action: `pago-${pay?.status || 'sin-estado'}`, userId: userIdHint || null };
-  const plan = String(pay.metadata?.plan || '').toLowerCase();
-  const comision = Array.isArray(pay.fee_details)
-    ? pay.fee_details.reduce((s, f) => s + (Number(f.amount) || 0), 0)
-    : '';
-  appendIncomeRow({
-    txnId: pay.id, email: pay.payer?.email || '', plan: plan || 'suscripción',
-    gross: pay.transaction_amount ?? '', fee: comision,
-    net: pay.transaction_details?.net_received_amount ?? '',
-    currency: pay.currency_id || 'ARS', provider: 'mercadopago',
-  }).catch(() => {});   // Sheets nunca puede tumbar la confirmación del pago
-  const userId = userIdHint || pay.external_reference || null;
-  if (!userId) return { action: 'ingreso-sin-usuario', userId: null };
-  if (PAGO_UNICO[plan]) {   // pago único (de por vida / pase semanal): su propia lógica
-    await otorgarPagoUnico({ userId, plan, proveedor: 'mercadopago', customerId: pay.payer?.id ? String(pay.payer.id) : null, refId: String(pay.id) });
-    return { action: `pago-unico-${plan}`, userId };
+  if (pay?.status !== 'approved') return { action: `pago-${pay?.status || 'sin-estado'}`, userId: userIdHint || null, resuelto: true };
+  const { userId: uidRef, plan } = parseRefMp(pay.external_reference, pay.metadata?.plan);
+  if (!yaContabilizado(pay.id)) {   // Finanzas: idempotente por id de pago
+    const comision = Array.isArray(pay.fee_details) ? pay.fee_details.reduce((s, f) => s + (Number(f.amount) || 0), 0) : '';
+    appendIncomeRow({
+      txnId: pay.id, email: pay.payer?.email || '', plan: plan || 'suscripción',
+      gross: pay.transaction_amount ?? '', fee: comision,
+      net: pay.transaction_details?.net_received_amount ?? '',
+      currency: pay.currency_id || 'ARS', provider: 'mercadopago',
+    }).catch(() => {});   // Sheets nunca puede tumbar la confirmación del pago
   }
-  if (!(await esDePorVida(userId))) await setTier(userId, 'pro');   // cuota de la suscripción → Pro
-  return { action: 'pro-por-pago', userId };
+  const userId = userIdHint || uidRef || null;
+  if (!userId) return { action: 'ingreso-sin-usuario', userId: null, resuelto: false };
+  if (PAGO_UNICO[plan]) {   // pago único (de por vida / pase semanal): su propia lógica, idempotente por refId
+    await otorgarPagoUnico({ userId, plan, proveedor: 'mercadopago', customerId: pay.payer?.id ? String(pay.payer.id) : null, refId: String(pay.id) });
+    return { action: `pago-unico-${plan}`, userId, resuelto: true };
+  }
+  if (!(await esDePorVida(userId))) await setTier(userId, 'pro');   // cuota de la suscripción → Pro (idempotente)
+  return { action: 'pro-por-pago', userId, resuelto: true };
 }
 
 /**
@@ -513,6 +531,7 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
         status = pay.status || '';
         const r2 = await acreditarPagoMp(pay, userId);
         action = `authpay:${r2.action}`; userId = r2.userId || userId;
+        if (!r2.resuelto) { mpHookPush({ type, kind, id, userId, status, action, note }); return res.sendStatus(502); }   // pago aprobado sin dueño → reintento (Finanzas ya está dedupeado)
       } else {
         status = ap.status || ''; action = 'authpay-sin-pago';
       }
@@ -523,11 +542,23 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
       userId = pre.external_reference || null; status = pre.status || '';
       if (!userId) { action = 'preapproval-sin-external_reference'; }
       else if (await esDePorVida(userId)) { action = 'ignorado-de-por-vida'; }   // "para siempre" aguanta nuestros propios avisos
-      else {
-        await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, status || 'pending', null);
-        if (status === 'authorized') { await setTier(userId, 'pro'); action = 'pro-por-preapproval'; }
-        else if (status === 'cancelled' || status === 'paused') { await setTier(userId, 'free'); action = `free-por-${status}`; }
-        else { action = `preapproval-${status || 'sin-estado'}-sin-cambio`; }   // "pending": NO se baja a free (evita la carrera que apagaba el Pro)
+      else if (status === 'authorized') {
+        /* Suscripción activa y paga → Pro. Ésta pasa a ser la suscripción vigente. */
+        await setTier(userId, 'pro');
+        await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, 'authorized', null);
+        action = 'pro-por-preapproval';
+      } else if (status === 'cancelled' || status === 'paused') {
+        /* Solo baja a free si el aviso es de la suscripción VIGENTE. Un aviso viejo
+           de una suscripción ya reemplazada (o de un checkout abandonado) NO puede
+           apagar el Pro que la persona SÍ está pagando, ni pisar un pase/lifetime. */
+        const { rows } = await query(`select subscription_id from subscriptions where user_id = $1`, [userId]);
+        if (rows[0]?.subscription_id === pre.id) {
+          await setTier(userId, 'free');
+          await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, status, null);
+          action = `free-por-${status}`;
+        } else { action = `${status}-de-sub-no-vigente-ignorado`; }
+      } else {
+        action = `preapproval-${status || 'sin-estado'}-sin-cambio`;   // pending/otro: no toca el tier ni pisa la fila
       }
     } else if (id && kind === 'payment') {
       const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, { headers: { Authorization: `Bearer ${mpToken}` } });
@@ -536,6 +567,7 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
       status = pay.status || '';
       const r2 = await acreditarPagoMp(pay, null);
       action = `payment:${r2.action}`; userId = r2.userId || null;
+      if (!r2.resuelto) { mpHookPush({ type, kind, id, userId, status, action, note }); return res.sendStatus(502); }   // pago aprobado sin dueño → reintento
     } else {
       action = id ? `tipo-no-reconocido(${type})` : 'sin-id';
     }

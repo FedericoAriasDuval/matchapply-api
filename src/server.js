@@ -13,7 +13,7 @@ import { cerrarOrdenado } from './lib/shutdown.js';
 import { llmHealth } from './lib/llm.js';
 import { cvCache } from './lib/cache.js';
 import { authRouter } from './routes/auth.js';
-import { billingRouter, billingWebhook, availableMethods, lifetimeAvailable, lifetimeMethods, weekMethods, getMpHookLog } from './routes/billing.js';
+import { billingRouter, billingWebhook, availableMethods, lifetimeAvailable, lifetimeMethods, weekMethods } from './routes/billing.js';
 import { adminRouter, adminTokenOk } from './routes/admin.js';
 import { cvRouter } from './routes/cv.js';
 import { reviewsRouter } from './routes/reviews.js';
@@ -74,16 +74,12 @@ app.get('/health', async (req, res) => {
       cache: cvCache.stats,
       uptimeSec: Math.round(process.uptime()),
       memMB: Math.round(process.memoryUsage().rss / 1048576),
-      sheets: sheetsStatus(),   // estado de la sync a Google Sheets (sin secretos)
+      sheets: { enabled: sheetsStatus().enabled },   // solo si está prendida; el detalle (email/clave) NO va en un endpoint público
     };
-    /* ?sheets=1 hace UNA lectura de metadatos del sheet Feedback (no escribe nada):
-       revela el error exacto si algo del setup falló. Diagnóstico puntual, no en cada
-       health-check (una llamada a la API de Sheets no va en el liveness que corre siempre). */
-    if (req.query.sheets) body.sheetsDiag = await sheetsDiag();
-    /* ?mphook=<ADMIN_TOKEN> muestra los últimos avisos de Mercado Pago (tipo, id,
-       userId, estado, qué hicimos): para diagnosticar un pago que no activó Pro
-       sin tener que leer los logs de Render. Gateado con el token de fundador. */
-    if (req.query.mphook && adminTokenOk(String(req.query.mphook))) body.mpHook = getMpHookLog();
+    /* Diagnóstico de metadatos del sheet: SOLO con el header x-admin-token (nunca por
+       query, para no filtrar el token en logs/URLs). El del webhook de MP vive en
+       GET /admin/mp-webhook-log, con el mismo header + el freno del admin. */
+    if (req.query.sheets && adminTokenOk(req.get('x-admin-token'))) body.sheetsDiag = await sheetsDiag();
     res.json(body);
   } catch {
     res.status(503).json({ ok: false, hint: 'La base de datos no responde.' });

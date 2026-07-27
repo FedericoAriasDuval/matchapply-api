@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { badRequest, unauthorized } from '../middleware/errors.js';
 import { adminLimiter } from '../middleware/rateLimit.js';
+import { getMpHookLog } from './billing.js';
 
 /** Comparación en tiempo constante del token de fundador (Audit L2). */
 export const adminTokenOk = (token) => {
@@ -135,4 +136,12 @@ adminRouter.post('/tier', adminLimiter, requireAdmin, async (req, res, next) => 
   } catch (e) {
     next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Mandá email y tier (free|pro).') : e);
   }
+});
+
+/* GET /admin/mp-webhook-log — los últimos avisos de Mercado Pago (diagnóstico de un
+   pago que no activó Pro). Gateado con el token de fundador por HEADER (nunca por
+   query, para no filtrarlo en logs/URLs) y con el mismo freno que el resto del admin.
+   Sin datos sensibles: tipo, id de MP, userId interno, estado, qué hicimos. */
+adminRouter.get('/mp-webhook-log', adminLimiter, requireAdmin, (_req, res) => {
+  res.json({ log: getMpHookLog() });
 });

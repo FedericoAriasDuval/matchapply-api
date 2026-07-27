@@ -15,3 +15,14 @@ export const clasificarMpHook = (type) => {
   if (/payment/.test(t)) return 'payment';
   return 'unknown';
 };
+
+/**
+ * Desarma el external_reference de un pago de MP. El pago ÚNICO manda "userId|plan"
+ * (porque MP NO copia el metadata de la preference al payment, pero SÍ propaga el
+ * external_reference); la suscripción manda solo "userId" (sin "|"). metadata queda
+ * como respaldo del plan. Devuelve { userId, plan } — plan en minúscula, "" si no hay.
+ */
+export const parseRefMp = (externalReference, metadataPlan) => {
+  const [uid, planRef] = String(externalReference ?? '').split('|');
+  return { userId: uid || null, plan: String(planRef || metadataPlan || '').toLowerCase() };
+};
