@@ -152,7 +152,9 @@ adminRouter.get('/mp-webhook-log', adminLimiter, requireAdmin, (_req, res) => {
    puede dar Pro a quien no pagó. */
 adminRouter.post('/mp-resync', adminLimiter, requireAdmin, async (req, res, next) => {
   try {
-    const { email } = z.object({ email: z.string().trim().email() }).parse(req.body);
+    /* Acepta el email por query O por body: así el comando en Windows no necesita
+       escapar un JSON (curl -X POST ...?email=...), pero el body sigue funcionando. */
+    const { email } = z.object({ email: z.string().trim().email() }).parse({ email: req.query.email ?? req.body?.email });
     const { rows } = await query('select id, email, tier from users where lower(email) = lower($1)', [email]);
     if (!rows[0]) throw badRequest('user_not_found', 'No hay una cuenta con ese email.');
     const resultado = await resyncMpUser(rows[0].id);
