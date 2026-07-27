@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { query } from '../db.js';
 import { badRequest, unauthorized } from '../middleware/errors.js';
 import { adminLimiter } from '../middleware/rateLimit.js';
-import { getMpHookLog } from './billing.js';
+import { getMpHookLog, resyncMpUser } from './billing.js';
 
 /** Comparación en tiempo constante del token de fundador (Audit L2). */
 export const adminTokenOk = (token) => {
@@ -144,4 +144,21 @@ adminRouter.post('/tier', adminLimiter, requireAdmin, async (req, res, next) => 
    Sin datos sensibles: tipo, id de MP, userId interno, estado, qué hicimos. */
 adminRouter.get('/mp-webhook-log', adminLimiter, requireAdmin, (_req, res) => {
   res.json({ log: getMpHookLog() });
+});
+
+/* POST /admin/mp-resync { email } — le pregunta a Mercado Pago qué suscripción tiene
+   esa cuenta y, si hay una autorizada, activa Pro. Arregla a quien pagó pero cuyo
+   aviso no llegó, y prueba el pipeline sin gastar plata. Re-verifica contra MP: no
+   puede dar Pro a quien no pagó. */
+adminRouter.post('/mp-resync', adminLimiter, requireAdmin, async (req, res, next) => {
+  try {
+    const { email } = z.object({ email: z.string().trim().email() }).parse(req.body);
+    const { rows } = await query('select id, email, tier from users where lower(email) = lower($1)', [email]);
+    if (!rows[0]) throw badRequest('user_not_found', 'No hay una cuenta con ese email.');
+    const resultado = await resyncMpUser(rows[0].id);
+    const { rows: despues } = await query('select tier from users where id = $1', [rows[0].id]);
+    res.json({ email: rows[0].email, tierAntes: rows[0].tier, tierAhora: despues[0]?.tier, mp: resultado });
+  } catch (e) {
+    next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Mandá el email de la cuenta que pagó.') : e);
+  }
 });

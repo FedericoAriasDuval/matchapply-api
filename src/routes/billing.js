@@ -503,6 +503,31 @@ async function acreditarPagoMp(pay, userIdHint) {
   return { action: 'pro-por-pago', userId, resuelto: true };
 }
 
+/* RESYNC MANUAL (lo llama /admin/mp-resync). Le PREGUNTA a MP —fuente autoritativa—
+   qué suscripciones tiene este usuario (por external_reference = userId) y, si hay una
+   autorizada, activa Pro. Hace exactamente lo que hace el webhook cuando MP avisa,
+   pero disparado a mano: sirve para (1) arreglar a alguien cuyo aviso no llegó y
+   (2) PROBAR que el pipeline "consultar MP → activar Pro" funciona, sin gastar plata.
+   Como re-verifica contra MP, NO puede darle Pro a quien no pagó. */
+export async function resyncMpUser(userId) {
+  if (!mpToken) return { ok: false, note: 'mp-sin-configurar' };
+  const r = await fetch(`https://api.mercadopago.com/preapproval/search?external_reference=${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${mpToken}` },
+  });
+  if (!r.ok) return { ok: false, note: `mp-search-${r.status}` };
+  const data = await r.json().catch(() => ({}));
+  const results = Array.isArray(data.results) ? data.results : [];
+  const auth = results.find((p) => p.status === 'authorized');
+  if (auth) {
+    if (!(await esDePorVida(userId))) {
+      await setTier(userId, 'pro');
+      await upsertSub(userId, 'mercadopago', auth.payer_id ? String(auth.payer_id) : null, auth.id, 'authorized', null);
+    }
+    return { ok: true, activado: true, preapprovalId: auth.id, encontradas: results.length };
+  }
+  return { ok: true, activado: false, encontradas: results.length, estados: results.map((p) => p.status) };
+}
+
 /**
  * POST /billing/mp-webhook — aviso de MP. NO confía en el body: usa el id como
  * disparador y RE-CONSULTA el recurso a la API de MP (fuente autoritativa), así un
