@@ -131,7 +131,7 @@ export const config = {
     ),
   },
 
-  quota: { free: 3, pro: 30 },
+  quota: { free: 3, pro: 10 },
 
   /* Cuentas que NO gastan cuota (el fundador probando la plataforma). Se setean por
      env (FOUNDER_EMAILS, separadas por coma) para no hardcodear un mail en el código.
