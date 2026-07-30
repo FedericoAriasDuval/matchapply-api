@@ -126,6 +126,10 @@ const HUMAN = {
     message: 'Llegaste a tu limite de analisis por hoy.',
     hint: 'Se renueva manana. Lo que ya generaste queda guardado.',
   },
+  cv_limit: {
+    message: 'Llegaste al maximo de CVs de tu plan.',
+    hint: 'El plan gratis guarda hasta 2. Borra uno que no uses, o pasa a Pro para guardar todos los que quieras.',
+  },
   mail_failed: {
     message: 'No pudimos mandarte el codigo por mail.',
     hint: 'Tu cuenta quedo creada. Toca "Reenviar codigo" en un minuto, o escribinos a support@mavante.com.',

@@ -132,6 +132,10 @@ export const config = {
   },
 
   quota: { free: 3, pro: 10 },
+  /* Tope de CVs GUARDADOS por usuario (distinto de la cuota diaria de IA): cuántos
+     CVs distintos puede tener en su panel. Free: 2 (ej: uno por rubro o por idioma).
+     Pro: sin tope. Server-autoritativo, igual que la cuota. */
+  cvLimit: { free: 2, pro: Infinity },
 
   /* Cuentas que NO gastan cuota (el fundador probando la plataforma). Se setean por
      env (FOUNDER_EMAILS, separadas por coma) para no hardcodear un mail en el código.

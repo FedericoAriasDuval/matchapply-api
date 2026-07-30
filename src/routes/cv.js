@@ -17,6 +17,7 @@ import { cvQueue } from '../lib/queue.js';
 import { decryptJson, decryptText, encryptJson, encryptText } from '../lib/crypto.js';
 import { renderCvPdf } from '../lib/pdf.js';
 import { renderCvDocx } from '../lib/docx.js';
+import { cvLimitReached } from '../lib/cvLimit.js';
 
 export const cvRouter = Router();
 
@@ -240,6 +241,15 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       `select id, lang, data, edited from cv_documents where user_id = $1 and source_hash = $2`,
       [req.user.id, sha256(`v2:${lang}\n${sourceText}`)],   // misma huella version+lang+texto que saveCv
     );
+    /* TOPE DE CANTIDAD: un CV NUEVO (source_hash inexistente) ocupa un slot del panel.
+       Re-parsear uno que ya existe (cache) NO cuenta: el on-conflict actualiza la misma
+       fila. El fundador y Pro no se topan. Server-autoritativo, igual que la cuota. */
+    if (!cached[0] && !isFounder(req.user) && req.user.tier !== 'pro') {   // pro/fundador: sin tope, ni consultamos la base
+      const { rows: cnt } = await query('select count(*)::int n from cv_documents where user_id = $1', [req.user.id]);
+      if (cvLimitReached({ isFounder: false, tier: req.user.tier, count: cnt[0].n, limits: config.cvLimit })) {
+        throw forbidden('cv_limit', 'Llegaste al maximo de CVs de tu plan gratis.', { upgrade: true, limit: config.cvLimit.free });
+      }
+    }
     /* La cache de la base solo vale si es el MISMO idioma: el contenido se
        traduce al idioma pedido, asi que cambiar de idioma re-procesa. */
     /* Si la copia guardada no se puede descifrar, `readCvRow` devuelve null y
@@ -315,18 +325,22 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
 cvRouter.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { rows } = await query(
-      `select id, title, lang, data, edited, updated_at from cv_documents where id = $1 and user_id = $2`,
+      `select id, title, source_text, lang, data, edited, updated_at from cv_documents where id = $1 and user_id = $2`,
       [req.params.id, req.user.id],
     );
-    const doc = readCvRow(rows[0]);   // descifrar: en la base vive cifrado
+    const doc = readCvRow(rows[0]);   // descifrar el data: en la base vive cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
     const editable = req.user.tier === 'pro';
     res.json({
       id: doc.id,
+      title: doc.title,
       lang: doc.lang,
       edited: doc.edited,
       editable,
+      /* El texto fuente (descifrado) hace falta para REABRIR el CV en el panel: el
+         textarea se vuelve a llenar con él y desde ahí se re-arma el diagnóstico. */
+      sourceText: decryptText(rows[0].source_text),
       cv: doc.data,   // toda cuenta ve su CV estructurado; editar sigue siendo Pro
       preview: { name: doc.data.name, downloadPdf: `/cv/${doc.id}/export?format=pdf` },
     });
@@ -363,6 +377,42 @@ cvRouter.put('/:id', authenticate, requirePro, async (req, res, next) => {
     res.json({ id: rows[0].id, cv: data, edited: true, updatedAt: rows[0].updated_at });
   } catch (e) {
     next(e);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /cv/:id — borrar un CV del panel. Free y Pro. Libera un slot del tope.
+// El filtro por user_id (como en todo el archivo) impide borrar el CV de otro.
+// ---------------------------------------------------------------------------
+cvRouter.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `delete from cv_documents where id = $1 and user_id = $2 returning id`,
+      [req.params.id, req.user.id],
+    );
+    if (!rows[0]) throw badRequest('cv_not_found', 'No encontramos ese CV.');
+    res.json({ ok: true, id: rows[0].id });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /cv/:id/title — renombrar. Es GESTIÓN del panel, no editar el CV, así que va
+// a TODA cuenta (a diferencia de PUT, que edita el contenido y es Pro). El título NUNCA
+// se muestra en el CV renderizado ni en el PDF: es solo para organizar el panel.
+// ---------------------------------------------------------------------------
+cvRouter.patch('/:id/title', authenticate, async (req, res, next) => {
+  try {
+    const { title } = z.object({ title: z.string().trim().min(1).max(60) }).parse(req.body);
+    const { rows } = await query(
+      `update cv_documents set title = $3 where id = $1 and user_id = $2 returning id, title`,
+      [req.params.id, req.user.id, title],
+    );
+    if (!rows[0]) throw badRequest('cv_not_found', 'No encontramos ese CV.');
+    res.json({ id: rows[0].id, title: rows[0].title });
+  } catch (e) {
+    next(e instanceof z.ZodError ? badRequest('invalid_payload', 'El título tiene que tener entre 1 y 60 caracteres.') : e);
   }
 });
 
@@ -612,11 +662,55 @@ cvRouter.get('/', authenticate, async (req, res, next) => {
   try {
     const limit = req.user.tier === 'pro' ? 50 : 3;   // free ve los últimos 3
     const { rows } = await query(
-      `select id, title, lang, edited, updated_at from cv_documents
+      `select id, title, lang, data, edited, updated_at from cv_documents
         where user_id = $1 order by updated_at desc limit $2`,
       [req.user.id, limit],
     );
-    res.json({ items: rows, limited: req.user.tier !== 'pro' });
+    /* Cada item lleva un PREVIEW recortado del CV (descifrado) para dibujar la
+       miniatura tipo PDF en el panel "Mis CVs" sin una llamada por tarjeta. Es a
+       propósito recortado: el thumbnail solo muestra la parte de arriba de la hoja,
+       no hace falta viajar el CV entero por cada uno. Si la fila es ilegible
+       (readCvRow → null), preview va null y el front dibuja un placeholder. */
+    const items = rows.map((row) => {
+      const doc = readCvRow(row);
+      const d = doc && doc.data ? doc.data : null;
+      const preview = d
+        ? {
+            name: d.name || '',
+            contactLine: d.contactLine || '',
+            summary: d.summary || '',
+            experience: Array.isArray(d.experience)
+              ? d.experience.slice(0, 3).map((x) => ({
+                  role: x.role || '',
+                  company: x.company || '',
+                  dates: x.dates || '',
+                  location: x.location || '',
+                  bullets: Array.isArray(x.bullets) ? x.bullets.slice(0, 4) : [],
+                }))
+              : [],
+            education: Array.isArray(d.education)
+              ? d.education.slice(0, 2).map((x) => ({
+                  title: x.title || '',
+                  detail: x.detail || '',
+                  dates: x.dates || '',
+                  location: x.location || '',
+                  grade: x.grade || '',
+                }))
+              : [],
+            skills: Array.isArray(d.skills) ? d.skills.slice(0, 12) : [],
+            languages: Array.isArray(d.languages) ? d.languages.slice(0, 8) : [],
+          }
+        : null;
+      return {
+        id: row.id,
+        title: row.title,
+        lang: row.lang,
+        edited: row.edited,
+        updated_at: row.updated_at,
+        preview,
+      };
+    });
+    res.json({ items, limited: req.user.tier !== 'pro' });
   } catch (e) {
     next(e);
   }
