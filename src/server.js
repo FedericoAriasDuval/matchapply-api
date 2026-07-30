@@ -38,7 +38,7 @@ app.use(
   cors({
     origin: config.appUrl,
     credentials: true,           // cookies httpOnly de sesión
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],   // PATCH: renombrar CV (PATCH /cv/:id/title)
   }),
 );
 
