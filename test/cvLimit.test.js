@@ -23,3 +23,16 @@ test('cvLimitReached: Pro nunca se topa', () => {
 test('cvLimitReached: el fundador nunca se topa aunque sea free', () => {
   assert.equal(cvLimitReached({ isFounder: true, tier: 'free', count: 99, limits: LIMITS }), false);
 });
+
+/* 3 tiers: el tope sale de limits[tier]. Plus guarda 20; Pro sin tope. */
+const LIMITS3 = { free: 2, plus: 20, pro: Infinity };
+
+test('cvLimitReached: plus se topa recién al tener 20', () => {
+  const plus = { isFounder: false, tier: 'plus', limits: LIMITS3 };
+  assert.equal(cvLimitReached({ ...plus, count: 19 }), false);   // puede crear el 20mo
+  assert.equal(cvLimitReached({ ...plus, count: 20 }), true);     // ya tiene 20 → el 21 NO
+});
+
+test('cvLimitReached: un tier desconocido cae al tope de free, nunca a "sin tope"', () => {
+  assert.equal(cvLimitReached({ isFounder: false, tier: 'gold', count: 2, limits: LIMITS3 }), true);
+});

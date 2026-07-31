@@ -13,9 +13,29 @@ import {
   ESTADOS_VIVOS, PROVIDERS_CON_VENCIMIENTO, PROVIDERS_DE_POR_VIDA,
   bloqueoDeCompra, debeCancelarRecurrente, nuevoVencimiento, recurrenteViva,
 } from '../lib/tier.js';
+import {
+  esTierPago, frecuenciaMp, mpMontoSub, paddlePriceSub, tierDePaddlePrice, tierDeRefMp,
+} from '../lib/planCatalog.js';
 import { motivoDeRechazo, normalizarCodigo } from '../lib/orgLicense.js';
 
 export const billingRouter = Router();
+
+/* Catálogo de las suscripciones nuevas (plus/pro × mensual/anual), armado desde env.
+   Clave `${tier}_${period}`. Vacío/0 = ese plan no se ofrece por ese método (billing
+   rechaza, no cae a otro precio). El PADDLE_PRICE_ID / MP_PRICE_ARS viejos siguen
+   siendo el camino LEGADO (checkout sin tier) hasta que el front nuevo esté en vivo. */
+const PADDLE_SUB = {
+  plus_monthly: config.billing.paddlePlusMonthPriceId,
+  plus_annual: config.billing.paddlePlusYearPriceId,
+  pro_monthly: config.billing.paddleProMonthPriceId,
+  pro_annual: config.billing.paddleProYearPriceId,
+};
+const MP_SUB = {
+  plus_monthly: config.billing.mpPlusMonthArs,
+  plus_annual: config.billing.mpPlusYearArs,
+  pro_monthly: config.billing.mpProMonthArs,
+  pro_annual: config.billing.mpProYearArs,
+};
 
 /* VARIOS métodos conviven: el usuario elige en el checkout. Cada uno se instancia
    solo si tiene credenciales. Regla de oro: el tier lo escribe SOLO el webhook del
@@ -199,6 +219,14 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
   try {
     const method = String(req.body?.method || '').toLowerCase() || availableMethods()[0];
 
+    /* SUSCRIPCIÓN NUEVA (3 tiers): el front manda tier ('plus'|'pro') + period
+       ('monthly'|'annual'). Sin tier es el camino LEGADO (la mensual única de hoy),
+       que se mantiene mientras el front viejo siga en vivo. `period` sólo tiene dos
+       valores; cualquier otra cosa cae a mensual. */
+    const tier = String(req.body?.tier || '').toLowerCase();
+    const period = String(req.body?.period || '').toLowerCase() === 'annual' ? 'annual' : 'monthly';
+    const esPlanNuevo = esTierPago(tier);
+
     /* NADIE PAGA DOS VECES LO MISMO. El front ya no dibuja el botón cuando la
        persona es Pro, pero la decisión de cobrar no puede vivir en un botón: un
        enlace viejo, dos pestañas abiertas o un doble clic llegan igual hasta acá.
@@ -257,21 +285,38 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
         return res.json({ url: pref.init_point });
       }
 
-      /* Suscripción de MP (preapproval). external_reference lleva el userId: así el
-         webhook sabe a quién activarle el Pro. La plata la cobra MP en pesos. */
+      /* Suscripción de MP (preapproval). La plata la cobra MP en pesos.
+         · Plan NUEVO (tier plus/pro): monto y cadencia salen del catálogo; el
+           external_reference lleva "userId|tier" para que el webhook active el tier
+           correcto. Si no hay monto para ese plan, se RECHAZA (no se cae a otro precio).
+         · Legado (sin tier): la mensual única de hoy, external_reference = userId
+           (el webhook cae al default Pro). Se mantiene mientras el front viejo viva. */
+      let mpMonto = config.billing.mpPriceArs;
+      let mpFreq = { frequency: 1, frequency_type: 'months' };
+      let mpRef = req.user.id;
+      let mpReason = 'Mavante Pro';
+      if (esPlanNuevo) {
+        mpMonto = mpMontoSub(MP_SUB, tier, period);
+        if (!(mpMonto > 0)) {
+          throw new HttpError(503, 'billing_disabled', 'Ese plan todavía no está disponible por Mercado Pago.');
+        }
+        mpFreq = frecuenciaMp(period);
+        mpRef = `${req.user.id}|${tier}`;
+        mpReason = `Mavante ${tier === 'pro' ? 'Pro' : 'Plus'}`;
+      }
       const r = await fetch('https://api.mercadopago.com/preapproval', {
         method: 'POST',
         headers: { Authorization: `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reason: 'Mavante Pro',
-          external_reference: req.user.id,
+          reason: mpReason,
+          external_reference: mpRef,
           payer_email: req.user.email,
           back_url: `${config.appUrl}/#herramientas?upgraded=1`,
           notification_url: `${config.apiUrl}/billing/mp-webhook`,
           auto_recurring: {
-            frequency: 1,
-            frequency_type: 'months',
-            transaction_amount: config.billing.mpPriceArs,
+            frequency: mpFreq.frequency,
+            frequency_type: mpFreq.frequency_type,
+            transaction_amount: mpMonto,
             currency_id: 'ARS',
           },
           status: 'pending',
@@ -294,17 +339,28 @@ billingRouter.post('/checkout', authenticate, async (req, res, next) => {
          pidió un pago único es exactamente el bug que sacamos de la web el 19/07. */
       const planPedido = String(req.body?.plan || '').toLowerCase();
       const unicoPaddle = PAGO_UNICO[planPedido];
-      const priceId = unicoPaddle ? unicoPaddle.priceId() : config.billing.paddlePriceId;
-      if (unicoPaddle && !priceId) {
-        throw new HttpError(503, 'billing_disabled', 'Ese plan todavía no está disponible con tarjeta.');
+      let priceId, customData;
+      if (esPlanNuevo) {
+        /* Plan NUEVO: el price sale del catálogo por (tier, period). Sin price
+           configurado, se RECHAZA (no se cae a otro). El tier viaja en customData
+           además de estar codificado en el price, como respaldo para el webhook. */
+        priceId = paddlePriceSub(PADDLE_SUB, tier, period);
+        if (!priceId) throw new HttpError(503, 'billing_disabled', 'Ese plan todavía no está disponible con tarjeta.');
+        customData = { userId: req.user.id, tier, period };
+      } else {
+        /* Legado: la mensual única o un pago único. `plan` viaja para que el webhook
+           sepa qué se compró sin adivinar por el precio. */
+        priceId = unicoPaddle ? unicoPaddle.priceId() : config.billing.paddlePriceId;
+        if (unicoPaddle && !priceId) {
+          throw new HttpError(503, 'billing_disabled', 'Ese plan todavía no está disponible con tarjeta.');
+        }
+        customData = { userId: req.user.id, plan: unicoPaddle ? planPedido : 'monthly' };
       }
 
-      /* La transacción lleva el userId en customData: el webhook activa por ahí.
-         `plan` viaja también para que el webhook sepa qué se compró (y cuánto
-         acceso otorgar) sin tener que adivinarlo por el precio. */
+      /* La transacción lleva el userId en customData: el webhook activa por ahí. */
       const txn = await paddle.transactions.create({
         items: [{ priceId, quantity: 1 }],
-        customData: { userId: req.user.id, plan: unicoPaddle ? planPedido : 'monthly' },
+        customData,
       });
       const base = config.billing.paddleCheckoutUrl;
       const url =
@@ -472,7 +528,7 @@ async function userIdDePreapproval(preapprovalId) {
     const r = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
       headers: { Authorization: `Bearer ${mpToken}` },
     });
-    if (r.ok) return (await r.json()).external_reference || null;
+    if (r.ok) return parseRefMp((await r.json()).external_reference).userId;   // "userId|tier" → solo el userId
   } catch { /* si MP no responde, seguimos sin userId (queda en el log) */ }
   return null;
 }
@@ -499,8 +555,12 @@ async function acreditarPagoMp(pay, userIdHint) {
     await otorgarPagoUnico({ userId, plan, proveedor: 'mercadopago', customerId: pay.payer?.id ? String(pay.payer.id) : null, refId: String(pay.id) });
     return { action: `pago-unico-${plan}`, userId, resuelto: true };
   }
-  if (!(await esDePorVida(userId))) await setTier(userId, 'pro');   // cuota de la suscripción → Pro (idempotente)
-  return { action: 'pro-por-pago', userId, resuelto: true };
+  /* Cuota de la suscripción → el TIER que corresponde, leído del "userId|tier" que
+     MP propaga al pago. Suscriptor viejo (ref sin tier) → Pro (grandfathering). NO
+     se sube ni baja el plan por una cuota: el tier ya viene fijado en el ref. */
+  const tierPago = tierDeRefMp(plan);
+  if (!(await esDePorVida(userId))) await setTier(userId, tierPago);   // idempotente
+  return { action: `${tierPago}-por-pago`, userId, resuelto: true };
 }
 
 /* RESYNC MANUAL (lo llama /admin/mp-resync). Le PREGUNTA a MP —fuente autoritativa—
@@ -519,11 +579,16 @@ export async function resyncMpUser(userId) {
   const results = Array.isArray(data.results) ? data.results : [];
   const auth = results.find((p) => p.status === 'authorized');
   if (auth) {
+    /* El tier sale del ref de la suscripción encontrada; sin tier, Pro (grandfathering).
+       Nota: la búsqueda es por external_reference exacto = userId, así que encuentra a
+       los suscriptores viejos (ref = userId); los del plan nuevo (ref = userId|tier) los
+       activa el webhook, que es el camino primario — este resync es sólo recuperación. */
+    const tierResync = tierDeRefMp(parseRefMp(auth.external_reference).plan);
     if (!(await esDePorVida(userId))) {
-      await setTier(userId, 'pro');
+      await setTier(userId, tierResync);
       await upsertSub(userId, 'mercadopago', auth.payer_id ? String(auth.payer_id) : null, auth.id, 'authorized', null);
     }
-    return { ok: true, activado: true, preapprovalId: auth.id, encontradas: results.length };
+    return { ok: true, activado: true, tier: tierResync, preapprovalId: auth.id, encontradas: results.length };
   }
   return { ok: true, activado: false, encontradas: results.length, estados: results.map((p) => p.status) };
 }
@@ -572,14 +637,18 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
       const r = await fetch(`https://api.mercadopago.com/preapproval/${id}`, { headers: { Authorization: `Bearer ${mpToken}` } });
       if (!r.ok) { mpHookPush({ type, kind, id, action: 'preapproval-fetch-fail', note: `MP ${r.status}` }); return res.sendStatus(502); }
       const pre = await r.json();
-      userId = pre.external_reference || null; status = pre.status || '';
+      /* external_reference = "userId|tier" (plan nuevo) o "userId" (suscriptor viejo).
+         parseRefMp desarma ambos; sin tier, tierDeRefMp cae a Pro (grandfathering). */
+      const refPre = parseRefMp(pre.external_reference);
+      userId = refPre.userId; status = pre.status || '';
       if (!userId) { action = 'preapproval-sin-external_reference'; }
       else if (await esDePorVida(userId)) { action = 'ignorado-de-por-vida'; }   // "para siempre" aguanta nuestros propios avisos
       else if (status === 'authorized') {
-        /* Suscripción activa y paga → Pro. Ésta pasa a ser la suscripción vigente. */
-        await setTier(userId, 'pro');
+        /* Suscripción activa y paga → el tier del ref. Ésta pasa a ser la vigente. */
+        const tierPre = tierDeRefMp(refPre.plan);
+        await setTier(userId, tierPre);
         await upsertSub(userId, 'mercadopago', pre.payer_id ? String(pre.payer_id) : null, pre.id, 'authorized', null);
-        action = 'pro-por-preapproval';
+        action = `${tierPre}-por-preapproval`;
       } else if (status === 'cancelled' || status === 'paused') {
         /* Solo baja a free si el aviso es de la suscripción VIGENTE. Un aviso viejo
            de una suscripción ya reemplazada (o de un checkout abandonado) NO puede
@@ -699,7 +768,14 @@ async function handlePaddleWebhook(req, res) {
     }
 
     if (userId && paddleActivates(type, status)) {
-      await setTier(userId, 'pro');
+      /* QUÉ tier activar: se lee del price id comprado (mapa inverso del catálogo);
+         si no está en el catálogo (suscriptor viejo del price único), cae a Pro —
+         eso es el grandfathering. customData.tier queda de respaldo. */
+      const tierPaddle =
+        tierDePaddlePrice(PADDLE_SUB, d.items?.[0]?.price?.id) ||
+        (esTierPago(d.customData?.tier) ? d.customData.tier : null) ||
+        'pro';
+      await setTier(userId, tierPaddle);
       await upsertSub(userId, 'paddle', d.customerId ?? null, d.id ?? null, status ?? 'active', periodEnd);
     } else if (userId && paddleDeactivates(type, status)) {
       await setTier(userId, 'free');

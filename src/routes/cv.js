@@ -4,7 +4,8 @@ import multer from 'multer';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { query } from '../db.js';
-import { authenticate, requirePro } from '../middleware/auth.js';
+import { authenticate, requirePlus, requirePro } from '../middleware/auth.js';
+import { tieneAlMenos } from '../lib/tier.js';
 import { aiLimiter } from '../middleware/rateLimit.js';
 import { badRequest, forbidden, tooMany } from '../middleware/errors.js';
 import { completeJson } from '../lib/llm.js';
@@ -38,7 +39,7 @@ const isFounder = (user) => config.founderEmails.includes(String(user?.email ?? 
 
 const consumeQuota = async (user) => {
   if (isFounder(user)) return { used: 0, limit: config.quota.pro, left: 999, pro: true };
-  const limit = user.tier === 'pro' ? config.quota.pro : config.quota.free;
+  const limit = config.quota[user.tier] ?? config.quota.free;
   const { rows } = await query(
     `insert into usage_daily (user_id, day, cv_adaptations)
      values ($1, $2, 1)
@@ -53,7 +54,7 @@ const consumeQuota = async (user) => {
       [user.id, today(), limit],
     );
     throw tooMany('quota_exceeded', 'Llegaste a tu límite diario de adaptaciones.', {
-      upgrade: user.tier !== 'pro',
+      upgrade: !tieneAlMenos(user, 'pro'),
       limit,
     });
   }
@@ -74,17 +75,18 @@ const refundQuota = async (user) => {
 };
 
 const getQuota = async (user) => {
-  if (isFounder(user)) return { used: 0, limit: config.quota.pro, left: 999, pro: true };
-  const limit = user.tier === 'pro' ? config.quota.pro : config.quota.free;
+  if (isFounder(user)) return { used: 0, limit: config.quota.pro, left: 999, pro: true, tier: user.tier };
+  const limit = config.quota[user.tier] ?? config.quota.free;
   const { rows } = await query(
     `select cv_adaptations from usage_daily where user_id = $1 and day = $2`,
     [user.id, today()],
   );
   const used = rows[0]?.cv_adaptations ?? 0;
-  /* pro va en la respuesta para que el front reconcilie el tier: el server es la
-     fuente de verdad. Sin esto, un USER local viejo puede mostrar el badge/cuota
-     equivocados (Pro que se ve "free"). */
-  return { used, limit, left: Math.max(0, limit - used), pro: user.tier === 'pro' };
+  /* tier/pro van en la respuesta para que el front reconcilie el plan: el server
+     es la fuente de verdad. Sin esto, un USER local viejo muestra el badge/cuota
+     equivocados. `pro` se mantiene (compat con el front actual) y significa
+     exactamente Pro; `tier` es el plan exacto (free/plus/pro) para el badge. */
+  return { used, limit, left: Math.max(0, limit - used), pro: user.tier === 'pro', tier: user.tier };
 };
 
 /**
@@ -244,10 +246,11 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     /* TOPE DE CANTIDAD: un CV NUEVO (source_hash inexistente) ocupa un slot del panel.
        Re-parsear uno que ya existe (cache) NO cuenta: el on-conflict actualiza la misma
        fila. El fundador y Pro no se topan. Server-autoritativo, igual que la cuota. */
-    if (!cached[0] && !isFounder(req.user) && req.user.tier !== 'pro') {   // pro/fundador: sin tope, ni consultamos la base
+    const cvCap = config.cvLimit[req.user.tier] ?? config.cvLimit.free;
+    if (!cached[0] && !isFounder(req.user) && Number.isFinite(cvCap)) {   // fundador y tiers sin tope (Infinity): ni consultamos la base
       const { rows: cnt } = await query('select count(*)::int n from cv_documents where user_id = $1', [req.user.id]);
       if (cvLimitReached({ isFounder: false, tier: req.user.tier, count: cnt[0].n, limits: config.cvLimit })) {
-        throw forbidden('cv_limit', 'Llegaste al maximo de CVs de tu plan gratis.', { upgrade: true, limit: config.cvLimit.free });
+        throw forbidden('cv_limit', 'Llegaste al máximo de CVs de tu plan.', { upgrade: !tieneAlMenos(req.user, 'pro'), limit: cvCap });
       }
     }
     /* La cache de la base solo vale si es el MISMO idioma: el contenido se
@@ -267,7 +270,7 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
          reaparece al re-subir el mismo CV, no recién al cambiarle una coma. */
       rescueEducationGrades(guardado.data, sourceText);
       normalizeLocaleTerms(guardado.data, guardado.lang);   // término del secundario + unidad del puntaje
-      const editable = req.user.tier === 'pro';
+      const editable = tieneAlMenos(req.user, 'plus');
       return res.json({
         id: guardado.id,
         lang: guardado.lang,
@@ -292,10 +295,10 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       throw e;
     }
 
-    /* PAYWALL: lo Pro es EDITAR el CV a mano (PUT /cv/:id) y el DOCX.
+    /* PAYWALL: editar el CV a mano (PUT /cv/:id) y el DOCX son de pago (Plus+).
        El JSON estructurado va a toda cuenta: sin él, el cliente cae al
        motor local de regex y el diagnóstico sale mal ubicado. */
-    const editable = req.user.tier === 'pro';
+    const editable = tieneAlMenos(req.user, 'plus');
     res.json({
       id: doc.id,
       lang: doc.lang,
@@ -311,7 +314,7 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
           skills: data.skills.length,
         },
         downloadPdf: `/cv/${doc.id}/export?format=pdf`,
-        ...(editable ? {} : { upgradeHint: 'Editar el CV a mano es una función Pro.' }),
+        ...(editable ? {} : { upgradeHint: 'Editar el CV a mano es una función de pago (Plus o Pro).' }),
       },
     });
   } catch (e) {
@@ -331,7 +334,7 @@ cvRouter.get('/:id', authenticate, async (req, res, next) => {
     const doc = readCvRow(rows[0]);   // descifrar el data: en la base vive cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
-    const editable = req.user.tier === 'pro';
+    const editable = tieneAlMenos(req.user, 'plus');
     res.json({
       id: doc.id,
       title: doc.title,
@@ -350,9 +353,9 @@ cvRouter.get('/:id', authenticate, async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// PUT /cv/:id — guardar la edición manual. SOLO PRO.
+// PUT /cv/:id — guardar la edición manual. Plus o superior (editar a mano es Plus).
 // ---------------------------------------------------------------------------
-cvRouter.put('/:id', authenticate, requirePro, async (req, res, next) => {
+cvRouter.put('/:id', authenticate, requirePlus, async (req, res, next) => {
   try {
     // Se sanea también lo que edita el usuario: el contrato de secciones no se negocia.
     let data;
@@ -424,8 +427,8 @@ cvRouter.get('/:id/export', authenticate, async (req, res, next) => {
   try {
     const format = (req.query.format ?? 'pdf').toString().toLowerCase();
     if (!['pdf', 'docx'].includes(format)) throw badRequest('bad_format', 'Formato inválido.');
-    if (format === 'docx' && req.user.tier !== 'pro') {
-      throw forbidden('pro_required', 'La descarga en DOCX editable es una función Pro.', { upgrade: true });
+    if (format === 'docx' && !tieneAlMenos(req.user, 'plus')) {
+      throw forbidden('plus_required', 'La descarga en DOCX editable es una función de pago (Plus o Pro).', { upgrade: true, tier: 'plus' });
     }
 
     const { rows } = await query(
@@ -487,7 +490,7 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
       throw e;
     }
 
-    const editable = req.user.tier === 'pro';
+    const editable = tieneAlMenos(req.user, 'plus');
 
     res.json({
       quota,
@@ -546,7 +549,7 @@ cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res
 });
 
 // ---------------------------------------------------------------------------
-// POST /cv/:id/interview — simulador de entrevista conversacional (SOLO PRO)
+// POST /cv/:id/interview — simulador de entrevista conversacional (Plus o superior)
 //   Un turno por llamada: el cliente manda el transcript completo (pares q/a) y
 //   recibe feedback de la última respuesta + la siguiente pregunta; tras la 5ª,
 //   la evaluación final. La cuota se consume UNA vez por entrevista (el primer
@@ -584,7 +587,7 @@ const readInterviewSession = (token, userId) => {
   return Number.isFinite(turns) ? turns : null;
 };
 
-cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req, res, next) => {
+cvRouter.post('/:id/interview', authenticate, requirePlus, aiLimiter, async (req, res, next) => {
   try {
     const { role, context, jobDescription, lang, history, session } = z
       .object({
@@ -660,7 +663,7 @@ cvRouter.post('/:id/interview', authenticate, requirePro, aiLimiter, async (req,
 // ---------------------------------------------------------------------------
 cvRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const limit = req.user.tier === 'pro' ? 50 : 3;   // free ve los últimos 3
+    const limit = tieneAlMenos(req.user, 'plus') ? 50 : 3;   // free ve los últimos 3; Plus/Pro, hasta 50
     const { rows } = await query(
       `select id, title, lang, data, edited, updated_at from cv_documents
         where user_id = $1 order by updated_at desc limit $2`,
@@ -710,7 +713,7 @@ cvRouter.get('/', authenticate, async (req, res, next) => {
         preview,
       };
     });
-    res.json({ items, limited: req.user.tier !== 'pro' });
+    res.json({ items, limited: !tieneAlMenos(req.user, 'plus') });
   } catch (e) {
     next(e);
   }

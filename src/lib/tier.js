@@ -57,8 +57,8 @@ export const recurrenteViva = (fila) =>
  */
 export const bloqueoDeCompra = (u, plan) => {
   const pedido = String(plan || 'monthly').toLowerCase() || 'monthly';
-  const esPro = tierEfectivo(u) === 'pro';
-  if (!esPro) return null;                     // sin Pro, se puede comprar todo
+  const efectivo = tierEfectivo(u);
+  if (efectivo === 'free') return null;        // sin plan pago, se puede comprar todo
 
   const proveedor = u?.sub_provider ?? null;
 
@@ -67,17 +67,21 @@ export const bloqueoDeCompra = (u, plan) => {
     if (PROVIDERS_DE_POR_VIDA.has(proveedor)) {
       return { code: 'already_lifetime', message: 'Ya tenés el acceso de por vida. No hay nada más que pagar.' };
     }
-    return null;                               // mejora: se permite
+    return null;                               // mejora a de-por-vida: se permite
   }
 
-  /* Mensual o pase semanal teniendo Pro = cobrarle dos veces lo mismo. */
+  /* Con un plan pago vivo, comprar OTRA suscripción/pase por el checkout es
+     cobrarle dos veces: el sistema tiene UNA fila de suscripción por usuario, así
+     que un segundo débito quedaría sin apagar el primero. El cambio de plan
+     (Plus↔Pro) todavía no tiene flujo propio de proración/canje — hasta que exista,
+     se deriva a soporte, que lo hace a mano sin doble cobro. */
   if (PROVIDERS_DE_POR_VIDA.has(proveedor)) {
     return { code: 'already_lifetime', message: 'Ya tenés el acceso de por vida. No hace falta que pagues nada más.' };
   }
   if (proveedor === 'org_license') {
-    return { code: 'already_pro', message: 'Tu acceso Pro ya está cubierto por tu institución.' };
+    return { code: 'already_pro', message: 'Tu acceso ya está cubierto por tu institución.' };
   }
-  return { code: 'already_pro', message: 'Ya tenés Mavante Pro activo. Si querés cambiar de plan, escribinos a support@mavante.com.' };
+  return { code: 'already_pro', message: 'Ya tenés un plan activo. Para cambiar de plan escribinos a support@mavante.com.' };
 };
 
 /**
@@ -93,18 +97,43 @@ export const debeCancelarRecurrente = (fila, planComprado) =>
   planComprado === 'lifetime' && recurrenteViva(fila) && Boolean(fila.subscription_id);
 
 /**
+ * Los planes, de menor a mayor. Un plan CONTIENE a los de abajo: Pro puede todo
+ * lo de Plus, y Plus todo lo de Free. Los candados comparan por este rango (con
+ * `tieneAlMenos`), no por igualdad — así agregar un tier no obliga a reescribir
+ * cada gate, y un Pro nunca queda afuera de una función pensada para Plus.
+ */
+export const RANGO_TIER = { free: 0, plus: 1, pro: 2 };
+
+/* Los tiers PAGOS. Es lo único que el vencimiento puede "apagar" a free. */
+const TIERS_PAGOS = new Set(['plus', 'pro']);
+
+/**
  * @param {{tier?:string, sub_provider?:string|null, sub_until?:Date|string|null}} u
- * @returns {'free'|'pro'} el plan que de verdad rige AHORA
+ * @returns {'free'|'plus'|'pro'} el plan que de verdad rige AHORA
+ *
+ * Vale para los tres tiers: un pase con vencimiento (semanal, licencia) que ya
+ * caducó vuelve a free aunque la columna diga 'plus' o 'pro'. Mientras el webhook
+ * no escriba 'plus', en producción esto solo devuelve 'free' o 'pro' — el soporte
+ * de 'plus' queda listo para cuando el webhook empiece a distinguir productos.
  */
 export const tierEfectivo = (u) => {
   const fila = u || {};
-  if (fila.tier !== 'pro') return 'free';
-  if (!PROVIDERS_CON_VENCIMIENTO.has(fila.sub_provider)) return 'pro';
-  if (!fila.sub_until) return 'pro';          // sin fecha anotada, no inventamos un vencimiento
+  const t = fila.tier;
+  if (!TIERS_PAGOS.has(t)) return 'free';
+  if (!PROVIDERS_CON_VENCIMIENTO.has(fila.sub_provider)) return t;
+  if (!fila.sub_until) return t;              // sin fecha anotada, no inventamos un vencimiento
   const hasta = new Date(fila.sub_until).getTime();
-  if (Number.isNaN(hasta)) return 'pro';      // fecha ilegible: ante la duda, NO le sacamos lo que pagó
-  return hasta > Date.now() ? 'pro' : 'free';
+  if (Number.isNaN(hasta)) return t;          // fecha ilegible: ante la duda, NO le sacamos lo que pagó
+  return hasta > Date.now() ? t : 'free';
 };
+
+/**
+ * ¿El plan EFECTIVO de esta cuenta llega AL MENOS a `min`? (free ≤ plus ≤ pro)
+ * Es la pregunta que hacen todos los candados: "¿esta persona tiene Plus o más?"
+ * en vez de "¿es exactamente Pro?", para que Pro herede lo de Plus sin listarlo.
+ */
+export const tieneAlMenos = (u, min) =>
+  (RANGO_TIER[tierEfectivo(u)] ?? 0) >= (RANGO_TIER[min] ?? 99);
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 

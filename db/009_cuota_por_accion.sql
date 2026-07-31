@@ -1,0 +1,57 @@
+-- ============================================================================
+-- 009 · Cuota diaria POR ACCIÓN (para el Free de 3 tiers) · ⚠️ BORRADOR — NO APLICAR TODAVÍA ⚠️
+--
+-- ESTO ES UNA PROPUESTA, no una migración lista. No la corras en Neon hasta que:
+--   1) Federico confirme la estructura de planes (Free = 2 diagnósticos/día + 1
+--      adaptación/día; Plus/Pro sin tope o con fair-use alto).
+--   2) Exista el código que la usa (cv.js separa el contador de PARSE del de
+--      TAILOR), porque una migración y su código NUNCA salen juntos — es la regla
+--      que rompió producción en la 005.
+-- Mientras tanto este archivo es inerte: el CI no toca db/ y los tests no lo corren.
+--
+-- ── QUÉ RESUELVE ────────────────────────────────────────────────────────────
+-- Hoy `usage_daily` tiene UN solo contador (`cv_adaptations`) que suman TODAS las
+-- operaciones de IA: diagnóstico (POST /cv/parse), adaptación a un aviso
+-- (POST /cv/:id/tailor), carta (/cover) y entrevista (/interview). Con eso NO se
+-- puede expresar el Free nuevo, que son DOS límites separados en el mismo día:
+--     · 2 diagnósticos/día   (parse)
+--     · 1 adaptación/día     (tailor)
+-- Un contador único no distingue "ya usó sus 2 diagnósticos pero le queda la
+-- adaptación". Hacen falta contadores separados por acción.
+--
+-- ── EL CAMBIO ───────────────────────────────────────────────────────────────
+-- Se AGREGA una columna por acción y se DEJA `cv_adaptations` como está (histórico
+-- y compat: nada que lo lea se rompe). `default 0` + backfill implícito: las filas
+-- viejas quedan en 0 en las columnas nuevas, que es lo correcto (un día pasado no
+-- tiene sentido recontarlo). No se borra ni renombra nada — additivo puro.
+alter table usage_daily add column if not exists cv_diagnostics int not null default 0;  -- POST /cv/parse (diagnóstico)
+alter table usage_daily add column if not exists cv_covers      int not null default 0;  -- POST /cv/:id/cover (carta, Pro)
+alter table usage_daily add column if not exists cv_interviews  int not null default 0;  -- POST /cv/:id/interview (Plus+)
+-- `cv_adaptations` PASA a contar SOLO las adaptaciones a un aviso (tailor). El
+-- código nuevo escribe cada acción en su columna; el viejo seguía sumando todo a
+-- cv_adaptations, así que durante la ventana de deploy un free podría ver una cuota
+-- un poco más laxa — aceptable y transitorio (se cierra en cuanto el código nuevo
+-- queda arriba). No al revés: nunca más estricto de lo prometido.
+--
+-- ── SECUENCIA DE DEPLOY (obligatoria, por la regla de la 005) ───────────────
+--   1) Correr ESTA migración en Neon (agrega columnas, no toca datos).
+--   2) Recién DESPUÉS desplegar el código que:
+--        · en config.js define la cuota por acción y por tier, p.ej.:
+--            quota: {
+--              diagnostics: { free: 2, plus: Infinity, pro: Infinity },
+--              adaptations: { free: 1, plus: 15,       pro: Infinity },
+--              covers:      { free: 0, plus: 0,        pro: Infinity },   // carta: solo Pro
+--              interviews:  { free: 0, plus: Infinity, pro: Infinity },   // entrevista: Plus+
+--            }
+--        · en cv.js, consumeQuota/getQuota reciben QUÉ acción es y suman/leen la
+--          columna correspondiente (parse→cv_diagnostics, tailor→cv_adaptations,
+--          cover→cv_covers, interview→cv_interviews), con el mismo patrón atómico
+--          (insert … on conflict … + refund si el fallo es nuestro).
+--        · el front muestra los dos contadores del Free por separado.
+--   3) Recién con esto arriba, bajar el Free a 2+1 (hasta entonces queda en 3
+--      compartido, que es lo que hay hoy: nadie pierde nada en el interín).
+--
+-- Nota "ilimitado": Plus/Pro se anuncian ilimitados, pero conviene un tope de
+-- fair-use alto (no Infinity literal) para que un abuso no dispare el costo de LLM
+-- — el mismo motivo por el que Pro tenía un tope. Ese número lo fija Federico.
+-- ============================================================================

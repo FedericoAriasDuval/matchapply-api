@@ -1,6 +1,6 @@
 import { query } from '../db.js';
 import { readAccessCookie, verifyAccessToken } from '../lib/tokens.js';
-import { SELECT_USER_CON_ACCESO, tierEfectivo } from '../lib/tier.js';
+import { RANGO_TIER, SELECT_USER_CON_ACCESO, tierEfectivo } from '../lib/tier.js';
 import { forbidden, unauthorized } from './errors.js';
 
 /** Carga req.user desde la cookie de acceso (o el header Bearer). */
@@ -40,12 +40,26 @@ export const authenticate = async (req, _res, next) => {
   }
 };
 
-/** Exige tier = 'pro'. El paywall se decide SIEMPRE en el servidor. */
-export const requirePro = (req, _res, next) => {
-  if (req.user?.tier !== 'pro') {
+/**
+ * Exige un tier MÍNIMO (free ≤ plus ≤ pro). El paywall se decide SIEMPRE en el
+ * servidor: `req.user.tier` ya es el EFECTIVO (authenticate lo resolvió con el
+ * vencimiento). Compara por rango, así Pro pasa todo candado de Plus sin listarlo.
+ *
+ * @param {'plus'|'pro'} min  el plan mínimo que habilita la función
+ */
+export const requireTier = (min) => (req, _res, next) => {
+  const rango = RANGO_TIER[req.user?.tier] ?? 0;
+  if (rango < (RANGO_TIER[min] ?? 99)) {
+    const nombre = min === 'pro' ? 'Mavante Pro' : 'Mavante Plus';
     return next(
-      forbidden('pro_required', 'Esta función es exclusiva de Mavante Pro.', { upgrade: true }),
+      forbidden(`${min}_required`, `Esta función es exclusiva de ${nombre}.`, { upgrade: true, tier: min }),
     );
   }
   next();
 };
+
+/** Exige Plus o superior (Plus incluye a Pro). */
+export const requirePlus = requireTier('plus');
+
+/** Exige Pro. Se mantiene el nombre histórico; es requireTier('pro'). */
+export const requirePro = requireTier('pro');

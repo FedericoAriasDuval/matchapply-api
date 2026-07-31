@@ -111,7 +111,12 @@ export const config = {
     paddleLifetimePriceId: process.env.PADDLE_LIFETIME_PRICE_ID,
     paddleCheckoutUrl: process.env.PADDLE_CHECKOUT_URL,
     paddleEnv: (process.env.PADDLE_ENV ?? 'sandbox').toLowerCase(),
-    paddleEnabled: Boolean(process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET && process.env.PADDLE_PRICE_ID),
+    /* Paddle queda "prendido" con el price único VIEJO o con cualquiera de los
+       nuevos, así se puede sacar PADDLE_PRICE_ID una vez que estén los 4 nuevos. */
+    paddleEnabled: Boolean(
+      process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET &&
+      (process.env.PADDLE_PRICE_ID || process.env.PADDLE_PLUS_MONTH_PRICE_ID || process.env.PADDLE_PRO_MONTH_PRICE_ID),
+    ),
     // Mercado Pago — Argentina, ARS. Access token del panel de MP + precio en pesos.
     mpAccessToken: process.env.MP_ACCESS_TOKEN,
     mpPriceArs: Number(process.env.MP_PRICE_ARS ?? 0),
@@ -122,20 +127,52 @@ export const config = {
     // Mismo criterio que el de por vida: sin monto configurado, no se ofrece.
     mpWeekArs: Number(process.env.MP_WEEK_ARS ?? 0),
     paddleWeekPriceId: process.env.PADDLE_WEEK_PRICE_ID,
-    mpEnabled: Boolean(process.env.MP_ACCESS_TOKEN && Number(process.env.MP_PRICE_ARS ?? 0) > 0),
+
+    /* ── 3 TIERS: precios de las suscripciones Plus y Pro (mensual/anual) ────────
+       Estos slots quedan LISTOS pero VACÍOS hasta que Federico cree los 8 productos
+       (Paddle ×4 + Mercado Pago ×4) y pegue acá los IDs/montos en Render. Mientras
+       estén vacíos, el checkout de suscripción sigue usando el precio único de hoy
+       (paddlePriceId / mpPriceArs) — NO se vende Plus/Pro por separado todavía, así
+       que agregar estos campos no cambia ningún cobro. El webhook mapea el price ID
+       comprado → tier con `subTierPorPrecio` (abajo). */
+    // Paddle (USD). Cada tier/período es un price de Paddle distinto.
+    paddlePlusMonthPriceId: process.env.PADDLE_PLUS_MONTH_PRICE_ID || '',
+    paddlePlusYearPriceId: process.env.PADDLE_PLUS_YEAR_PRICE_ID || '',
+    paddleProMonthPriceId: process.env.PADDLE_PRO_MONTH_PRICE_ID || '',
+    paddleProYearPriceId: process.env.PADDLE_PRO_YEAR_PRICE_ID || '',
+    // Mercado Pago (ARS). Monto mensual/anual de cada tier (0 = no se ofrece).
+    mpPlusMonthArs: Number(process.env.MP_PLUS_MONTH_ARS ?? 0),
+    mpPlusYearArs: Number(process.env.MP_PLUS_YEAR_ARS ?? 0),
+    mpProMonthArs: Number(process.env.MP_PRO_MONTH_ARS ?? 0),
+    mpProYearArs: Number(process.env.MP_PRO_YEAR_ARS ?? 0),
+
+    /* MP queda "prendido" con el monto único VIEJO o con cualquiera de los nuevos,
+       así se puede sacar MP_PRICE_ARS una vez cargados los montos nuevos. */
+    mpEnabled: Boolean(
+      process.env.MP_ACCESS_TOKEN &&
+      (Number(process.env.MP_PRICE_ARS ?? 0) > 0 || Number(process.env.MP_PLUS_MONTH_ARS ?? 0) > 0 || Number(process.env.MP_PRO_MONTH_ARS ?? 0) > 0),
+    ),
     // ¿hay ALGÚN método disponible? (lo usa el front para saber si mostrar el botón)
     enabled: Boolean(
-      (process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET && process.env.PADDLE_PRICE_ID) ||
-      (process.env.MP_ACCESS_TOKEN && Number(process.env.MP_PRICE_ARS ?? 0) > 0) ||
+      (process.env.PADDLE_API_KEY && process.env.PADDLE_WEBHOOK_SECRET &&
+        (process.env.PADDLE_PRICE_ID || process.env.PADDLE_PLUS_MONTH_PRICE_ID || process.env.PADDLE_PRO_MONTH_PRICE_ID)) ||
+      (process.env.MP_ACCESS_TOKEN &&
+        (Number(process.env.MP_PRICE_ARS ?? 0) > 0 || Number(process.env.MP_PLUS_MONTH_ARS ?? 0) > 0 || Number(process.env.MP_PRO_MONTH_ARS ?? 0) > 0)) ||
       process.env.STRIPE_SECRET_KEY,
     ),
   },
 
-  quota: { free: 3, pro: 10 },
+  /* Cuota diaria de IA, POR TIER. Hoy es UN contador compartido (usage_daily.cv_adaptations)
+     que suman todas las operaciones (diagnóstico + adaptación + carta + entrevista). El Free
+     de la spec nueva ("2 diagnósticos + 1 adaptación") son DOS límites separados: eso exige
+     partir el contador en dos → migración 009 (borrador). Hasta que esa migración esté en la
+     base, se mantiene el contador único: Free 3/día (sin cambio), Plus/Pro 30/día. La cuota
+     de Pro pasó de 10 a 30 (bug documentado: CLAUDE.md y la memoria decían 30 hace rato). */
+  quota: { free: 3, plus: 30, pro: 30 },
   /* Tope de CVs GUARDADOS por usuario (distinto de la cuota diaria de IA): cuántos
      CVs distintos puede tener en su panel. Free: 2 (ej: uno por rubro o por idioma).
-     Pro: sin tope. Server-autoritativo, igual que la cuota. */
-  cvLimit: { free: 2, pro: Infinity },
+     Plus: 20. Pro: sin tope. Server-autoritativo, igual que la cuota. */
+  cvLimit: { free: 2, plus: 20, pro: Infinity },
 
   /* Cuentas que NO gastan cuota (el fundador probando la plataforma). Se setean por
      env (FOUNDER_EMAILS, separadas por coma) para no hardcodear un mail en el código.

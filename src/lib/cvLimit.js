@@ -6,10 +6,13 @@
  * El fundador y Pro NUNCA se topan (Pro = Infinity). Es distinto de la cuota diaria de
  * IA: esto cuenta CUÁNTOS CVs distintos guarda una persona en su panel, no operaciones.
  *
- * @param {{ isFounder:boolean, tier:string, count:number, limits:{free:number,pro:number} }} o
+ * El tope sale de `limits[tier]` (free/plus/pro); si el tier no está en la tabla,
+ * cae al de free — nunca a "sin tope" por un valor inesperado.
+ *
+ * @param {{ isFounder:boolean, tier:string, count:number, limits:Record<string,number> }} o
  */
 export const cvLimitReached = ({ isFounder, tier, count, limits }) => {
   if (isFounder) return false;
-  const cap = tier === 'pro' ? limits.pro : limits.free;
+  const cap = limits[tier] ?? limits.free;
   return count >= cap;
 };

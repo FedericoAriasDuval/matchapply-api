@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  PROVIDERS_CON_VENCIMIENTO, bloqueoDeCompra, debeCancelarRecurrente,
-  nuevoVencimiento, recurrenteViva, tierEfectivo,
+  PROVIDERS_CON_VENCIMIENTO, RANGO_TIER, bloqueoDeCompra, debeCancelarRecurrente,
+  nuevoVencimiento, recurrenteViva, tieneAlMenos, tierEfectivo,
 } from '../src/lib/tier.js';
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -154,4 +154,47 @@ test('la licencia institucional también caduca (usa el mismo camino)', () => {
   assert.ok(PROVIDERS_CON_VENCIMIENTO.has('org_license'));
   assert.equal(tierEfectivo({ tier: 'pro', sub_provider: 'org_license', sub_until: enDias(30) }), 'pro');
   assert.equal(tierEfectivo({ tier: 'pro', sub_provider: 'org_license', sub_until: enDias(-1) }), 'free');
+});
+
+/* ── 3 TIERS: free ≤ plus ≤ pro ──────────────────────────────────────────── */
+
+test('tierEfectivo deja pasar plus igual que pro (columna → plan efectivo)', () => {
+  assert.equal(tierEfectivo({ tier: 'plus' }), 'plus');
+  assert.equal(tierEfectivo({ tier: 'pro' }), 'pro');
+  assert.equal(tierEfectivo({ tier: 'free' }), 'free');
+  // un tier basura nunca da acceso pago
+  assert.equal(tierEfectivo({ tier: 'gold' }), 'free');
+  assert.equal(tierEfectivo({ tier: undefined }), 'free');
+});
+
+test('un plus con pase vencido también vuelve a free (el vencimiento vale para los dos)', () => {
+  assert.equal(tierEfectivo({ tier: 'plus', sub_provider: 'paddle_week', sub_until: enDias(7) }), 'plus');
+  assert.equal(tierEfectivo({ tier: 'plus', sub_provider: 'paddle_week', sub_until: enDias(-1) }), 'free');
+  // la mensual de plus NO se baja por fecha local (igual que pro)
+  assert.equal(tierEfectivo({ tier: 'plus', sub_provider: 'mercadopago', sub_until: enDias(-3) }), 'plus');
+});
+
+test('tieneAlMenos: pro hereda lo de plus; plus NO alcanza lo de pro; free nada', () => {
+  assert.equal(tieneAlMenos({ tier: 'pro' }, 'plus'), true);   // Pro pasa todo candado de Plus
+  assert.equal(tieneAlMenos({ tier: 'pro' }, 'pro'), true);
+  assert.equal(tieneAlMenos({ tier: 'plus' }, 'plus'), true);
+  assert.equal(tieneAlMenos({ tier: 'plus' }, 'pro'), false);  // Plus NO desbloquea lo exclusivo de Pro
+  assert.equal(tieneAlMenos({ tier: 'free' }, 'plus'), false);
+  assert.equal(tieneAlMenos({ tier: 'free' }, 'pro'), false);
+  assert.equal(tieneAlMenos(null, 'plus'), false);
+  // el rango es el orden esperado
+  assert.deepEqual(RANGO_TIER, { free: 0, plus: 1, pro: 2 });
+});
+
+test('tieneAlMenos respeta el vencimiento (un pase plus vencido no pasa el candado)', () => {
+  const plusVencido = { tier: 'plus', sub_provider: 'paddle_week', sub_until: enDias(-1) };
+  assert.equal(tieneAlMenos(plusVencido, 'plus'), false);
+});
+
+test('un plus con la mensual activa tampoco compra de nuevo por el checkout (se deriva a soporte)', () => {
+  const plusMensual = { tier: 'plus', sub_provider: 'mercadopago', sub_until: null, status: 'authorized' };
+  assert.equal(bloqueoDeCompra(plusMensual, 'monthly').code, 'already_pro');
+  assert.equal(bloqueoDeCompra(plusMensual, '').code, 'already_pro');
+  // pasarse al de por vida sí se permite (no es doble cobro: se cancela la mensual)
+  assert.equal(bloqueoDeCompra(plusMensual, 'lifetime'), null);
 });
