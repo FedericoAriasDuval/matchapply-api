@@ -31,16 +31,21 @@ export const createSession = async (userId, req) => {
   return { raw, expiresAt };
 };
 
-/** Rotación: valida el refresh, lo revoca y emite uno nuevo. */
+/** Rotación: valida el refresh, lo revoca y emite uno nuevo. ATÓMICA: el revoke y la
+    validación van en UN solo UPDATE ... RETURNING, así dos requests con el MISMO refresh
+    (dos pestañas, /me + /refresh en el boot) no pueden ambos pasar y mintear dos sesiones
+    (doble-mint / aceptar un refresh reusado). Sólo el que reclama la fila rota; el otro
+    recibe null y NO revocó nada. */
 export const rotateSession = async (rawToken, req) => {
   const { rows } = await query(
-    `select * from sessions where token_hash = $1 and revoked_at is null and expires_at > now()`,
+    `update sessions set revoked_at = now()
+      where token_hash = $1 and revoked_at is null and expires_at > now()
+      returning *`,
     [hashToken(rawToken)],
   );
   const session = rows[0];
   if (!session) return null;
 
-  await query(`update sessions set revoked_at = now() where id = $1`, [session.id]);
   const fresh = await createSession(session.user_id, req);
   const { rows: users } = await query(`select * from users where id = $1`, [session.user_id]);
   return users[0] ? { user: users[0], refresh: fresh } : null;

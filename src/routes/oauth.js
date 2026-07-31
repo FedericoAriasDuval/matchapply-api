@@ -165,10 +165,18 @@ oauthRouter.get('/:provider/callback', async (req, res) => {
     let user = found[0];
 
     if (user) {
-      // Ya existe: se vincula, no se duplica ni se pisa la contraseña.
-      // Y si venía sin verificar, entrar por Google ES una verificación.
+      // Ya existe: se vincula, no se duplica.
+      // Si venía SIN verificar, entrar por Google ES la verificación — pero además se
+      // INUTILIZA la contraseña que tuviera. Motivo (seguridad): el signup no prueba
+      // dominio del email, así que cualquiera pudo haber pre-creado esta cuenta con SU
+      // contraseña; si la dejáramos viva, tras verificar por Google el atacante entraría
+      // con esa contraseña (toma de cuenta). La contraseña de una cuenta no verificada es
+      // no-confiable: se descarta. La persona real entra por Google (o por reset, cuando exista).
       if (!user.is_verified) {
-        const { rows } = await query(`update users set is_verified = true where id = $1 returning *`, [user.id]);
+        const { rows } = await query(
+          `update users set is_verified = true, password_hash = $2 where id = $1 returning *`,
+          [user.id, `oauth:${k}:${crypto.randomBytes(24).toString('hex')}`],
+        );
         user = rows[0];
         try { await creditReferral(user.id); } catch (e) { console.error('[oauth] credito', e.message); }
       }
