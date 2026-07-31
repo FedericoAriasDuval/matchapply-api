@@ -125,7 +125,7 @@ adminRouter.post('/licenses/:code/off', adminLimiter, requireAdmin, async (req, 
 adminRouter.post('/tier', adminLimiter, requireAdmin, async (req, res, next) => {
   try {
     const { email, tier } = z
-      .object({ email: z.string().trim().email(), tier: z.enum(['free', 'pro']) })
+      .object({ email: z.string().trim().email(), tier: z.enum(['free', 'plus', 'pro']) })
       .parse(req.body);
     const { rows } = await query(
       `update users set tier = $2 where lower(email) = lower($1) returning id, email, tier`,

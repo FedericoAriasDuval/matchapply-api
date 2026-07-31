@@ -54,7 +54,11 @@ const consumeQuota = async (user) => {
       [user.id, today(), limit],
     );
     throw tooMany('quota_exceeded', 'Llegaste a tu límite diario de adaptaciones.', {
-      upgrade: !tieneAlMenos(user, 'pro'),
+      /* Ofrecer "subí de plan" SOLO si un plan más alto de verdad da más cuota. Hoy
+         plus y pro comparten 30/día, así que a un Plus no se le vende Pro por cuota
+         (no le sube nada); a un free sí (3 → 30). Se lee de config para no mentir si
+         los números cambian. */
+      upgrade: (config.quota.pro || 0) > (config.quota[user.tier] || 0),
       limit,
     });
   }
