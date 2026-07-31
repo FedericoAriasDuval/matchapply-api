@@ -156,7 +156,10 @@ const shutdown = async (signal, code = 0) => {
   cerrando = true;
   console.log(`\n${signal} recibido, cerrando...`);
 
-  await cerrarOrdenado({ server, queue: cvQueue, pool, drainMs: 25_000 });
+  /* drainMs >= el timeout del trabajo (45s): si drenáramos menos, un CV legítimamente
+     lento (hasta 45s) seguiría corriendo cuando cerramos el pool, y al no poder guardar
+     ni devolver la cuota le cobraríamos por nada — justo lo que shutdown.js evita. */
+  await cerrarOrdenado({ server, queue: cvQueue, pool, drainMs: (cvQueue.timeoutMs || 45_000) + 5_000 });
   process.exit(code);
 };
 

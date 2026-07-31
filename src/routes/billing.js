@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { z } from 'zod';
 import { Paddle, Environment } from '@paddle/paddle-node-sdk';
 import { config } from '../config.js';
-import { query } from '../db.js';
+import { query, tx } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { licenseLimiter, webhookLimiter } from '../middleware/rateLimit.js';
 import { appendIncomeRow } from '../lib/sheets.js';
@@ -445,20 +445,29 @@ billingRouter.post('/redeem', authenticate, licenseLimiter, async (req, res, nex
     /* Una persona ocupa UN cupo en UNA licencia (unique en user_id). Si ya está
        en otra, el insert no hace nada y hay que decirlo: quedarse callado le
        haría creer que canjeó algo que no canjeó. */
-    /* El cupo se vuelve a chequear DENTRO del insert. motivoDeRechazo ya lo miró,
-       pero con un count que se leyó antes y puede quedar viejo: 60 personas canjeando
-       a la vez un código de 50 asientos leían todas "usados < 50" antes de que las
-       otras commitearan, y entraban las 60 — la institución pagaba por 50 y usaban 60.
-       El `where (select count(*)...) < max` hace que solo entren los que, en el
-       instante del insert, encuentran lugar. */
-    const { rows: alta } = await query(
-      `insert into org_license_members (license_id, user_id)
-         select $1, $2
-          where (select count(*) from org_license_members where license_id = $1) < $3
-       on conflict do nothing
-       returning license_id`,
-      [lic.id, req.user.id, lic.max_users],
-    );
+    /* El cupo se vuelve a chequear DENTRO del canje, SERIALIZADO. motivoDeRechazo ya
+       lo miró, pero con un count que se leyó antes y queda viejo: 60 personas canjeando
+       a la vez un código de 50 leían todas "usados < 50" y entraban las 60 — la
+       institución pagaba 50 y usaban 60. El `where (select count(*)...) < max` por sí
+       solo NO alcanza bajo READ COMMITTED (cada statement ve su propio snapshot y no los
+       inserts sin commitear de los otros). Por eso se lockea la fila de la licencia
+       (FOR UPDATE) dentro de una transacción: los canjes del MISMO código se ponen en
+       fila, y cuando a cada uno le toca, su count ya ve los asientos ocupados. */
+    const alta = await tx(async (client) => {
+      const { rows: locked } = await client.query(
+        `select max_users from org_licenses where id = $1 for update`, [lic.id],
+      );
+      const max = locked[0] ? locked[0].max_users : lic.max_users;
+      const { rows } = await client.query(
+        `insert into org_license_members (license_id, user_id)
+           select $1, $2
+            where (select count(*) from org_license_members where license_id = $1) < $3
+         on conflict do nothing
+         returning license_id`,
+        [lic.id, req.user.id, max],
+      );
+      return rows;
+    });
     if (!alta[0] && cuenta[0].mio === 0) {
       /* No entró y no era miembro: o ya está en OTRA licencia (unique user_id), o el
          cupo se llenó en la carrera. Distinguimos para no dar el mensaje equivocado. */
