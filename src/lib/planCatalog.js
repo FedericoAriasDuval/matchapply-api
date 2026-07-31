@@ -72,3 +72,14 @@ export const frecuenciaMp = (period) =>
  * @param {string} planRef  el campo `plan` que devuelve parseRefMp
  */
 export const tierDeRefMp = (planRef) => (esTierPago(planRef) ? planRef : 'pro');
+
+/**
+ * El tier de una CUOTA recurrente de Mercado Pago. El PAGO suelto no siempre trae el
+ * external_reference con el tier (MP no lo copia de forma confiable a los pagos que
+ * genera un preapproval), así que se acepta un `hint` tomado del authorized_payment
+ * o del preapproval, que SÍ lo llevan. Prioridad: el ref del pago → el hint → 'pro'
+ * (grandfathering del suscriptor viejo sin tier). NUNCA sube/baja el plan por una
+ * cuota: sólo reafirma el tier que ya se fijó al activar la suscripción.
+ */
+export const tierPagoRecurrente = (planPago, hint) =>
+  esTierPago(planPago) ? planPago : (esTierPago(hint) ? hint : 'pro');

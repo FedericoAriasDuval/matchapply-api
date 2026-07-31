@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   claveSub, esPeriodo, esTierPago, frecuenciaMp, mpMontoSub,
-  paddlePriceSub, tierDePaddlePrice, tierDeRefMp,
+  paddlePriceSub, tierDePaddlePrice, tierDeRefMp, tierPagoRecurrente,
 } from '../src/lib/planCatalog.js';
 
 const PADDLE = {
@@ -60,4 +60,18 @@ test('tierDeRefMp: el tier del ref; sin tier (viejo) o basura → Pro (grandfath
   assert.equal(tierDeRefMp(''), 'pro');           // suscriptor viejo (ref = userId, sin |tier)
   assert.equal(tierDeRefMp('lifetime'), 'pro');   // no es un tier de suscripción
   assert.equal(tierDeRefMp(undefined), 'pro');
+});
+
+test('tierPagoRecurrente: el ref del pago manda; si no trae tier, cae al hint; si no, Pro', () => {
+  // el pago SÍ trae el tier → se usa ese
+  assert.equal(tierPagoRecurrente('plus', 'pro'), 'plus');
+  assert.equal(tierPagoRecurrente('pro', 'plus'), 'pro');
+  // el pago NO trae tier (caso real de MP en cuotas) → cae al hint del authorized_payment
+  assert.equal(tierPagoRecurrente('', 'plus'), 'plus');   // <-- el bug: antes esto daba 'pro' y subía un Plus a Pro
+  assert.equal(tierPagoRecurrente('', 'pro'), 'pro');
+  // ni pago ni hint traen tier (suscriptor viejo) → Pro (grandfathering)
+  assert.equal(tierPagoRecurrente('', ''), 'pro');
+  assert.equal(tierPagoRecurrente(undefined, undefined), 'pro');
+  // un hint basura no cuenta como tier
+  assert.equal(tierPagoRecurrente('', 'lifetime'), 'pro');
 });

@@ -14,7 +14,7 @@ import {
   bloqueoDeCompra, debeCancelarRecurrente, nuevoVencimiento, recurrenteViva,
 } from '../lib/tier.js';
 import {
-  esTierPago, frecuenciaMp, mpMontoSub, paddlePriceSub, tierDePaddlePrice, tierDeRefMp,
+  esTierPago, frecuenciaMp, mpMontoSub, paddlePriceSub, tierDePaddlePrice, tierDeRefMp, tierPagoRecurrente,
 } from '../lib/planCatalog.js';
 import { motivoDeRechazo, normalizarCodigo } from '../lib/orgLicense.js';
 
@@ -537,7 +537,7 @@ async function userIdDePreapproval(preapprovalId) {
    es— activa Pro. LA PLATA QUE ENTRA ES LA SEÑAL MÁS FUERTE: si pagó, tiene Pro.
    `resuelto:false` = pago aprobado pero no supimos de quién es → el webhook pide
    reintento, para que no quede plata cobrada sin acceso. */
-async function acreditarPagoMp(pay, userIdHint) {
+async function acreditarPagoMp(pay, userIdHint, tierHint) {
   if (pay?.status !== 'approved') return { action: `pago-${pay?.status || 'sin-estado'}`, userId: userIdHint || null, resuelto: true };
   const { userId: uidRef, plan } = parseRefMp(pay.external_reference, pay.metadata?.plan);
   if (!yaContabilizado(pay.id)) {   // Finanzas: idempotente por id de pago
@@ -555,10 +555,13 @@ async function acreditarPagoMp(pay, userIdHint) {
     await otorgarPagoUnico({ userId, plan, proveedor: 'mercadopago', customerId: pay.payer?.id ? String(pay.payer.id) : null, refId: String(pay.id) });
     return { action: `pago-unico-${plan}`, userId, resuelto: true };
   }
-  /* Cuota de la suscripción → el TIER que corresponde, leído del "userId|tier" que
-     MP propaga al pago. Suscriptor viejo (ref sin tier) → Pro (grandfathering). NO
-     se sube ni baja el plan por una cuota: el tier ya viene fijado en el ref. */
-  const tierPago = tierDeRefMp(plan);
+  /* Cuota de la suscripción → el TIER que corresponde. El ref del pago suelto no es
+     confiable (MP no siempre le copia el "userId|tier"): por eso se usa tierHint, que
+     el llamador saca del authorized_payment / preapproval (que SÍ lo llevan). Sin
+     ninguno de los dos → Pro (grandfathering del suscriptor viejo). NO sube/baja el
+     plan por una cuota: sólo reafirma el tier fijado al activar la suscripción.
+     Antes esto leía sólo el ref del pago → una cuota sin tier subía a un Plus a Pro. */
+  const tierPago = tierPagoRecurrente(plan, tierHint);
   if (!(await esDePorVida(userId))) await setTier(userId, tierPago);   // idempotente
   return { action: `${tierPago}-por-pago`, userId, resuelto: true };
 }
@@ -621,13 +624,16 @@ billingRouter.post('/mp-webhook', webhookLimiter, async (req, res) => {
       if (!r.ok) { mpHookPush({ type, kind, id, action: 'authpay-fetch-fail', note: `MP ${r.status}` }); return res.sendStatus(502); }
       const ap = await r.json();
       userId = await userIdDePreapproval(ap.preapproval_id);
+      /* El tier viaja confiable en el authorized_payment (el "userId|tier" del preapproval);
+         el pago suelto de abajo NO siempre lo trae. Se pasa como hint a acreditarPagoMp. */
+      const tierHint = parseRefMp(ap.external_reference).plan;
       const payId = ap.payment?.id || ap.payment_id;
       if (payId) {
         const pr = await fetch(`https://api.mercadopago.com/v1/payments/${payId}`, { headers: { Authorization: `Bearer ${mpToken}` } });
         if (!pr.ok) { mpHookPush({ type, kind, id, userId, action: 'authpay-pago-fetch-fail', note: `MP ${pr.status}` }); return res.sendStatus(502); }
         const pay = await pr.json();
         status = pay.status || '';
-        const r2 = await acreditarPagoMp(pay, userId);
+        const r2 = await acreditarPagoMp(pay, userId, tierHint);
         action = `authpay:${r2.action}`; userId = r2.userId || userId;
         if (!r2.resuelto) { mpHookPush({ type, kind, id, userId, status, action, note }); return res.sendStatus(502); }   // pago aprobado sin dueño → reintento (Finanzas ya está dedupeado)
       } else {
