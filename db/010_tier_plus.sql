@@ -1,0 +1,13 @@
+-- 010 · Agrega 'plus' al enum user_tier.
+--
+-- El modelo de 3 tiers (free/plus/pro) ya está en el CÓDIGO (tier.js, planCatalog,
+-- webhooks), pero el enum de la base solo tenía ('free','pro'). Sin este valor,
+-- `update users set tier='plus'` FALLA (enum inválido): una compra de Plus no se
+-- podía acreditar. Esto lo destraba.
+--
+-- Idempotente (IF NOT EXISTS): corre en cada deploy sin romper si ya existe.
+-- El runner (scripts/migrate.js) corre cada archivo con pool.query, sin BEGIN
+-- explícito, así que ADD VALUE no queda dentro de una transacción. Además acá solo
+-- AGREGAMOS el valor (no lo usamos), que es la condición que Postgres pide para
+-- poder hacerlo sin conflicto.
+alter type user_tier add value if not exists 'plus';

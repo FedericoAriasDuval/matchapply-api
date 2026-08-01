@@ -162,13 +162,19 @@ export const config = {
     ),
   },
 
-  /* Cuota diaria de IA, POR TIER. Hoy es UN contador compartido (usage_daily.cv_adaptations)
-     que suman todas las operaciones (diagnóstico + adaptación + carta + entrevista). El Free
-     de la spec nueva ("2 diagnósticos + 1 adaptación") son DOS límites separados: eso exige
-     partir el contador en dos → migración 009 (borrador). Hasta que esa migración esté en la
-     base, se mantiene el contador único: Free 3/día (sin cambio), Plus/Pro 30/día. La cuota
-     de Pro pasó de 10 a 30 (bug documentado: CLAUDE.md y la memoria decían 30 hace rato). */
-  quota: { free: 3, plus: 30, pro: 30 },
+  /* ── LÍMITES DE USO por ACCIÓN y por TIER (rediseño 31/07: de diario a por-acción) ──
+     Antes era UN contador diario compartido (usage_daily.cv_adaptations). Ahora se cuenta
+     por acción, con una VENTANA distinta según el tier. Solo se CUENTAN el diagnóstico y la
+     adaptación a vacante; la carta (solo Pro) y la entrevista (Plus+) son ILIMITADAS — su
+     único freno es el candado del tier. Motor en routes/cv.js, tabla usage_counters (mig 011).
+       Ventana: free='life' (de por vida, NO resetea) · plus='month' (mes calendario, resetea
+       el 1°) · pro='none' (sin tope). Los contadores arrancan de cero (tabla nueva). */
+  limits: {
+    free: { diagnostic: 2, tailor: 1 },     // 2 diagnósticos y 1 adaptación EN TOTAL
+    plus: { diagnostic: 6, tailor: 15 },    // por mes
+    pro:  { diagnostic: Infinity, tailor: Infinity },
+  },
+  quotaWindow: { free: 'life', plus: 'month', pro: 'none' },
   /* Tope de CVs GUARDADOS por usuario (distinto de la cuota diaria de IA): cuántos
      CVs distintos puede tener en su panel. Free: 2 (ej: uno por rubro o por idioma).
      Plus: 20. Pro: sin tope. Server-autoritativo, igual que la cuota. */

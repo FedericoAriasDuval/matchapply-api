@@ -19,6 +19,7 @@ import { decryptJson, decryptText, encryptJson, encryptText } from '../lib/crypt
 import { renderCvPdf } from '../lib/pdf.js';
 import { renderCvDocx } from '../lib/docx.js';
 import { cvLimitReached } from '../lib/cvLimit.js';
+import { quotaSpec as quotaSpecPure, periodKey, isUncounted } from '../lib/quota.js';
 
 export const cvRouter = Router();
 
@@ -30,68 +31,91 @@ const upload = multer({
 /* El hash se calcula sobre el texto PLANO, antes de cifrar. Es lo que permite
    deduplicar y usar la caché sin tener que descifrar nada. */
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => new Date().toISOString().slice(0, 10);      // 'AAAA-MM-DD'
 
-/** Cuota diaria server-side. El cliente nunca decide esto. */
+/** Cuota de uso server-side, POR ACCIÓN. El cliente nunca decide esto.
+    Rediseño 31/07 (config.limits + config.quotaWindow + tabla usage_counters):
+    solo se cuentan 'diagnostic' y 'tailor'; la carta (Pro) y la entrevista (Plus+)
+    son ILIMITADAS (su único freno es el candado de tier). La lógica PURA (spec,
+    período, sin-tope) vive en lib/quota.js; acá va el motor con DB. */
 /* El fundador (email en FOUNDER_EMAILS) prueba la plataforma sin gastar cuota: ni
-   consume ni se topa. Reportamos left alto para que el front nunca lo frene. */
+   consume ni se topa. */
 const isFounder = (user) => config.founderEmails.includes(String(user?.email ?? '').toLowerCase());
 
-const consumeQuota = async (user) => {
-  if (isFounder(user)) return { used: 0, limit: config.quota.pro, left: 999, pro: true };
-  const limit = config.quota[user.tier] ?? config.quota.free;
+/* Envoltorios finos sobre lib/quota.js con la config del sitio. */
+const quotaSpec = (tier, action) => quotaSpecPure(tier, action, config.limits, config.quotaWindow);
+const periodOf = (window) => periodKey(window);
+/* limit:null = ILIMITADO (JSON no transporta Infinity). El front lo lee como sin tope. */
+const unlimited = () => ({ used: 0, limit: null, left: null, unlimited: true });
+
+/* Cobra un uso de `action`. Tira quota_exceeded (429) si ya estaba en el tope. */
+const consumeQuota = async (user, action) => {
+  if (isFounder(user)) return unlimited();
+  const spec = quotaSpec(user.tier, action);
+  if (isUncounted(spec)) return unlimited();          // Pro, o acción sin tope
+  const period = periodOf(spec.window);
   const { rows } = await query(
-    `insert into usage_daily (user_id, day, cv_adaptations)
-     values ($1, $2, 1)
-     on conflict (user_id, day) do update set cv_adaptations = usage_daily.cv_adaptations + 1
-     returning cv_adaptations`,
-    [user.id, today()],
+    `insert into usage_counters (user_id, action, period, n) values ($1, $2, $3, 1)
+     on conflict (user_id, action, period) do update set n = usage_counters.n + 1
+     returning n`,
+    [user.id, action, period],
   );
-  const used = rows[0].cv_adaptations;
-  if (used > limit) {
+  const used = rows[0].n;
+  if (used > spec.max) {
     await query(
-      `update usage_daily set cv_adaptations = $3 where user_id = $1 and day = $2`,
-      [user.id, today(), limit],
+      `update usage_counters set n = $4 where user_id = $1 and action = $2 and period = $3`,
+      [user.id, action, period, spec.max],
     );
-    throw tooMany('quota_exceeded', 'Llegaste a tu límite diario de adaptaciones.', {
-      /* Ofrecer "subí de plan" SOLO si un plan más alto de verdad da más cuota. Hoy
-         plus y pro comparten 30/día, así que a un Plus no se le vende Pro por cuota
-         (no le sube nada); a un free sí (3 → 30). Se lee de config para no mentir si
-         los números cambian. */
-      upgrade: (config.quota.pro || 0) > (config.quota[user.tier] || 0),
-      limit,
-    });
+    const mensual = spec.window === 'month';
+    throw tooMany(
+      'quota_exceeded',
+      mensual ? 'Llegaste a tu límite del mes. Se renueva el 1°.' : 'Llegaste al límite del plan gratis.',
+      /* upgrade siempre: en las dos acciones contadas, un plan más alto da más. action/window
+         para que el front muestre el mensaje justo (de por vida vs mensual). */
+      { upgrade: true, limit: spec.max, action, window: spec.window },
+    );
   }
-  return { used, limit, left: limit - used };
+  return { used, limit: spec.max, left: spec.max - used };
 };
 
-/* Si la IA fallo, el uso se devuelve. La cuota se cobra ANTES de llamar al
-   modelo (para que nadie sobre el limite gaste LLM), pero un error NUESTRO
-   no puede costarle un uso al usuario: el 16/07 cinco intentos fallidos
-   dejaron una cuenta sin cuota sin haber recibido nada a cambio. */
-const refundQuota = async (user) => {
-  if (isFounder(user)) return;   // no consumió, no hay nada que devolver
+/* Si la IA falló, el uso se devuelve: la cuota se cobra ANTES de llamar al modelo
+   (para que nadie sobre el límite gaste LLM), pero un error NUESTRO no puede costarle
+   un uso al usuario. Solo devuelve si la acción se contaba para este tier. */
+const refundQuota = async (user, action) => {
+  if (isFounder(user)) return;
+  const spec = quotaSpec(user.tier, action);
+  if (isUncounted(spec)) return;   // no se contó, no hay nada que devolver
+  const period = periodOf(spec.window);
   await query(
-    `update usage_daily set cv_adaptations = greatest(cv_adaptations - 1, 0)
-      where user_id = $1 and day = $2`,
-    [user.id, today()],
+    `update usage_counters set n = greatest(n - 1, 0) where user_id = $1 and action = $2 and period = $3`,
+    [user.id, action, period],
   );
 };
 
-const getQuota = async (user) => {
-  if (isFounder(user)) return { used: 0, limit: config.quota.pro, left: 999, pro: true, tier: user.tier };
-  const limit = config.quota[user.tier] ?? config.quota.free;
+/* Estado de una acción (para reconciliar el front). Pro/founder/sin-tope → ilimitado. */
+const actionQuota = async (user, action) => {
+  if (isFounder(user)) return unlimited();
+  const spec = quotaSpec(user.tier, action);
+  if (isUncounted(spec)) return unlimited();
+  const period = periodOf(spec.window);
   const { rows } = await query(
-    `select cv_adaptations from usage_daily where user_id = $1 and day = $2`,
-    [user.id, today()],
+    `select n from usage_counters where user_id = $1 and action = $2 and period = $3`,
+    [user.id, action, period],
   );
-  const used = rows[0]?.cv_adaptations ?? 0;
-  /* tier/pro van en la respuesta para que el front reconcilie el plan: el server
-     es la fuente de verdad. Sin esto, un USER local viejo muestra el badge/cuota
-     equivocados. `pro` se mantiene (compat con el front actual) y significa
-     exactamente Pro; `tier` es el plan exacto (free/plus/pro) para el badge. */
-  return { used, limit, left: Math.max(0, limit - used), pro: user.tier === 'pro', tier: user.tier };
+  const used = rows[0]?.n ?? 0;
+  return { used, limit: spec.max, left: Math.max(0, spec.max - used) };
 };
+
+/* Foto completa de la cuota: las DOS acciones contadas + el tier. `tier`/`pro` van
+   para que el front reconcilie el plan (el server es la fuente de verdad); `window`
+   distingue el mensaje "de por vida" (free) del "por mes" (plus). */
+const getQuota = async (user) => ({
+  tier: user.tier,
+  pro: user.tier === 'pro',
+  window: config.quotaWindow[config.limits[user.tier] ? user.tier : 'free'] || 'life',
+  diagnostic: await actionQuota(user, 'diagnostic'),
+  tailor: await actionQuota(user, 'tailor'),
+});
 
 /**
  * Estructura el CV con el LLM y lo sanea.
@@ -289,13 +313,13 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       });
     }
 
-    const quota = await consumeQuota(req.user);
+    await consumeQuota(req.user, 'diagnostic');
     let data, doc;
     try {
       data = await structureCv(sourceText, lang);
       doc = await saveCv(req.user.id, sourceText, data, lang);   // DENTRO del try: si el guardado/cifrado falla, la cuota se devuelve igual (antes quedaba afuera y cobraba un uso perdido)
     } catch (e) {
-      await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
+      await refundQuota(req.user, 'diagnostic').catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
 
@@ -307,7 +331,7 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
       id: doc.id,
       lang: doc.lang,
       editable,
-      quota,
+      quota: await getQuota(req.user),
       warnings: data.warnings,
       cv: data,
       preview: {
@@ -481,7 +505,7 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
     const doc = readCvRow(rows[0]);   // descifrar: al LLM le llega el JSON, no el cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
-    const quota = await consumeQuota(req.user);
+    await consumeQuota(req.user, 'tailor');
     let out, tailored;
     try {
       out = await completeJson({
@@ -490,14 +514,14 @@ cvRouter.post('/:id/tailor', authenticate, aiLimiter, async (req, res, next) => 
       });
       tailored = sanitizeCv(out.cv ?? {});   // DENTRO del try: si el modelo devolvió un cv inválido, la cuota se devuelve (antes tiraba sin refund)
     } catch (e) {
-      await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
+      await refundQuota(req.user, 'tailor').catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
     }
 
     const editable = tieneAlMenos(req.user, 'plus');
 
     res.json({
-      quota,
+      quota: await getQuota(req.user),
       atsScore: Math.max(0, Math.min(100, Number(out.ats_score) || 0)),
       matched: Array.isArray(out.matched_keywords) ? out.matched_keywords.slice(0, 30) : [],
       missing: Array.isArray(out.missing_keywords) ? out.missing_keywords.slice(0, 30) : [],
@@ -533,20 +557,14 @@ cvRouter.post('/:id/cover', authenticate, requirePro, aiLimiter, async (req, res
     const doc = readCvRow(rows[0]);   // descifrar: al LLM le llega el JSON, no el cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
-    const quota = await consumeQuota(req.user);
-    let letter;
-    try {
-      const out = await completeJson({
-        system: CV_COVER_PROMPT,
-        user: buildCoverMessage(doc.data, jobDescription, tone, lang || doc.lang, draft),
-      });
-      letter = String(out.letter ?? '').trim().slice(0, 4000);
-      if (!letter) throw badRequest('cover_failed', 'No pudimos generar la carta. Probá de nuevo.');   // DENTRO del try: carta vacía = fallo nuestro, se devuelve la cuota
-    } catch (e) {
-      await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
-      throw e;
-    }
-    res.json({ quota, tone, letter });
+    /* La carta es SOLO Pro (requirePro arriba) y SIN tope: no consume cuota. */
+    const out = await completeJson({
+      system: CV_COVER_PROMPT,
+      user: buildCoverMessage(doc.data, jobDescription, tone, lang || doc.lang, draft),
+    });
+    const letter = String(out.letter ?? '').trim().slice(0, 4000);
+    if (!letter) throw badRequest('cover_failed', 'No pudimos generar la carta. Probá de nuevo.');
+    res.json({ quota: await getQuota(req.user), tone, letter });
   } catch (e) {
     next(e instanceof z.ZodError ? badRequest('invalid_payload', 'Datos inválidos para la carta.') : e);
   }
@@ -619,31 +637,25 @@ cvRouter.post('/:id/interview', authenticate, requirePlus, aiLimiter, async (req
     const doc = readCvRow(rows[0]);   // descifrar: al LLM le llega el JSON, no el cifrado
     if (!doc) throw badRequest('cv_not_found', 'No encontramos ese CV.');
 
-    // Continuar una entrevista (history no vacío) EXIGE el token que emitimos en
-    // el turno 0. Sin token válido, mandar history es un intento de saltear el
-    // cobro: se rechaza. El turno 0 real (history vacío + sin token) sí cobra.
+    // El token de continuación ordena los turnos: para continuar (history no vacío)
+    // hay que presentar el token emitido en el turno 0; sin él, se rechaza (evita
+    // historiales inventados). La entrevista es Plus+ (requirePlus) e ILIMITADA:
+    // ya no consume cuota, así que el token es solo consistencia de sesión, no cobro.
     const prevTurns = readInterviewSession(session, req.user.id);
     if (history.length > 0 && prevTurns === null) {
       throw badRequest('interview_session', 'La sesión de entrevista venció o no es válida. Empezá de nuevo.');
     }
     const firstTurn = prevTurns === null;
-    const quota = firstTurn ? await consumeQuota(req.user) : undefined;
-    let out;
-    try {
-      out = await completeJson({
-        system: CV_INTERVIEW_PROMPT,
-        user: buildInterviewMessage(doc.data, { role, context, jobDescription, history, lang: lang || doc.lang }),
-      });
-    } catch (e) {
-      if (firstTurn) await refundQuota(req.user).catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
-      throw e;
-    }
+    const out = await completeJson({
+      system: CV_INTERVIEW_PROMPT,
+      user: buildInterviewMessage(doc.data, { role, context, jobDescription, history, lang: lang || doc.lang }),
+    });
 
     const turnsPlayed = (firstTurn ? 0 : prevTurns) + 1;
     const done = out.done === true || turnsPlayed >= 6 || history.length >= 5;
     const ev = (done && out.evaluation && typeof out.evaluation === 'object') ? out.evaluation : null;
     res.json({
-      quota,
+      quota: await getQuota(req.user),
       feedback: String(out.feedback ?? '').trim().slice(0, 1_500) || null,
       question: done ? null : (String(out.question ?? '').trim().slice(0, 800) || null),
       done,
