@@ -24,6 +24,8 @@ import { referralsRouter } from './routes/referrals.js';
 import { oauthRouter } from './routes/oauth.js';
 import { corporateRouter } from './routes/corporate.js';
 import { talentRouter } from './routes/talent.js';
+import { extensionRouter } from './routes/extension.js';
+import { isAllowedOrigin } from './lib/cors.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -36,7 +38,10 @@ app.use(
 );
 app.use(
   cors({
-    origin: config.appUrl,
+    /* Antes: un solo origen (mavante.com). Ahora también la extensión de Chrome
+       (chrome-extension://<id>), sin abrir a cualquier web — la lógica pura y testeable
+       vive en lib/cors.js. La auth server-side sigue siendo el freno real. */
+    origin: (origin, cb) => cb(null, isAllowedOrigin(origin, config.appUrl, config.extension.origin)),
     credentials: true,           // cookies httpOnly de sesión
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],   // PATCH: renombrar CV (PATCH /cv/:id/title)
   }),
@@ -102,6 +107,7 @@ app.use('/auth', authRouter);
    comeria /auth/login, /auth/verify y /auth/resend si fuera primero. */
 app.use('/auth', oauthRouter);
 app.use('/cv', cvRouter);
+app.use('/extension', extensionRouter);   // GET /extension/session: la extensión pregunta si hay Pro activo
 app.use('/reviews', reviewsRouter);   // POST publico · GET /summary solo con ADMIN_TOKEN
 app.use('/reviews', featuredRouter);  // GET /reviews/featured: solo testimonios REALES
 app.use('/contact', contactRouter);   // POST publico: mensaje de contacto -> mail a soporte

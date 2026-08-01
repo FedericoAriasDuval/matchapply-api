@@ -188,6 +188,12 @@ export const config = {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean),
 
+  /* Extensión de Chrome (feature Pro). Llama a la API desde chrome-extension://<id>.
+     EXTENSION_ORIGIN, si se setea con el id publicado en la Chrome Web Store, restringe
+     CORS a ESA extensión; vacío = se acepta cualquier chrome-extension:// (dev / mientras
+     no está publicada). Ajustarlo al id real cuando salga a la Store. */
+  extension: { origin: process.env.EXTENSION_ORIGIN || '' },
+
   /* Panel de Talento (B2B2C). APAGADO por defecto, y es a propósito: mientras
      esté en false, /corporate/* no existe — devuelve 404 como cualquier ruta
      inventada. Ninguna empresa puede ver un perfil por accidente, ni siquiera
