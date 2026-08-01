@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { authenticate, requirePro } from '../middleware/auth.js';
+import { extensionConnectLimiter } from '../middleware/rateLimit.js';
 import { authenticateExtension } from '../middleware/extensionAuth.js';
 import { tieneAlMenos } from '../lib/tier.js';
 import { crearTokenExtension, revocarTokenExtension } from '../lib/extensionTokensStore.js';
@@ -29,7 +30,7 @@ const proRequerido = (res) =>
 
 /* POST /extension/connect  — lo llama el SITIO (cookie), no la extensión.
    Logueado + Pro → emite un token para pegar en la extensión. */
-extensionRouter.post('/connect', authenticate, requirePro, async (req, res, next) => {
+extensionRouter.post('/connect', authenticate, requirePro, extensionConnectLimiter, async (req, res, next) => {
   try {
     const label = String(req.body?.label ?? '').trim().slice(0, 80) || null;
     const { raw, expiresAt } = await crearTokenExtension(req.user.id, label);
@@ -53,13 +54,14 @@ extensionRouter.get('/session', authenticateExtension, (req, res) => {
   });
 });
 
-/* GET /extension/cv — datos del CV más reciente para autocompletar formularios.
-   Solo canales de contacto + estructura; NUNCA el source_text ni el cifrado. */
+/* GET /extension/cv — SOLO lo que el autofill necesita: nombre + canales de
+   contacto. NADA de resumen/experiencia/educación/skills (el autofill no los usa)
+   ni source_text ni el cifrado — así un token filtrado expone lo mínimo. */
 extensionRouter.get('/cv', authenticateExtension, async (req, res, next) => {
   try {
     if (!tieneAlMenos(req.user, 'pro')) return proRequerido(res);
     const { rows } = await query(
-      `select id, title, lang, data, updated_at from cv_documents
+      `select title, lang, data, updated_at from cv_documents
         where user_id = $1 order by updated_at desc limit 1`,
       [req.user.id],
     );
@@ -74,10 +76,6 @@ extensionRouter.get('/cv', authenticateExtension, async (req, res, next) => {
       cv: {
         name: d.name ?? '',
         contact: d.contact ?? {},
-        summary: d.summary ?? '',
-        skills: Array.isArray(d.skills) ? d.skills : [],
-        experience: Array.isArray(d.experience) ? d.experience : [],
-        education: Array.isArray(d.education) ? d.education : [],
         lang: doc.lang ?? 'es',
         title: doc.title ?? '',
       },

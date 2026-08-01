@@ -11,6 +11,7 @@ import {
 } from '../lib/tokens.js';
 import { authenticate } from '../middleware/auth.js';
 import { SELECT_USER_CON_ACCESO, tierEfectivo } from '../lib/tier.js';
+import { revocarTodosLosTokensExtension } from '../lib/extensionTokensStore.js';
 import { recordConsentGiven, wantsCompanyVisibility } from '../lib/consent.js';
 import { codeLimiter, loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
 import { HttpError, badRequest, forbidden, tooMany, unauthorized } from '../middleware/errors.js';
@@ -453,6 +454,10 @@ authRouter.post('/logout', async (req, res, next) => {
 authRouter.post('/logout-all', authenticate, async (req, res, next) => {
   try {
     await revokeAllSessions(req.user.id);
+    // "cerrar sesión en todo" también mata los tokens de la extensión: si no, una
+    // cuenta comprometida no tendría forma de revocar un mavx_ que quedó en otro
+    // dispositivo (vive hasta 90 días). Ver revisión de seguridad, hallazgo M1.
+    await revocarTodosLosTokensExtension(req.user.id);
     clearAuthCookies(res);
     res.json({ ok: true });
   } catch (e) {

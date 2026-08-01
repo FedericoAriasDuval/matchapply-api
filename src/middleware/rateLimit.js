@@ -98,6 +98,14 @@ export const aiLimiter = rateLimit(
     'Fue todo muy rápido. Esperá un minuto: tu CV está guardado.', porUsuarioOIp),
 );
 
+/* Emitir tokens de extensión: 20 cada 15 min POR USUARIO. Conectar un dispositivo
+   es algo esporádico; esto evita que una sesión comprometida genere credenciales
+   de 90 días en masa. Exige Pro ANTES del freno, así que siempre hay usuario. */
+export const extensionConnectLimiter = rateLimit(
+  opts(15 * 60_000, 20, 'extension_rate_limited',
+    'Esperá unos minutos antes de generar otro código de extensión.', porUsuarioOIp),
+);
+
 /* Reseñas: 15 cada 10 min. Pueden ser anónimas, así que el freno es por IP —
    pero 5 era muy poco para una oficina entera. */
 export const reviewLimiter = rateLimit(

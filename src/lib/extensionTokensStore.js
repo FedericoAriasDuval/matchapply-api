@@ -14,9 +14,31 @@ import {
   vencimientoExtension,
 } from './extensionTokens.js';
 
+/** Cuántos tokens VIVOS puede tener un usuario a la vez (evita el sprawl de
+ *  credenciales si una sesión comprometida spamea /connect). */
+const MAX_TOKENS_VIVOS = 10;
+
 /** Emite un token para `userId`, lo guarda HASHEADO y devuelve el token EN CLARO
- *  (única vez que se puede ver) + su vencimiento. */
+ *  (única vez que se puede ver) + su vencimiento. Antes de emitir hace higiene:
+ *  borra los muertos del usuario y, si ya llegó al tope, revoca el más viejo — así
+ *  la tabla no crece sin fin ni quedan decenas de credenciales de 90 días vivas. */
 export const crearTokenExtension = async (userId, label = null, ttlDays = EXT_TTL_DAYS) => {
+  // 1) basura: tokens ya vencidos o revocados de este usuario, fuera.
+  await query(
+    `delete from extension_tokens where user_id = $1 and (revoked_at is not null or expires_at <= now())`,
+    [userId],
+  );
+  // 2) tope: si ya tiene MAX vivos, revocar los más viejos para que tras insertar quede en MAX.
+  await query(
+    `update extension_tokens set revoked_at = now()
+      where token_hash in (
+        select token_hash from extension_tokens
+         where user_id = $1 and revoked_at is null and expires_at > now()
+         order by created_at desc offset $2
+      )`,
+    [userId, MAX_TOKENS_VIVOS - 1],
+  );
+
   const raw = nuevoTokenExtensionRaw();
   const expiresAt = vencimientoExtension(ttlDays);
   await query(
