@@ -11,6 +11,12 @@
 export const isAllowedOrigin = (origin, appUrl, extOrigin = '') => {
   if (!origin) return true;
   if (origin === appUrl) return true;
+  /* El sitio se sirve TAMBIÉN en www.<dominio> (Cloudflare Pages responde apex y www).
+     Quien entra por "www." queda en OTRO Origin, y la API le bloqueaba CADA llamada por
+     CORS: no podía registrarse ni usar nada. Aceptamos la variante www del mismo sitio.
+     El guard evita un www.www si algún día appUrl ya trae www. (Reportado en prod.) */
+  if (appUrl && !/:\/\/www\./i.test(appUrl) &&
+      origin === appUrl.replace(/^(https?:\/\/)/i, '$1www.')) return true;
   if (/^chrome-extension:\/\/[a-z0-9]{16,}$/i.test(origin)) {
     return extOrigin ? origin === extOrigin : true;
   }

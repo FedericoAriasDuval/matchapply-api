@@ -16,6 +16,15 @@ test('CORS: el sitio (appUrl) → permitido; otra web → bloqueada', () => {
   assert.equal(isAllowedOrigin('https://mavante.com.evil.com', APP), false);
 });
 
+test('CORS: la variante www del mismo sitio → permitida (Cloudflare sirve apex y www)', () => {
+  assert.equal(isAllowedOrigin('https://www.mavante.com', APP), true);
+  // pero NO variantes que solo se le parecen
+  assert.equal(isAllowedOrigin('https://www.mavante.com.evil.com', APP), false);
+  assert.equal(isAllowedOrigin('https://wwwmavante.com', APP), false);
+  // y no rompe si appUrl ya trae www (no genera www.www)
+  assert.equal(isAllowedOrigin('https://www.mavante.com', 'https://www.mavante.com'), true);
+});
+
 test('CORS: cualquier extensión de Chrome cuando NO hay EXTENSION_ORIGIN (dev)', () => {
   assert.equal(isAllowedOrigin(EXT, APP, ''), true);
 });
