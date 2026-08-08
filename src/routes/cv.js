@@ -199,25 +199,43 @@ const structureCvUncached = async (sourceText, lang) => {
   }
 };
 
-const saveCv = async (userId, sourceText, data, lang, title = 'CV') => {
+const saveCv = async (userId, sourceText, data, lang, title = 'CV', cap = null) => {
   /* El idioma entra a la huella: el mismo CV pedido en es y en en son dos
      documentos distintos (el contenido se traduce). Sigue siendo sobre texto
      plano: deduplica sin descifrar. El prefijo v2 invalida los resultados de
      la era pre-traduccion/pre-primera-persona (16/07): cambia el prefijo si
      el prompt cambia de forma que los resultados guardados queden obsoletos. */
   const hash = sha256(`v2:${lang}\n${sourceText}`);
+  /* `cap`: el tope de CVs del plan, aplicado EN el insert. El chequeo de la ruta
+     (count → if) corre segundos antes, mientras el LLM trabaja: dos subidas en
+     paralelo pasaban las dos y un free quedaba con más CVs que su tope (TOCTOU).
+     Acá el guard vive en la misma sentencia. Re-parsear un CV que ya existe
+     (conflict) nunca se bloquea: no ocupa un slot nuevo. Sin cap (null) = el
+     insert de siempre. Devuelve null si el tope frenó el insert. */
+  const conCap = Number.isFinite(cap);
   const { rows } = await query(
-    `insert into cv_documents (user_id, title, source_text, source_hash, lang, data)
-     values ($1, $2, $3, $4, $5, $6)
-     on conflict (user_id, source_hash)
-       do update set data = excluded.data, lang = excluded.lang, edited = false, updated_at = now()
-     returning id, title, lang, data, edited, updated_at`,
+    conCap
+      ? `insert into cv_documents (user_id, title, source_text, source_hash, lang, data)
+         select $1, $2, $3, $4, $5, $6
+          where exists (select 1 from cv_documents where user_id = $1 and source_hash = $4)
+             or (select count(*) from cv_documents where user_id = $1) < $7
+         on conflict (user_id, source_hash)
+           do update set data = excluded.data, lang = excluded.lang, edited = false, updated_at = now()
+         returning id, title, lang, data, edited, updated_at`
+      : `insert into cv_documents (user_id, title, source_text, source_hash, lang, data)
+         values ($1, $2, $3, $4, $5, $6)
+         on conflict (user_id, source_hash)
+           do update set data = excluded.data, lang = excluded.lang, edited = false, updated_at = now()
+         returning id, title, lang, data, edited, updated_at`,
     /* El CV entra a la base CIFRADO (AES-256-GCM). Un dump de Postgres, un backup
        filtrado o alguien con acceso a la consola ven bytes, no la vida laboral de
        una persona. Es lo que sostiene la promesa que hicimos en la web. */
-    [userId, title, encryptText(sourceText), hash, lang, encryptJson(data)],
+    conCap
+      ? [userId, title, encryptText(sourceText), hash, lang, encryptJson(data), cap]
+      : [userId, title, encryptText(sourceText), hash, lang, encryptJson(data)],
   );
   const row = rows[0];
+  if (!row) return null;                       // el tope ganó la carrera: no se insertó
   return { ...row, data: decryptJson(row.data) };
 };
 
@@ -317,7 +335,10 @@ cvRouter.post('/parse', authenticate, aiLimiter, upload.single('file'), async (r
     let data, doc;
     try {
       data = await structureCv(sourceText, lang);
-      doc = await saveCv(req.user.id, sourceText, data, lang);   // DENTRO del try: si el guardado/cifrado falla, la cuota se devuelve igual (antes quedaba afuera y cobraba un uso perdido)
+      // DENTRO del try: si el guardado/cifrado falla, la cuota se devuelve igual (antes quedaba afuera y cobraba un uso perdido).
+      // El cap viaja al insert (guard atómico del tope de CVs); fundador y tiers sin tope van sin cap.
+      doc = await saveCv(req.user.id, sourceText, data, lang, 'CV', isFounder(req.user) ? null : cvCap);
+      if (!doc) throw forbidden('cv_limit', 'Llegaste al máximo de CVs de tu plan.', { upgrade: !tieneAlMenos(req.user, 'pro'), limit: cvCap });
     } catch (e) {
       await refundQuota(req.user, 'diagnostic').catch((e) => console.warn('[quota] no se pudo devolver la cuota:', e?.message));   // el fallo es nuestro, el uso se devuelve
       throw e;
